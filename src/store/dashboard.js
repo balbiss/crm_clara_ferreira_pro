@@ -7,9 +7,8 @@ export const useDashboardStore = defineStore('dashboard', {
       total_contacts:  0,
       pretensao_venda: 0,
       temperature:     { quente: 0, morno: 0, frio: 0 },
-      kanban:          { lead: 0, visit: 0, proposal: 0, won: 0 },
-      conversations:   { open: 0, resolved: 0, today: 0, with_human: 0 },
-      appointments:    { total: 0, today: 0, upcoming: 0, done: 0 }
+      kanban:          { revendedor_ativo: 0, terceiro_dia: 0, decimo_dia: 0, vigesimo_dia: 0, agendado: 0 },
+      conversations:   { open: 0, resolved: 0, today: 0, with_human: 0 }
     },
     leadsBySourceData: {
       labels: ['Sem dados'],

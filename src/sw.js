@@ -28,7 +28,7 @@ self.addEventListener('fetch', (event) => {
 // Push notification received
 self.addEventListener('push', (event) => {
   const data = event.data?.json() ?? {}
-  const title   = data.title || 'VisitaIA CRM'
+  const title   = data.title || 'Clara Ferreira CRM'
   const options = {
     body:    data.body    || 'Você tem uma nova notificação.',
     icon:    '/pwa-192x192.png',
