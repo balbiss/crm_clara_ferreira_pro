@@ -1,0 +1,32 @@
+{
+  "name": "crm-frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "generate-icons": "node generate-icons.js"
+  },
+  "dependencies": {
+    "@lucide/vue": "^1.18.0",
+    "axios": "^1.17.0",
+    "chart.js": "^4.5.1",
+    "lucide-vue-next": "^1.0.0",
+    "pinia": "^3.0.4",
+    "sweetalert2": "^11.26.25",
+    "vue": "^3.5.34",
+    "vue-chartjs": "^5.3.3",
+    "vue-router": "^4.6.4",
+    "vue3-emoji-picker": "^1.1.8"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.6",
+    "sass": "^1.101.0",
+    "sharp": "^0.35.1",
+    "vite": "^8.0.12",
+    "vite-plugin-pwa": "^1.3.0",
+    "workbox-precaching": "^7.4.1"
+  }
+}
