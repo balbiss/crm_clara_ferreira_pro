@@ -79,10 +79,12 @@ class ChargesController < ApplicationController
     render json: { error: 'Contato não encontrado.' }, status: :not_found
   end
 
+  # Cobrança é dado financeiro (briefing seção 30: "Financeiro / Cobrança").
+  # Substituído o check antigo por `department` (residual da VisitaIA, nunca
+  # fazia sentido pro domínio da Clara) pelo `finance_access?` real.
   def require_billing_access!
-    dept = current_user.department.presence || 'corretor'
-    return if owner? || dept != 'corretor'
-    render json: { error: 'forbidden', message: 'Corretores não podem gerar cobranças.' }, status: :forbidden
+    return if finance?
+    render json: { error: 'forbidden', message: 'Acesso restrito ao financeiro/diretoria.' }, status: :forbidden
   end
 
   def send_via_whatsapp(asaas, charge_id, bank_slip_url, billing_type, description, valor_fmt, venc_fmt)

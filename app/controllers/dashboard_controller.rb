@@ -1,6 +1,6 @@
 class DashboardController < ApplicationController
   def index
-    is_owner   = current_user.empresa? || current_user.admin? || current_user.has_permission?('view_all_contacts') || current_user.has_permission?('admin')
+    is_owner   = full_portfolio? || current_user.has_permission?('view_all_contacts')
     account    = current_user.account
     uid        = current_user.id
     today      = Date.current
@@ -10,14 +10,10 @@ class DashboardController < ApplicationController
     if is_owner
       contacts_scope = account.contacts
       conv_scope     = account.conversations
-      appt_scope     = Appointment.where(account_id: account.id)
     else
       my_contact_ids = account.conversations.where(user_id: uid).pluck(:contact_id).uniq
       contacts_scope = account.contacts.where(id: my_contact_ids)
       conv_scope     = account.conversations.where(user_id: uid)
-      # Agendamentos atribuídos ao corretor OU criados pela IA para seus contatos
-      appt_scope     = Appointment.where(account_id: account.id)
-                                  .where('user_id = ? OR (user_id IS NULL AND contact_id IN (?))', uid, my_contact_ids.presence || [0])
     end
 
     # Batch contacts: 3 GROUP BY queries instead of 9 individual COUNTs
@@ -30,11 +26,13 @@ class DashboardController < ApplicationController
     morno  = %w[morno Morno MORNO].sum   { |t| temp_counts[t] || 0 }
     frio   = %w[frio Frio FRIO].sum      { |t| temp_counts[t] || 0 }
 
+    # Régua consignada (briefing seção 12) — etapas do ciclo ativo
     kanban = {
-      lead:     status_counts['lead']     || 0,
-      visit:    status_counts['visit']    || 0,
-      proposal: status_counts['proposal'] || 0,
-      won:      status_counts['won']      || 0
+      revendedor_ativo: status_counts['revendedor_ativo'] || 0,
+      terceiro_dia:     status_counts['terceiro_dia']     || 0,
+      decimo_dia:       status_counts['decimo_dia']       || 0,
+      vigesimo_dia:     status_counts['vigesimo_dia']     || 0,
+      agendado:         status_counts['agendado']         || 0
     }
 
     pretensao_venda = %w[venda Venda VENDA].sum { |i| intention_counts[i] || 0 }
@@ -48,13 +46,6 @@ class DashboardController < ApplicationController
     com_atendente_tag = account.tags.find_by(name: 'com_atendente')
     with_human = com_atendente_tag ? conv_scope.joins(:conversation_tags)
       .where(conversation_tags: { tag_id: com_atendente_tag.id }).count : 0
-
-    # Appointments: batch status into GROUP BY
-    appt_status   = appt_scope.group(:status).count
-    appt_total    = appt_scope.count
-    appt_today    = appt_scope.where(appointment_date: today).count
-    appt_upcoming = appt_scope.where('appointment_date >= ?', today).where.not(status: 'cancelled').count
-    appt_done     = appt_status['completed'] || 0
 
     leads_by_source = contacts_scope.where.not(source: [nil, '']).group(:source).count
 
@@ -89,8 +80,7 @@ class DashboardController < ApplicationController
         pretensao_venda: pretensao_venda,
         temperature:     { quente: quente, morno: morno, frio: frio },
         kanban:          kanban,
-        conversations:   { open: conv_open, resolved: conv_resolved, today: conv_today, with_human: with_human },
-        appointments:    { total: appt_total, today: appt_today, upcoming: appt_upcoming, done: appt_done }
+        conversations:   { open: conv_open, resolved: conv_resolved, today: conv_today, with_human: with_human }
       },
       leads_by_source:      leads_by_source,
       today_assigned_leads: today_assigned_leads

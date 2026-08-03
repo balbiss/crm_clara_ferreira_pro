@@ -1,32 +1,48 @@
 class ContactsController < ApplicationController
   before_action :set_contact, only: %i[ show update destroy merge add_note block unblock ]
+  before_action :require_full_portfolio!, only: %i[ destroy merge ]
 
   # GET /contacts
   def index
-    base = current_user.account.contacts
-    @contacts = if current_user.role == 'admin' || current_user.role == 'empresa' || current_user.permissions&.dig('view_all_contacts') || current_user.has_permission?('admin')
-      base
-    else
-      base.where(user_id: current_user.id)
-    end
+    # Blacklist manual (Rev. Desconsiderados) some da listagem operacional pra
+    # todo mundo — não é regra de permissão, é exclusão de qualidade de dado.
+    # Quem precisar revisar um desconsiderado especificamente ainda consegue
+    # abrir por ID direto (show não aplica esse filtro).
+    @contacts = visible_contacts_scope.not_blacklisted
 
     page     = (params[:page] || 1).to_i
     per_page = (params[:per_page] || 50).to_i.clamp(1, 200)
-    @contacts = @contacts.order(created_at: :desc).offset((page - 1) * per_page).limit(per_page)
+    @contacts = @contacts.includes(:reseller_phones).order(created_at: :desc).offset((page - 1) * per_page).limit(per_page)
 
-    render json: @contacts
+    render json: @contacts.to_a.as_json(include: :reseller_phones)
+  end
+
+  # GET /contacts/ativas?data=2026-06-30 — Engine de Time Travel. Sem `data`,
+  # devolve o snapshot de hoje (rápido, via colunas pré-calculadas). Respeita
+  # o mesmo escopo de carteira do index (consultor só vê a própria).
+  def ativas
+    data = params[:data].present? ? Date.parse(params[:data]) : nil
+    resultado = AtivasSnapshotService.new(
+      contacts_scope: visible_contacts_scope,
+      min_pecas_ativa: current_user.account.min_pecas_ativa,
+      data: data
+    ).call
+    render json: { data_referencia: data || Date.current, total: resultado.size, revendedoras: resultado }
+  rescue Date::Error, ArgumentError
+    render json: { error: 'Data inválida. Use o formato YYYY-MM-DD.' }, status: :unprocessable_entity
   end
 
   # GET /contacts/1
   def show
-    @contact = Contact.includes(conversations: :messages, notes: :user).find(@contact.id)
+    @contact = Contact.includes(conversations: :messages, notes: :user, reseller_phones: {}).find(@contact.id)
     render json: @contact.as_json(include: {
       conversations: {
         include: :messages
       },
       notes: {
         include: :user
-      }
+      },
+      reseller_phones: {}
     })
   end
 
@@ -46,7 +62,7 @@ class ContactsController < ApplicationController
   # PATCH/PUT /contacts/1
   def update
     if @contact.update(contact_params)
-      render json: @contact
+      render json: @contact.as_json(include: :reseller_phones)
     else
       render json: @contact.errors, status: :unprocessable_content
     end
@@ -110,20 +126,55 @@ class ContactsController < ApplicationController
   end
 
   private
+    # Escopo de leitura por perfil (briefing seção 22/30):
+    # - full_portfolio (gerente/diretoria/admin/empresa) e finance (financeiro) veem
+    #   a carteira inteira — financeiro precisa disso pra Inativas/cobrança cruzarem
+    #   consultores.
+    # - Consultor/atendente só veem a própria carteira (contact.user_id == self).
+    def visible_contacts_scope
+      base = current_user.account.contacts
+      if full_portfolio? || finance? || current_user.permissions&.dig('view_all_contacts')
+        base
+      else
+        base.where(user_id: current_user.id)
+      end
+    end
+
     # Use callbacks to share common setup or constraints between actions.
+    # CRÍTICO: antes buscava em `current_user.account.contacts` sem filtrar por
+    # dono — qualquer usuário autenticado conseguia abrir/editar QUALQUER contato
+    # da conta só sabendo o ID, mesmo um consultor sem acesso àquela carteira no
+    # index. Corrigido pra usar o mesmo escopo de `visible_contacts_scope`.
     def set_contact
-      @contact = current_user.account.contacts.find(params[:id])
+      @contact = visible_contacts_scope.find(params[:id])
+    rescue ActiveRecord::RecordNotFound
+      render json: { error: 'not_found', message: 'Contato não encontrado ou fora da sua carteira.' }, status: :not_found
     end
 
     # Only allow a list of trusted parameters through.
     def contact_params
-      params.require(:contact).permit(
-      :name, :email, :phone, :jid, :avatar_url, :status,
-      :first_name, :last_name, :city, :country, :bio, :company_name, 
-      :temperature, :source, :intention,
-      :cpf, :birth_date, :profession, :gross_income, :down_payment, :fgts_balance, :dependents,
-      :cep, :street, :neighborhood, :state, :address_number, :address_complement,
-      custom_attributes: {}
-    )
+      permitted = params.require(:contact).permit(
+        :name, :email, :phone, :jid, :avatar_url, :status,
+        :first_name, :last_name, :city, :country, :bio, :company_name,
+        :temperature, :source, :intention,
+        :cpf, :birth_date,
+        :cep, :street, :neighborhood, :state, :address_number, :address_complement,
+        custom_attributes: {}
+      )
+      # Transferência de responsável (briefing seção 22: "gerente transfere
+      # revendedoras entre responsáveis") — só quem enxerga a carteira toda
+      # pode reatribuir; consultor não pode se auto-transferir contato de outro.
+      permitted[:user_id] = params[:contact][:user_id] if full_portfolio? && params[:contact]&.key?(:user_id)
+
+      # Blacklist manual é override sensível — RBAC seção 7 do Tech Lead:
+      # "Apenas Gerente, Financeiro e Admin podem aplicar overrides manuais".
+      if (full_portfolio? || finance?) && params[:contact]
+        permitted[:desconsiderado] = params[:contact][:desconsiderado] if params[:contact].key?(:desconsiderado)
+        permitted[:desconsiderado_motivo] = params[:contact][:desconsiderado_motivo] if params[:contact].key?(:desconsiderado_motivo)
+        if params[:contact][:desconsiderado].present? && ActiveModel::Type::Boolean.new.cast(params[:contact][:desconsiderado])
+          permitted[:desconsiderado_at] = Time.current
+        end
+      end
+      permitted
     end
 end

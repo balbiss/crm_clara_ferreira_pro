@@ -7,15 +7,20 @@ class ConversationsController < ApplicationController
 
     base = current_user.account.conversations
 
-    # Corretores (atendente) só veem conversas atribuídas a eles
-    # Não mostrar não-atribuídas: evita que fujam da fila do rodízio
-    # Exceção: quem tem permissions['admin'] (Acesso Administrativo Total) vê tudo
-    if current_user.atendente? && !current_user.has_permission?('admin')
+    # Consultor/atendente só veem conversas atribuídas a eles (não mostrar
+    # não-atribuídas evita que fujam da fila do rodízio). Gerente/diretoria/
+    # financeiro (full_portfolio?/finance?) veem tudo — mesma regra de
+    # ContactsController#visible_contacts_scope.
+    #
+    # CORRIGIDO: antes só restringia role == 'atendente' (nomenclatura antiga),
+    # deixando o role novo 'consultor' ver todas as conversas da conta sem
+    # filtro nenhum — vazamento igual ao que corrigimos em ContactsController.
+    unless full_portfolio? || finance? || current_user.has_permission?('admin')
       base = base.where(user_id: current_user.id)
     end
 
     conversations = base
-      .includes(:user, :tags, messages: { attachment_attachment: :blob }, contact: { notes: :user })
+      .includes(:user, :tags, messages: { attachment_attachment: :blob }, contact: { notes: :user, pedidos: {}, reseller_phones: {}, lifecycle_events: {} })
       .order(last_activity_at: :desc)
       .offset((page - 1) * limit).limit(limit)
 
@@ -24,15 +29,15 @@ class ConversationsController < ApplicationController
   end
 
   def show
-    conversation = current_user.account.conversations
-      .includes(:user, :tags, messages: { attachment_attachment: :blob }, contact: { notes: :user })
+    conversation = visible_conversations_scope
+      .includes(:user, :tags, messages: { attachment_attachment: :blob }, contact: { notes: :user, pedidos: {}, reseller_phones: {}, lifecycle_events: {} })
       .find(params[:id])
     users_hash = current_user.account.users.index_by(&:id)
     render json: format_conversation(conversation, users_hash)
   end
 
   def update
-    conversation = current_user.account.conversations.includes(:tags, :contact, :inbox).find(params[:id])
+    conversation = visible_conversations_scope.includes(:tags, :contact, :inbox).find(params[:id])
     users_hash = current_user.account.users.index_by(&:id)
     old_user_id = conversation.user_id
     new_status_param = params.dig(:conversation, :status)
@@ -119,7 +124,7 @@ class ConversationsController < ApplicationController
   end
 
   def ai_status
-    conversation = current_user.account.conversations.includes(:contact).find(params[:id])
+    conversation = visible_conversations_scope.includes(:contact).find(params[:id])
     contact_jid = conversation.contact.channel_identifier
     cache_key = "ai_paused_#{conversation.inbox_id}_#{contact_jid}"
     paused_at = Rails.cache.read(cache_key)
@@ -133,7 +138,7 @@ class ConversationsController < ApplicationController
   end
 
   def resume_ai
-    conversation = current_user.account.conversations.includes(:contact, :tags).find(params[:id])
+    conversation = visible_conversations_scope.includes(:contact, :tags).find(params[:id])
     contact_jid = conversation.contact.channel_identifier
     Rails.cache.delete("ai_paused_#{conversation.inbox_id}_#{contact_jid}")
     agente_off = conversation.tags.find { |t| t.name == 'agente_off' }
@@ -150,7 +155,7 @@ class ConversationsController < ApplicationController
   end
 
   def generate_summary
-    conversation = current_user.account.conversations.includes(:messages).find(params[:id])
+    conversation = visible_conversations_scope.includes(:messages).find(params[:id])
     
     recent_messages = conversation.messages.order(created_at: :asc).last(30)
     
@@ -192,7 +197,7 @@ class ConversationsController < ApplicationController
   end
 
   def transcript
-    conversation = current_user.account.conversations
+    conversation = visible_conversations_scope
       .includes(messages: :attachment_attachment, contact: {})
       .find(params[:id])
 
@@ -234,6 +239,18 @@ class ConversationsController < ApplicationController
 
   private
 
+  # Mesma lógica de ContactsController#visible_contacts_scope — consultor só
+  # acessa conversa atribuída a ele, mesmo sabendo o ID direto (antes todo
+  # action aqui buscava só por account_id, sem checar dono).
+  def visible_conversations_scope
+    base = current_user.account.conversations
+    if full_portfolio? || finance? || current_user.has_permission?('admin')
+      base
+    else
+      base.where(user_id: current_user.id)
+    end
+  end
+
   def conversation_params
     params.require(:conversation).permit(:status, :user_id, :snoozed_until)
   end
@@ -254,15 +271,11 @@ class ConversationsController < ApplicationController
         jid: conv.contact.jid,
         avatar_url: conv.contact.avatar_url,
         avatarInitials: conv.contact.name.to_s[0..1].upcase,
-        avatarBg: '#0052CC',
-        status: 'online',
+        avatarBg: '#d49ba7',
+        status: conv.contact.status,
+        id_jueri: conv.contact.id_jueri,
         cpf: conv.contact.cpf,
         birth_date: conv.contact.birth_date,
-        profession: conv.contact.profession,
-        gross_income: conv.contact.gross_income,
-        down_payment: conv.contact.down_payment,
-        fgts_balance: conv.contact.fgts_balance,
-        dependents: conv.contact.dependents,
         bio: conv.contact.bio,
         company_name: conv.contact.company_name,
         country: conv.contact.country,
@@ -273,6 +286,19 @@ class ConversationsController < ApplicationController
         state: conv.contact.state,
         address_number: conv.contact.address_number,
         address_complement: conv.contact.address_complement,
+        custom_attributes: conv.contact.custom_attributes,
+        pecas_abertas_atual: conv.contact.pecas_abertas_atual,
+        pedidos: conv.contact.pedidos.map do |p|
+          {
+            id: p.id, jueri_pedido_id: p.jueri_pedido_id,
+            data_criacao: p.data_criacao, data_baixa: p.data_baixa, data_cancelamento: p.data_cancelamento,
+            quantidade: p.quantidade, valor_total: p.valor_total, status_id: p.status_id
+          }
+        end,
+        reseller_phones: conv.contact.reseller_phones.map { |rp| { id: rp.id, phone: rp.phone, label: rp.label } },
+        lifecycle_events: conv.contact.lifecycle_events.sort_by(&:occurred_at).reverse.map { |e|
+          { id: e.id, event_type: e.event_type, occurred_at: e.occurred_at, metadata: e.metadata }
+        },
         notes: sorted_notes.map do |n|
           {
             id: n.id,

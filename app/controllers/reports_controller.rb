@@ -1,8 +1,10 @@
 class ReportsController < ApplicationController
   before_action :authenticate_user!
-  # overview e by_tag: todos os usuários (corretor vê o funil geral da conta).
-  # by_agent, performance e export: somente dono — dados sensíveis da equipe.
-  before_action :require_owner!, only: %i[ by_agent performance export ]
+  # overview e by_tag: todos os usuários (consultor vê o funil geral da conta).
+  # by_agent, performance e export: dados da equipe inteira — restrito a quem
+  # enxerga a carteira toda (gerente/diretoria/empresa/admin, briefing seção 30:
+  # "Gerente: acompanha indicadores; acessa relatórios de equipe").
+  before_action :require_full_portfolio!, only: %i[ by_agent performance export ]
 
   def overview
     period = parse_period
@@ -18,30 +20,33 @@ class ReportsController < ApplicationController
       },
       by_source:   contacts.where.not(source: [nil, '']).group(:source).count,
       by_intention: contacts.where.not(intention: [nil, '']).group(:intention).count,
+      # Régua consignada (briefing seção 12) — etapas do ciclo ativo
       funnel: {
-        lead:     contacts.where(status: 'lead').count,
-        visit:    contacts.where(status: 'visit').count,
-        proposal: contacts.where(status: 'proposal').count,
-        won:      contacts.where(status: 'won').count
+        revendedor_ativo: contacts.where(status: 'revendedor_ativo').count,
+        terceiro_dia:     contacts.where(status: 'terceiro_dia').count,
+        decimo_dia:       contacts.where(status: 'decimo_dia').count,
+        vigesimo_dia:     contacts.where(status: 'vigesimo_dia').count,
+        agendado:         contacts.where(status: 'agendado').count
       }
     }
   end
 
   def by_agent
     period     = parse_period
-    agents     = account.users.where(role: %w[atendente admin]).to_a
+    # Antes filtrava só role atendente/admin (nomenclatura antiga da VisitaIA) —
+    # com os 4 perfis novos, quem de fato atende carteira é 'consultor' (e os
+    # papéis herdados atendente/empresa/admin, pra contas antigas/mistas).
+    agents     = account.users.where(role: %w[atendente consultor empresa admin]).to_a
     agent_ids  = agents.map(&:id)
     date_range = period.first.to_date..period.last.to_date
 
     # Batch: 6 queries total instead of ~8 per agent
     leads_count  = account.contacts.where(user_id: agent_ids, created_at: period).group(:user_id).count
     quentes_count = account.contacts.where(user_id: agent_ids, temperature: %w[quente Quente QUENTE], created_at: period).group(:user_id).count
-    won_count    = account.contacts.where(user_id: agent_ids, status: 'won', created_at: period).group(:user_id).count
+    # "Fechado" aqui = revendedora chegou no acerto agendado (equivalente ao "won" antigo)
+    won_count    = account.contacts.where(user_id: agent_ids, status: 'agendado', created_at: period).group(:user_id).count
     conv_open    = account.conversations.where(user_id: agent_ids, status: :open).group(:user_id).count
     conv_total   = account.conversations.where(user_id: agent_ids).group(:user_id).count
-    appt_base    = Appointment.where(account_id: account.id, user_id: agent_ids, appointment_date: date_range)
-    appt_total   = appt_base.group(:user_id).count
-    appt_done    = appt_base.where(status: 'completed').group(:user_id).count
 
     data = agents.map do |agent|
       id = agent.id
@@ -53,8 +58,6 @@ class ReportsController < ApplicationController
         email:               agent.email,
         leads_received:      lc,
         quentes:             quentes_count[id] || 0,
-        visits_scheduled:    appt_total[id]    || 0,
-        visits_done:         appt_done[id]     || 0,
         won:                 wc,
         open_conversations:  conv_open[id]     || 0,
         total_conversations: conv_total[id]    || 0,
@@ -105,17 +108,9 @@ class ReportsController < ApplicationController
     end
     avg_response = times.empty? ? nil : (times.sum / times.size).round(1)
 
-    # Top imóveis mais consultados pela IA
-    top_properties = account.properties
-      .where('search_count > 0')
-      .order(search_count: :desc)
-      .limit(5)
-      .map { |p| { id: p.id, title: p.title.presence || p.property_type, neighborhood: p.neighborhood, price: p.price, search_count: p.search_count } }
-
     render json: {
       conv_trend: conv_trend,
-      avg_response_time_minutes: avg_response,
-      top_properties: top_properties
+      avg_response_time_minutes: avg_response
     }
   end
 
