@@ -40,6 +40,7 @@ import {
 
 import api from '../api'
 import Swal from 'sweetalert2'
+import { ALL_STATUS_LABELS, ACTIVE_STATUS_LABELS, INACTIVE_STATUS_LABELS, statusLabel } from '../constants/regua'
 
 import EmojiPicker from 'vue3-emoji-picker'
 import 'vue3-emoji-picker/css'
@@ -106,7 +107,7 @@ const cancelScheduledMessage = async (msgId) => {
 }
 
 const DEPT_LABELS = {
-  corretor:    'Corretores',
+  corretor:    'Consultoras',
   suporte:     'Suporte',
   financeiro:  'Financeiro',
   manutencao:  'Manutenção',
@@ -164,6 +165,151 @@ const conversationAttachments = computed(() => {
 const isAttachmentsOpen = ref(false)
 
 const isAttributesOpen = ref(false)
+
+const activeDetailsTab = ref('principal')
+const detailsTabs = [
+  { id: 'principal', label: 'Principal' },
+  { id: 'dados', label: 'Dados' },
+  { id: 'financeiro', label: 'Financeiro' },
+  { id: 'estatisticas', label: 'Estatísticas' },
+  { id: 'configuracoes', label: 'Configurações' },
+]
+
+const stageLabel = (status) => statusLabel(status)
+const statusOptions = [
+  { group: 'Ativas', options: ACTIVE_STATUS_LABELS },
+  { group: 'Inativas', options: INACTIVE_STATUS_LABELS },
+]
+const isChangingStatus = ref(false)
+const changeContactStatus = async (newStatus) => {
+  const contact = store.activeConversation?.contact
+  if (!contact?.id || !newStatus || newStatus === contact.status) return
+  isChangingStatus.value = true
+  try {
+    await store.updateContact(contact.id, { status: newStatus })
+  } catch (e) {
+    console.error('Erro ao mudar status:', e)
+    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Erro ao mudar etapa/status.', showConfirmButton: false, timer: 3000 })
+  } finally {
+    isChangingStatus.value = false
+  }
+}
+const daysInStage = (contact) => {
+  const since = contact?.status_changed_at || contact?.created_at
+  if (!since) return null
+  const days = Math.floor((Date.now() - new Date(since).getTime()) / 86_400_000)
+  return days >= 0 ? days : null
+}
+
+// Campos do painel do lead — espelham o que a Clara Ferreira já usa no Kommo (aba Principal).
+// Guardados em custom_attributes (jsonb) pra não depender de migration nova agora; editáveis
+// via "Editar Contato" (já suporta atributos customizados livres).
+const principalFields = [
+  { key: 'venda', label: 'Venda' },
+  { key: 'proximo_agendamento', label: 'Próximo agendamento' },
+  { key: 'limite_inicial', label: 'Limite Inicial' },
+  { key: 'dia_fechamento', label: 'Dia Fechamento' },
+  { key: 'data_agendamento', label: 'Data de Agendamento' },
+  { key: 'obs_fechamento', label: 'Obs Fechamento' },
+  { key: 'dia_pf_fechamento', label: 'Dia p/ Fechamento' },
+  { key: 'horario_fechamento', label: 'Horário de Fechamento' },
+  { key: 'atraso', label: 'Atraso' },
+  { key: 'observacao_mes', label: 'Observação do mês' },
+  { key: 'meta', label: 'Meta' },
+  { key: 'desafio_combinado', label: 'Desafio combinado para o mês' },
+  { key: 'como_chegar_meta', label: 'Como chegar na Meta' },
+]
+const getAttr = (key) => store.activeConversation?.contact?.custom_attributes?.[key]
+
+// Campos livres criados em "Atributos Personalizados" (EditContactModal) — qualquer
+// chave que não seja um dos campos fixos acima nem uma chave de sistema (telefones,
+// pedidos, dados da aba "Dados"). Mantém a lista de chaves reservadas espelhando
+// RESERVED_KEYS do EditContactModal.vue pra não exibir campo duplicado nem os
+// internos (telefones_adicionais, pedidos) aqui no painel Principal.
+const RESERVED_ATTR_KEYS = [
+  ...principalFields.map(f => f.key),
+  'instagram', 'id_jueri', 'origem',
+  'pedidos', 'telefones_adicionais',
+]
+const humanizeKey = (key) => key
+  .replace(/_/g, ' ')
+  .replace(/\b\w/g, (c) => c.toUpperCase())
+const extraAttributes = computed(() => {
+  const custom = store.activeConversation?.contact?.custom_attributes || {}
+  return Object.keys(custom)
+    .filter(k => !RESERVED_ATTR_KEYS.includes(k) && custom[k])
+    .map(k => ({ key: k, label: humanizeKey(k), value: custom[k] }))
+})
+
+const formatDate = (iso) => {
+  if (!iso) return null
+  return new Date(iso).toLocaleDateString('pt-BR')
+}
+const formatDateTime = (iso) => {
+  if (!iso) return null
+  return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+const brl = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0)
+
+// Aba Dados — cadastro/pessoal da revendedora
+const enderecoCompleto = computed(() => {
+  const c = store.activeConversation?.contact
+  if (!c) return null
+  const linha1 = [c.street, c.address_number].filter(Boolean).join(', ')
+  const linha2 = [c.neighborhood, c.city, c.state].filter(Boolean).join(' - ')
+  const full = [linha1, linha2, c.cep].filter(Boolean).join(' · ')
+  return full || null
+})
+const dadosFields = [
+  { key: 'cpf', label: 'CPF', source: 'contact' },
+  { key: 'birth_date', label: 'Data de Nascimento', source: 'contact', format: 'date' },
+  { key: 'instagram', label: 'Instagram', source: 'attr' },
+  { key: 'id_jueri', label: 'ID Jueri (ERP)', source: 'attr' },
+  { key: 'origem', label: 'Origem do lead', source: 'attr' },
+]
+const getDadoValue = (f) => {
+  const c = store.activeConversation?.contact
+  if (!c) return null
+  const raw = f.source === 'attr' ? c.custom_attributes?.[f.key] : c[f.key]
+  if (!raw) return null
+  return f.format === 'date' ? formatDate(raw) : raw
+}
+
+// Aba Financeiro — pedidos sincronizados da tabela `pedidos` (Jueri é a fonte
+// da verdade; baixa/cancelamento de pedido é feito na tela do Jueri, não aqui
+// — por isso não existe mais "adicionar pedido manual", só leitura).
+const STATUS_LABELS = { 1: 'Aberto', 2: 'Baixado', 3: 'Cancelado', 4: 'Perdido' }
+const STATUS_CLASSES = { 1: 'aberto', 2: 'baixado', 3: 'cancelado', 4: 'perdido' }
+const pedidoStatusLabel = (statusId) => STATUS_LABELS[statusId] || 'Desconhecido'
+const pedidoStatusClass = (statusId) => STATUS_CLASSES[statusId] || 'desconhecido'
+const pedidos = computed(() => {
+  const list = store.activeConversation?.contact?.pedidos
+  return Array.isArray(list) ? [...list].sort((a, b) => new Date(b.data_criacao) - new Date(a.data_criacao)) : []
+})
+const totalVendido = computed(() => pedidos.value.filter(p => p.status_id === 2).reduce((s, p) => s + (parseFloat(p.valor_total) || 0), 0))
+const totalEmAberto = computed(() => pedidos.value.filter(p => p.status_id === 1).reduce((s, p) => s + (parseFloat(p.valor_total) || 0), 0))
+
+// Aba Estatísticas — métricas reais derivadas da conversa/contato ativos
+const totalMessagesCount = computed(() => store.activeConversation?.messages?.length || 0)
+const daysAsClient = computed(() => {
+  const created = store.activeConversation?.contact?.created_at
+  if (!created) return null
+  const days = Math.floor((Date.now() - new Date(created).getTime()) / 86_400_000)
+  return days >= 0 ? days : null
+})
+const lastMessageAt = computed(() => {
+  const msgs = store.activeConversation?.messages
+  if (!msgs?.length) return null
+  return msgs[msgs.length - 1].timestamp
+})
+const activeTagsCount = computed(() => store.activeConversation?.tags?.length || 0)
+
+// Linha do tempo de marcos de ciclo de vida (lifecycle_events) — Iniciada,
+// Churn e Reativação, na ordem em que aconteceram de verdade (histórico,
+// diferente do status atual que é sobrescrito a cada transição).
+const LIFECYCLE_EVENT_LABELS = { iniciada: 'Iniciada', churn: 'Churn', reativacao: 'Reativação' }
+const lifecycleEvents = computed(() => store.activeConversation?.contact?.lifecycle_events || [])
+const pedidosFechadosCount = computed(() => pedidos.value.filter(p => p.status_id === 2).length)
 
 const isNotesOpen = ref(false)
 const newNoteText = ref('')
@@ -317,6 +463,12 @@ const handleNewMessage = (e) => {
 const closeFilterPopover = () => {
   isFilterPopoverOpen.value = false
   isSortPopoverOpen.value = false
+  isDetailsMenuOpen.value = false
+}
+
+const isDetailsMenuOpen = ref(false)
+const toggleDetailsMenu = () => {
+  isDetailsMenuOpen.value = !isDetailsMenuOpen.value
 }
 
 onMounted(() => {
@@ -540,7 +692,10 @@ onUnmounted(() => {
                 {{ conv.contact.name }}
                 <span class="channel-icon" :class="conv.source" :title="conv.source === 'instagram' ? 'Instagram' : 'WhatsApp'">
                   <svg v-if="conv.source === 'instagram'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="url(#ig-grad-list)"><defs><linearGradient id="ig-grad-list" x1="0" x2="1" y1="1" y2="0"><stop offset="0%" stop-color="#f09433"/><stop offset="50%" stop-color="#dc2743"/><stop offset="100%" stop-color="#bc1888"/></linearGradient></defs><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/></svg>
-                  <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
+                  <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="12" fill="#25D366"/>
+                    <path fill="#fff" d="M12.04 4.6c-4.07 0-7.38 3.31-7.38 7.38 0 1.3.34 2.57.99 3.69l-1.05 3.83 3.92-1.03a7.35 7.35 0 0 0 3.52.9h.01c4.07 0 7.38-3.31 7.38-7.38a7.34 7.34 0 0 0-2.16-5.22 7.34 7.34 0 0 0-5.23-2.17zm4.32 10.55c-.18.51-.9.94-1.47 1.06-.4.08-.91.15-2.65-.57-2.23-.92-3.66-3.18-3.77-3.33-.11-.15-.9-1.2-.9-2.29 0-1.09.57-1.63.77-1.85.18-.2.45-.32.7-.32.09 0 .16 0 .23.01.2.01.3.02.44.33.16.38.54 1.3.59 1.4.05.1.08.22.02.35-.06.13-.09.2-.18.31-.09.11-.19.25-.27.34-.09.1-.19.2-.08.4.11.2.5.82 1.07 1.32.75.65 1.38.86 1.57.96.15.07.32.06.43-.06.14-.15.33-.4.51-.65.13-.18.3-.21.51-.13.21.08 1.32.62 1.55.74.22.11.37.17.42.26.05.1.05.56-.13 1.08z"/>
+                  </svg>
                 </span>
               </span>
               <span class="conv-time">{{ formatMessageTime(conv.timestamp) }}</span>
@@ -715,7 +870,18 @@ onUnmounted(() => {
     <div class="details-pane" :class="{ 'mobile-hidden': mobileView !== 'details' }" v-if="store.activeConversation">
       <div class="details-header-top">
         <h3>Contatos</h3>
-        <button class="icon-btn" @click="mobileView = 'chat'"><X class="icon-sm" /></button>
+        <div class="details-header-actions">
+          <div class="details-menu-wrapper">
+            <button class="icon-btn" @click.stop="toggleDetailsMenu" title="Mais opções"><MoreVertical class="icon-sm" /></button>
+            <div v-if="isDetailsMenuOpen" class="details-menu" @click.stop>
+              <button class="details-menu-item" @click="openEditModal(); isDetailsMenuOpen = false"><Edit2 class="icon-xs" /> Editar contato</button>
+              <button class="details-menu-item" @click="openMergeModal(); isDetailsMenuOpen = false"><GitMerge class="icon-xs" /> Mesclar contato</button>
+              <button v-if="canGenerateCharge" class="details-menu-item" @click="isChargeModalOpen = true; isDetailsMenuOpen = false"><CreditCard class="icon-xs" /> Gerar cobrança</button>
+              <button class="details-menu-item danger" @click="openDeleteModal(); isDetailsMenuOpen = false"><Trash2 class="icon-xs" /> Apagar contato</button>
+            </div>
+          </div>
+          <button class="icon-btn" @click="mobileView = 'chat'"><X class="icon-sm" /></button>
+        </div>
       </div>
 
       <div class="contact-profile">
@@ -727,6 +893,22 @@ onUnmounted(() => {
           <h4>{{ store.activeConversation.contact.name }}</h4>
           <Info class="icon-xs" />
           <ExternalLink class="icon-xs" />
+        </div>
+
+        <div class="lead-badges" v-if="store.activeConversation.contact.id">
+          <span class="lead-id-badge">#{{ store.activeConversation.contact.id }}</span>
+          <template v-if="store.activeConversation.contact.id_jueri">
+            <span class="lead-tag lead-tag-revendedora">REVENDEDORA</span>
+            <span class="lead-tag lead-tag-consignado">CONSIGNADO</span>
+          </template>
+          <span v-else class="lead-tag lead-tag-novo">NOVO CONTATO</span>
+        </div>
+
+        <div class="lead-stage-row" v-if="store.activeConversation.contact.id_jueri">
+          <span class="stage-pipeline">Consignado</span>
+          <span class="stage-badge">{{ stageLabel(store.activeConversation.contact.status) }}</span>
+          <span v-if="daysInStage(store.activeConversation.contact)" class="stage-days">({{ daysInStage(store.activeConversation.contact) }} dias)</span>
+          <ChevronDown class="icon-xs" style="margin-left: auto;" />
         </div>
 
         <div class="contact-attributes">
@@ -756,6 +938,35 @@ onUnmounted(() => {
           <button v-if="canGenerateCharge" class="action-btn charge" title="Gerar Cobrança" @click="isChargeModalOpen = true"><CreditCard class="icon-sm" /></button>
           <button class="action-btn danger" title="Apagar Contato" @click="openDeleteModal"><Trash2 class="icon-sm" /></button>
         </div>
+      </div>
+
+      <div class="details-tabs">
+        <button
+          v-for="tab in detailsTabs"
+          :key="tab.id"
+          class="details-tab"
+          :class="{ active: activeDetailsTab === tab.id }"
+          @click="activeDetailsTab = tab.id"
+        >
+          {{ tab.label }}
+        </button>
+      </div>
+
+      <template v-if="activeDetailsTab === 'principal'">
+      <div class="lead-fields">
+        <div class="lead-field">
+          <span class="lf-label">Usuário responsável</span>
+          <span class="lf-value">{{ store.activeConversation.assignee || 'Não atribuído' }}</span>
+        </div>
+        <div class="lead-field" v-for="f in principalFields" :key="f.key">
+          <span class="lf-label">{{ f.label }}</span>
+          <span class="lf-value" :class="{ empty: !getAttr(f.key) }">{{ getAttr(f.key) || '...' }}</span>
+        </div>
+        <div class="lead-field" v-for="attr in extraAttributes" :key="'extra-' + attr.key">
+          <span class="lf-label">{{ attr.label }}</span>
+          <span class="lf-value">{{ attr.value }}</span>
+        </div>
+        <button class="lead-fields-edit" @click="openEditModal"><Edit2 class="icon-xs" /> Editar campos</button>
       </div>
 
       <div class="accordion-card">
@@ -839,60 +1050,182 @@ onUnmounted(() => {
           </div>
         </div>
       </div>
-      <div class="accordion-card">
-        <div class="card-header" @click="isAttributesOpen = !isAttributesOpen" style="cursor: pointer;">
-          <h3>Atributos do contato</h3>
-          <Minus v-if="isAttributesOpen" class="icon-sm" />
-          <Plus v-else class="icon-sm" />
+      </template>
+
+      <template v-if="activeDetailsTab === 'dados'">
+      <div class="lead-fields">
+        <div class="lead-field" v-for="f in dadosFields" :key="f.key">
+          <span class="lf-label">{{ f.label }}</span>
+          <span class="lf-value" :class="{ empty: !getDadoValue(f) }">{{ getDadoValue(f) || '...' }}</span>
         </div>
-        <div class="card-body attributes-grid" v-if="isAttributesOpen" style="padding-top: 0.5rem; display: flex; flex-direction: column; gap: 0.4rem;">
-          <div class="attr-row" v-if="store.activeConversation?.contact?.email">
-            <span class="attr-label">Email:</span>
-            <span class="attr-val">{{ store.activeConversation.contact.email }}</span>
-          </div>
-          <div class="attr-row" v-if="store.activeConversation?.contact?.cpf">
-            <span class="attr-label">CPF:</span>
-            <span class="attr-val">{{ store.activeConversation.contact.cpf }}</span>
-          </div>
-          <div class="attr-row" v-if="store.activeConversation?.contact?.profession">
-            <span class="attr-label">Profissão:</span>
-            <span class="attr-val">{{ store.activeConversation.contact.profession }}</span>
-          </div>
-          <div class="attr-row" v-if="store.activeConversation?.contact?.gross_income">
-            <span class="attr-label">Renda Bruta:</span>
-            <span class="attr-val">{{ new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(store.activeConversation.contact.gross_income) }}</span>
-          </div>
-          <div class="attr-row" v-if="store.activeConversation?.contact?.fgts_balance">
-            <span class="attr-label">Saldo FGTS:</span>
-            <span class="attr-val">{{ new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(store.activeConversation.contact.fgts_balance) }}</span>
-          </div>
-          <div class="attr-row" v-if="store.activeConversation?.contact?.dependents">
-            <span class="attr-label">Dependentes:</span>
-            <span class="attr-val">{{ store.activeConversation.contact.dependents }}</span>
-          </div>
-          <div class="attr-row" v-if="store.activeConversation?.contact?.city">
-            <span class="attr-label">Cidade/UF:</span>
-            <span class="attr-val">{{ store.activeConversation.contact.city }} <span v-if="store.activeConversation.contact.state">- {{ store.activeConversation.contact.state }}</span></span>
-          </div>
+        <div class="lead-field">
+          <span class="lf-label">E-mail</span>
+          <span class="lf-value" :class="{ empty: !store.activeConversation.contact.email }">{{ store.activeConversation.contact.email || '...' }}</span>
+        </div>
+        <div class="lead-field">
+          <span class="lf-label">Endereço</span>
+          <span class="lf-value" :class="{ empty: !enderecoCompleto }">{{ enderecoCompleto || '...' }}</span>
+        </div>
+        <div class="lead-field">
+          <span class="lf-label">Empresa vinculada</span>
+          <span class="lf-value" :class="{ empty: !store.activeConversation.contact.company_name }">{{ store.activeConversation.contact.company_name || '...' }}</span>
+        </div>
+        <div class="lead-field" v-for="tel in (store.activeConversation.contact.reseller_phones || [])" :key="'tel-' + tel.id">
+          <span class="lf-label">{{ tel.label || 'Telefone adicional' }}</span>
+          <span class="lf-value">{{ tel.phone }}</span>
+        </div>
+        <div class="lead-field">
+          <span class="lf-label">Data de cadastro</span>
+          <span class="lf-value" :class="{ empty: !store.activeConversation.contact.created_at }">{{ formatDate(store.activeConversation.contact.created_at) || '...' }}</span>
+        </div>
+        <button class="lead-fields-edit" @click="openEditModal"><Edit2 class="icon-xs" /> Editar campos</button>
+      </div>
 
-          <!-- Atributos Personalizados Dinâmicos -->
-          <template v-if="store.activeConversation?.contact?.custom_attributes && Object.keys(store.activeConversation.contact.custom_attributes).length > 0">
-            <div 
-              class="attr-row" 
-              v-for="(val, key) in store.activeConversation.contact.custom_attributes" 
-              :key="key"
-            >
-              <span class="attr-label">{{ key }}:</span>
-              <span class="attr-val">{{ val }}</span>
-            </div>
-          </template>
+      <div class="accordion-card" v-if="store.activeConversation?.contact?.bio">
+        <div class="card-header"><h3>Descrição</h3></div>
+        <div class="card-body" style="padding-top: 0.5rem;">
+          <p style="font-size: 0.85rem; color: var(--text-main); line-height: 1.5;">{{ store.activeConversation.contact.bio }}</p>
+        </div>
+      </div>
+      </template>
 
-          <button class="btn-text-blue" @click="openEditModal" style="margin-top: 0.5rem;">
-            <Edit2 class="icon-xs" style="margin-right: 0.3rem;" /> Editar atributos
-          </button>
+      <template v-if="activeDetailsTab === 'financeiro'">
+      <div class="fin-summary">
+        <div class="fin-card">
+          <span class="fin-label">Total vendido</span>
+          <span class="fin-value positive">{{ brl(totalVendido) }}</span>
+        </div>
+        <div class="fin-card">
+          <span class="fin-label">Em aberto</span>
+          <span class="fin-value" :class="{ warn: totalEmAberto > 0 }">{{ brl(totalEmAberto) }}</span>
         </div>
       </div>
 
+      <div class="accordion-card">
+        <div class="card-header"><h3>Cobrança</h3></div>
+        <div class="card-body" style="padding-top: 0.5rem; display: flex; flex-direction: column; gap: 0.6rem;">
+          <button v-if="canGenerateCharge" class="btn-text-blue" @click="isChargeModalOpen = true">
+            <CreditCard class="icon-xs" style="margin-right: 0.3rem;" /> Gerar cobrança
+          </button>
+          <p v-else class="empty-text">Sem permissão para gerar cobrança.</p>
+        </div>
+      </div>
+
+      <div class="accordion-card">
+        <div class="card-header"><h3>Pedidos / Acertos</h3></div>
+        <div class="card-body" style="padding-top: 0.5rem; display: flex; flex-direction: column; gap: 0.75rem;">
+          <p class="empty-text" style="margin: 0;">Sincronizado automaticamente do Jueri — baixa/cancelamento de pedido é feito lá, não aqui.</p>
+
+          <div v-if="pedidos.length > 0" class="pedido-list">
+            <div class="pedido-item" v-for="p in pedidos" :key="p.id">
+              <span class="pedido-status" :class="'status-' + pedidoStatusClass(p.status_id)">{{ pedidoStatusLabel(p.status_id) }}</span>
+              <span class="pedido-date">{{ formatDate(p.data_criacao) }}</span>
+              <span class="pedido-valor">{{ brl(p.valor_total) }}</span>
+            </div>
+          </div>
+          <p v-else class="empty-text">Nenhum pedido sincronizado ainda.</p>
+        </div>
+      </div>
+      </template>
+
+      <template v-if="activeDetailsTab === 'estatisticas'">
+      <div class="stat-grid">
+        <div class="stat-card">
+          <span class="stat-value">{{ daysAsClient !== null ? daysAsClient : '...' }}</span>
+          <span class="stat-label">Dias como revendedora</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-value">{{ daysInStage(store.activeConversation.contact) ?? '...' }}</span>
+          <span class="stat-label">Dias na etapa atual</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-value">{{ totalMessagesCount }}</span>
+          <span class="stat-label">Mensagens trocadas</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-value">{{ pedidosFechadosCount }}</span>
+          <span class="stat-label">Pedidos baixados</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-value">{{ activeTagsCount }}</span>
+          <span class="stat-label">Etiquetas ativas</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-value stat-value-sm">{{ formatDateTime(lastMessageAt) || '...' }}</span>
+          <span class="stat-label">Última interação</span>
+        </div>
+      </div>
+
+      <div class="accordion-card">
+        <div class="card-header"><h3>Linha do tempo do ciclo de vida</h3></div>
+        <div class="card-body" style="padding-top: 0.5rem;">
+          <div v-if="lifecycleEvents.length > 0" class="lifecycle-timeline">
+            <div class="lifecycle-item" v-for="ev in lifecycleEvents" :key="ev.id" :class="'event-' + ev.event_type">
+              <span class="lifecycle-dot"></span>
+              <div class="lifecycle-body">
+                <span class="lifecycle-label">{{ LIFECYCLE_EVENT_LABELS[ev.event_type] || ev.event_type }}</span>
+                <span class="lifecycle-date">{{ formatDateTime(ev.occurred_at) }}</span>
+                <span v-if="ev.metadata?.pecas_abertas != null" class="lifecycle-meta">{{ ev.metadata.pecas_abertas }} peças abertas</span>
+              </div>
+            </div>
+          </div>
+          <p v-else class="empty-text">Nenhum marco registrado ainda pra essa revendedora.</p>
+        </div>
+      </div>
+      </template>
+
+      <template v-if="activeDetailsTab === 'configuracoes'">
+      <div class="accordion-card">
+        <div class="card-header"><h3>Funil</h3></div>
+        <div class="card-body" style="padding-top: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+          <div class="lead-field">
+            <span class="lf-label">Pipeline</span>
+            <span class="lf-value">Consignado</span>
+          </div>
+          <div class="lead-field">
+            <span class="lf-label">Etapa atual</span>
+            <select
+              class="status-select"
+              :value="store.activeConversation.contact.status || 'revendedor_ativo'"
+              :disabled="isChangingStatus"
+              @change="changeContactStatus($event.target.value)"
+            >
+              <optgroup v-for="grp in statusOptions" :key="grp.group" :label="grp.group">
+                <option v-for="(label, key) in grp.options" :key="key" :value="key">{{ label }}</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="lead-field">
+            <span class="lf-label">Responsável</span>
+            <span class="lf-value" :class="{ empty: !store.activeConversation.assignee }">{{ store.activeConversation.assignee || 'Não atribuído' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-card">
+        <div class="card-header"><h3>Datas</h3></div>
+        <div class="card-body" style="padding-top: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+          <div class="lead-field">
+            <span class="lf-label">Criado em</span>
+            <span class="lf-value" :class="{ empty: !store.activeConversation.contact.created_at }">{{ formatDateTime(store.activeConversation.contact.created_at) || '...' }}</span>
+          </div>
+          <div class="lead-field">
+            <span class="lf-label">Última mudança de etapa</span>
+            <span class="lf-value" :class="{ empty: !store.activeConversation.contact.status_changed_at }">{{ formatDateTime(store.activeConversation.contact.status_changed_at) || '...' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-card">
+        <div class="card-header"><h3>Ações</h3></div>
+        <div class="card-body" style="padding-top: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+          <button class="btn-text-blue" @click="openMergeModal"><GitMerge class="icon-xs" /> Mesclar com outro contato</button>
+          <button class="btn-text-blue danger-text" @click="openDeleteModal"><Trash2 class="icon-xs" /> Apagar este contato</button>
+        </div>
+      </div>
+      </template>
+
+      <template v-if="activeDetailsTab === 'principal'">
       <div class="accordion-card">
         <div class="card-header" @click="isNotesOpen = !isNotesOpen" style="cursor: pointer;">
           <h3>Notas do contato</h3>
@@ -939,9 +1272,10 @@ onUnmounted(() => {
           <p v-else class="empty-text">Nenhum anexo nesta conversa.</p>
         </div>
       </div>
+      </template>
 
     </div>
-    
+
     <!-- Modals -->
     <EditContactModal :isOpen="isEditModalOpen" :contact="store.activeConversation?.contact" @close="isEditModalOpen = false" />
     <MergeContactModal :isOpen="isMergeModalOpen" :contact="store.activeConversation?.contact" @close="isMergeModalOpen = false" />
@@ -990,6 +1324,7 @@ onUnmounted(() => {
 
 /* Left Pane: Conversation List */
 .conv-list-pane {
+  order: 1;
   width: 360px;
   border-right: 1px solid var(--border-color);
   background: var(--bg-secondary);
@@ -1158,12 +1493,12 @@ onUnmounted(() => {
   }
 
   .conv-tag-agent {
-    background: linear-gradient(135deg, #4f46e5, #7c3aed) !important;
+    background: linear-gradient(135deg, #d49ba7, #a80050) !important;
     color: #fff !important;
     text-shadow: 0 1px 3px rgba(0,0,0,0.3) !important;
     font-weight: 700;
     letter-spacing: 0.01em;
-    box-shadow: 0 2px 6px rgba(79,70,229,0.4);
+    box-shadow: 0 2px 6px rgba(212, 155, 167,0.4);
   }
 
   .tag-chips {
@@ -1211,18 +1546,27 @@ onUnmounted(() => {
   .tag-add-row {
     display: flex;
     gap: 0.5rem;
+    align-items: stretch;
   }
 
   .tag-input {
     flex: 1;
     min-width: 0;
-    padding: 0.5rem 0.7rem;
+    height: 36px;
+    box-sizing: border-box;
+    padding: 0 0.75rem;
     border: 1px solid var(--border-color);
-    border-radius: 6px;
-    background: var(--bg-primary);
+    border-radius: 8px;
+    background: var(--bg-secondary);
     color: var(--text-main);
     font-size: 0.85rem;
-    &:focus { outline: none; border-color: var(--primary); }
+    transition: border-color 0.15s, box-shadow 0.15s;
+
+    &:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(212, 155, 167,0.12);
+    }
   }
 
   .btn-add-tag {
@@ -1231,19 +1575,22 @@ onUnmounted(() => {
     justify-content: center;
     gap: 0.3rem;
     flex-shrink: 0;
-    padding: 0.5rem 0.75rem;
+    height: 36px;
+    box-sizing: border-box;
+    padding: 0 0.85rem;
     font-size: 0.8rem;
     font-weight: 600;
-    color: #4338ca;
-    background: rgba(67,56,202,0.07);
-    border: 1px solid rgba(67,56,202,0.2);
-    border-radius: 6px;
+    border-radius: 8px;
     cursor: pointer;
     white-space: nowrap;
     transition: background 0.15s;
 
-    &:hover:not(:disabled) { background: rgba(67,56,202,0.14); }
-    &:disabled { opacity: 0.5; cursor: not-allowed; }
+    color: white;
+    background: var(--primary);
+    border: none;
+
+    &:hover:not(:disabled) { background: var(--primary-hover); }
+    &:disabled { cursor: not-allowed; }
 
     .icon-xs { width: 14px; height: 14px; }
   }
@@ -1300,12 +1647,14 @@ onUnmounted(() => {
 
 /* Middle Pane: Chat Area */
 .chat-pane {
+  order: 3;
   flex: 1;
   display: flex;
   flex-direction: column;
   background: var(--bg-primary);
   min-width: 300px;
   overflow: hidden;
+  border-left: 1px solid var(--border-color);
 }
 
 .chat-header {
@@ -1482,7 +1831,7 @@ onUnmounted(() => {
     word-break: break-word;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    box-shadow: 0 1px 2px rgba(43,0,22,0.06), 0 6px 16px rgba(43,0,22,0.09);
     
     .attachment-preview {
       margin-bottom: 0.5rem;
@@ -1651,21 +2000,21 @@ onUnmounted(() => {
   align-items: center;
   gap: 0.6rem;
   padding: 0.6rem 1.5rem;
-  background: #1e3a5f;
-  border-top: 1px solid #2563eb;
-  color: #93c5fd;
+  background: #4d0026;
+  border-top: 1px solid #ba5e72;
+  color: #ffd9ec;
   font-size: 0.82rem;
 
   .banner-icon {
     width: 16px;
     height: 16px;
     flex-shrink: 0;
-    color: #60a5fa;
+    color: #ff8fc7;
   }
 
   span {
     flex: 1;
-    strong { color: #bfdbfe; }
+    strong { color: #ffe0f0; }
   }
 
   .btn-resume-ai {
@@ -1673,7 +2022,7 @@ onUnmounted(() => {
     align-items: center;
     gap: 0.3rem;
     padding: 0.3rem 0.75rem;
-    background: #2563eb;
+    background: #ba5e72;
     color: white;
     border: none;
     border-radius: 6px;
@@ -1683,7 +2032,7 @@ onUnmounted(() => {
     white-space: nowrap;
     transition: background 0.15s;
 
-    &:hover { background: #1d4ed8; }
+    &:hover { background: #a80050; }
 
     .icon-xs {
       width: 13px;
@@ -1697,10 +2046,10 @@ onUnmounted(() => {
   align-items: center;
   gap: 0.3rem;
   padding: 0.2rem 0.5rem 0.2rem 0.4rem;
-  background: #1e3a5f;
-  border: 1px solid #2563eb;
+  background: #4d0026;
+  border: 1px solid #ba5e72;
   border-radius: 20px;
-  color: #93c5fd;
+  color: #ffd9ec;
   font-size: 0.72rem;
   white-space: nowrap;
 
@@ -1718,14 +2067,14 @@ onUnmounted(() => {
     justify-content: center;
     width: 18px;
     height: 18px;
-    background: #2563eb;
+    background: #ba5e72;
     border: none;
     border-radius: 50%;
     color: white;
     cursor: pointer;
     padding: 0;
     transition: background 0.15s;
-    &:hover { background: #1d4ed8; }
+    &:hover { background: #a80050; }
     .pill-icon { color: white; }
   }
 }
@@ -1844,9 +2193,9 @@ onUnmounted(() => {
 
 /* Right Pane: Contact Details */
 .details-pane {
-  width: 360px;
+  order: 2;
+  width: 400px;
   background: var(--bg-secondary); /* White in light mode */
-  border-left: 1px solid var(--border-color);
   flex-shrink: 0;
   overflow-y: auto;
   display: flex;
@@ -1859,10 +2208,84 @@ onUnmounted(() => {
   align-items: center;
   padding: 1rem 1.25rem;
 
+  .details-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .details-menu-wrapper {
+    position: relative;
+  }
+
+  .details-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(43,0,22,0.14);
+    min-width: 190px;
+    padding: 0.35rem;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .details-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: none;
+    border: none;
+    text-align: left;
+    padding: 0.5rem 0.6rem;
+    font-size: 0.82rem;
+    color: var(--text-main);
+    border-radius: 6px;
+    cursor: pointer;
+
+    &:hover { background: var(--bg-hover); }
+    &.danger { color: #ef4444; }
+  }
+
   h3 {
     font-size: 1rem;
     font-weight: 600;
     color: var(--text-main);
+  }
+}
+
+.details-tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+  overflow-x: auto;
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}
+
+.details-tab {
+  background: none;
+  border: none;
+  padding: 0.65rem 0.5rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: color 0.15s, border-color 0.15s;
+
+  &:hover { color: var(--text-main); }
+
+  &.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
   }
 }
 
@@ -1899,6 +2322,49 @@ onUnmounted(() => {
     }
     
     .icon-xs { color: var(--text-muted); cursor: pointer; }
+  }
+
+  .lead-badges {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-bottom: 0.6rem;
+
+    .lead-id-badge {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .lead-tag {
+      font-size: 0.62rem;
+      font-weight: 700;
+      padding: 0.15rem 0.5rem;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+    .lead-tag-revendedora { background: #d1fae5; color: #065f46; }
+    .lead-tag-consignado { background: #ffd9ec; color: #a80050; }
+    .lead-tag-novo { background: var(--bg-tertiary); color: var(--text-muted); }
+  }
+
+  .lead-stage-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0.6rem;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+    font-size: 0.78rem;
+    color: var(--text-main);
+
+    .stage-pipeline { color: var(--text-muted); }
+    .stage-badge { font-weight: 700; color: var(--primary); }
+    .stage-days { color: var(--text-muted); }
+    .icon-xs { color: var(--text-muted); }
   }
 
   .contact-attributes {
@@ -1970,6 +2436,214 @@ onUnmounted(() => {
     }
   }
 }
+
+.lead-fields {
+  padding: 0.75rem 1.25rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.status-select {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  color: var(--text-main);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  max-width: 100%;
+
+  &:focus { outline: none; border-color: var(--primary); }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+.lead-field {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  align-items: baseline;
+
+  .lf-label { color: var(--text-muted); }
+  .lf-value {
+    color: var(--text-main);
+    font-weight: 500;
+    overflow-wrap: break-word;
+    &.empty { color: var(--text-muted); font-weight: 400; }
+  }
+}
+
+.lead-fields-edit {
+  align-self: flex-start;
+  margin-top: 0.3rem;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #d49ba7;
+  background: rgba(212, 155, 167,0.07);
+  border: 1px solid rgba(212, 155, 167,0.2);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover { background: rgba(212, 155, 167,0.14); }
+}
+
+.fin-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  padding: 0.9rem 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.fin-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+
+  .fin-label { font-size: 0.72rem; color: var(--text-muted); }
+  .fin-value {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-main);
+    &.positive { color: #059669; }
+    &.warn { color: #d97706; }
+  }
+}
+
+.pedido-add-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+
+  .pedido-input {
+    flex: 1;
+    min-width: 90px;
+    padding: 0.4rem 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-primary);
+    color: var(--text-main);
+    font-size: 0.8rem;
+  }
+}
+
+.pedido-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.pedido-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0.6rem;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+  font-size: 0.8rem;
+
+  .pedido-date { color: var(--text-muted); }
+  .pedido-valor { margin-left: auto; font-weight: 600; color: var(--text-main); }
+
+  .pedido-status {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 0.15rem 0.45rem;
+    border-radius: 20px;
+    &.status-aberto { background: #dbeafe; color: #1e40af; }
+    &.status-baixado { background: #d1fae5; color: #065f46; }
+    &.status-cancelado { background: #e5e7eb; color: #4b5563; }
+    &.status-perdido { background: #fee2e2; color: #b91c1c; }
+  }
+}
+
+.lifecycle-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  position: relative;
+  padding-left: 1.1rem;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 6px;
+    bottom: 6px;
+    width: 2px;
+    background: var(--border-color);
+  }
+}
+
+.lifecycle-item {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.55rem 0;
+  position: relative;
+
+  .lifecycle-dot {
+    position: absolute;
+    left: -1.1rem;
+    top: 0.7rem;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    border: 2px solid var(--bg-secondary);
+  }
+
+  &.event-iniciada .lifecycle-dot { background: #22c55e; }
+  &.event-churn .lifecycle-dot { background: #ef4444; }
+  &.event-reativacao .lifecycle-dot { background: #3b82f6; }
+}
+
+.lifecycle-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.lifecycle-label { font-size: 0.85rem; font-weight: 700; color: var(--text-main); }
+.lifecycle-date { font-size: 0.75rem; color: var(--text-muted); }
+.lifecycle-meta { font-size: 0.72rem; color: var(--text-muted); }
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  padding: 0.9rem 1.25rem;
+}
+
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+  padding: 0.7rem 0.75rem;
+
+  .stat-value {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--primary);
+    &.stat-value-sm { font-size: 0.85rem; color: var(--text-main); }
+  }
+  .stat-label { font-size: 0.72rem; color: var(--text-muted); }
+}
+
+.danger-text { color: #ef4444 !important; }
 
 .accordion-card {
   background: transparent;
@@ -2202,22 +2876,45 @@ onUnmounted(() => {
 
 .assign-select {
   width: 100%;
-  padding: 0.5rem;
+  padding: 0.55rem 2.1rem 0.55rem 0.75rem;
   border: 1px solid var(--border-color);
-  border-radius: 6px;
-  background-color: var(--bg-color);
-  color: var(--text-color);
-  font-size: 0.9rem;
+  border-radius: 8px;
+  background-color: var(--bg-secondary);
+  color: var(--text-main);
+  font-size: 0.88rem;
   font-family: inherit;
   cursor: pointer;
   outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23ff007f' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.7rem center;
+  background-size: 13px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.assign-select:hover:not(:disabled) {
+  border-color: var(--primary);
 }
 .assign-select:focus {
   border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(212, 155, 167, 0.12);
 }
 .assign-select:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+.assign-select optgroup {
+  font-weight: 600;
+  font-style: normal;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+}
+.assign-select option {
+  font-weight: 400;
+  color: var(--text-main);
+  background: var(--bg-secondary);
+  padding: 6px;
 }
 
 .btn-transfer {
@@ -2230,13 +2927,13 @@ onUnmounted(() => {
   padding: 0.45rem 0;
   font-size: 0.8rem;
   font-weight: 600;
-  color: #4338ca;
-  background: rgba(67,56,202,0.07);
-  border: 1px solid rgba(67,56,202,0.2);
+  color: #d49ba7;
+  background: rgba(212, 155, 167,0.07);
+  border: 1px solid rgba(212, 155, 167,0.2);
   border-radius: 6px;
   cursor: pointer;
   transition: background 0.15s;
-  &:hover:not(:disabled) { background: rgba(67,56,202,0.14); }
+  &:hover:not(:disabled) { background: rgba(212, 155, 167,0.14); }
   &:disabled { opacity: 0.4; cursor: not-allowed; }
 }
 
