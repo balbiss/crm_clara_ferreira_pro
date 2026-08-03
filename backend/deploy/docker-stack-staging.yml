@@ -1,0 +1,262 @@
+version: "3.7"
+
+## Stack de STAGING (ambiente de testes) - totalmente separada da produção.
+## Banco, Redis e volumes próprios, segredos próprios (gerados do zero,
+## nunca reaproveitados de produção). Nomes de serviço curtos (db, redis,
+## backend, worker, frontend) para não colidir com os nomes da stack de
+## produção (clara_db, clara_redis etc), já que ambas compartilham a mesma
+## rede externa "inoovawebpro".
+##
+## ATENÇÃO: gerar credenciais NOVAS pra esse projeto (Clara Ferreira) antes de fazer deploy.
+## Nenhum valor abaixo é real — todos os placeholders precisam ser substituídos.
+
+services:
+
+  ## --------------------------- BANCO DE DADOS --------------------------- ##
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      - POSTGRES_USER=clara_staging
+      - POSTGRES_PASSWORD=CHANGE_ME_GENERATE_NEW_PASSWORD
+      - POSTGRES_DB=clara_staging
+    volumes:
+      - clara_staging_postgres_data:/var/lib/postgresql/data
+    networks:
+      - inoovawebpro
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
+  ## --------------------------- BACKUP AUTOMÁTICO (mesmo padrão da produção) --------------------------- ##
+
+  db_backup:
+    image: prodrigestivill/postgres-backup-local:latest
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_DB=clara_staging
+      - POSTGRES_USER=clara_staging
+      - POSTGRES_PASSWORD=CHANGE_ME_GENERATE_NEW_PASSWORD
+      - SCHEDULE=@daily
+      - BACKUP_KEEP_DAYS=3
+      - BACKUP_KEEP_WEEKS=1
+      - BACKUP_KEEP_MONTHS=0
+      - TZ=America/Sao_Paulo
+    volumes:
+      - clara_staging_db_backups:/backups
+    networks:
+      - inoovawebpro
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+
+  ## --------------------------- REDIS --------------------------- ##
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --requirepass CHANGE_ME_GENERATE_NEW_PASSWORD --appendonly yes
+    volumes:
+      - clara_staging_redis_data:/data
+    networks:
+      - inoovawebpro
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+
+  ## --------------------------- WHATSAPP (BAILEYS) --------------------------- ##
+
+  baileys:
+    image: ghcr.io/fazer-ai/baileys-api:latest
+    command:
+      - sh
+      - "-c"
+      - "bun manage-api-keys create user CHANGE_ME_API_KEY && bun start"
+    environment:
+      - NODE_ENV=production
+      - PORT=3025
+      - REDIS_URL=redis://:CHANGE_ME_GENERATE_NEW_PASSWORD@redis:6379/1
+      - LOG_LEVEL=warn
+      - BAILEYS_LOG_LEVEL=error
+      - BAILEYS_PROVIDER_DEFAULT_API_KEY=CHANGE_ME_API_KEY
+      - IGNORE_GROUP_MESSAGES=true
+      - IGNORE_STATUS_MESSAGES=true
+    volumes:
+      - clara_staging_baileys_storage:/app/storage
+    networks:
+      - inoovawebpro
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+
+  ## --------------------------- BACKEND RAILS --------------------------- ##
+
+  backend:
+    image: ghcr.io/balbiss/clara-crm-backend:staging
+    command: >
+      bash -c "until bundle exec rails db:prepare; do echo 'Aguardando banco de dados...'; sleep 5; done && bundle exec rails db:migrate:cache && bundle exec rails db:migrate:queue && bundle exec rails db:migrate:cable && bundle exec rails server -b 0.0.0.0 -p 80"
+    environment:
+      - RAILS_ENV=production
+      - PGHOST=db
+      - PGPORT=5432
+      - PGDATABASE=clara_staging
+      - PGUSER=clara_staging
+      - PGPASSWORD=CHANGE_ME_GENERATE_NEW_PASSWORD
+      - REDIS_URL=redis://:CHANGE_ME_GENERATE_NEW_PASSWORD@redis:6379/0
+      - RAILS_MASTER_KEY=CHANGE_ME_GENERATE_NEW_KEY
+      - SECRET_KEY_BASE=CHANGE_ME_RUN_bin_rails_secret
+      - API_HOST=https://api-staging-crm.SEUDOMINIO.com.br
+      - BACKEND_URL=https://api-staging-crm.SEUDOMINIO.com.br
+      - FRONTEND_URL=https://staging-crm.SEUDOMINIO.com.br
+      - BAILEYS_API_URL=http://baileys:3025
+      - BAILEYS_API_KEY=CHANGE_ME_API_KEY
+      - APP_NAME=Clara Ferreira CRM (Staging)
+      - RAILS_LOG_TO_STDOUT=true
+      - RAILS_SERVE_STATIC_FILES=true
+      - TZ=America/Sao_Paulo
+      - VAPID_PUBLIC_KEY=CHANGE_ME_GENERATE_NEW_VAPID_KEYPAIR
+      - VAPID_PRIVATE_KEY=CHANGE_ME_GENERATE_NEW_VAPID_KEYPAIR
+      - INSTAGRAM_APP_ID=
+      - INSTAGRAM_APP_SECRET=
+      - INSTAGRAM_WEBHOOK_VERIFY_TOKEN=
+      - FACEBOOK_APP_ID=
+      - FACEBOOK_APP_SECRET=
+    volumes:
+      - clara_staging_rails_storage:/rails/storage
+    networks:
+      - inoovawebpro
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "1"
+          memory: 512M
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.clara_staging_backend.rule=Host(`api-staging-crm.SEUDOMINIO.com.br`)
+        - traefik.http.routers.clara_staging_backend.entrypoints=websecure
+        - traefik.http.routers.clara_staging_backend.tls.certresolver=letsencryptresolver
+        - traefik.http.routers.clara_staging_backend.service=clara_staging_backend
+        - traefik.http.services.clara_staging_backend.loadbalancer.server.port=80
+        - traefik.http.services.clara_staging_backend.loadbalancer.passHostHeader=1
+        - traefik.http.services.clara_staging_backend.loadbalancer.responseForwarding.flushInterval=100ms
+
+  ## --------------------------- WORKER (JOBS) --------------------------- ##
+
+  worker:
+    image: ghcr.io/balbiss/clara-crm-backend:staging
+    command: bash -c "sleep 40 && bundle exec rails solid_queue:start"
+    environment:
+      - RAILS_ENV=production
+      - PGHOST=db
+      - PGPORT=5432
+      - PGDATABASE=clara_staging
+      - PGUSER=clara_staging
+      - PGPASSWORD=CHANGE_ME_GENERATE_NEW_PASSWORD
+      - REDIS_URL=redis://:CHANGE_ME_GENERATE_NEW_PASSWORD@redis:6379/0
+      - RAILS_MASTER_KEY=CHANGE_ME_GENERATE_NEW_KEY
+      - SECRET_KEY_BASE=CHANGE_ME_RUN_bin_rails_secret
+      - BAILEYS_API_URL=http://baileys:3025
+      - BAILEYS_API_KEY=CHANGE_ME_API_KEY
+      - RAILS_LOG_TO_STDOUT=true
+      - TZ=America/Sao_Paulo
+    volumes:
+      - clara_staging_rails_storage:/rails/storage
+    networks:
+      - inoovawebpro
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
+  ## --------------------------- FRONTEND VUE --------------------------- ##
+
+  frontend:
+    image: ghcr.io/balbiss/clara-crm-frontend:staging
+    environment:
+      - API_URL=https://api-staging-crm.SEUDOMINIO.com.br
+      - APP_NAME=Clara Ferreira CRM (Staging)
+      - APP_LOGO_URL=
+      - APP_PRIMARY_COLOR=#d49ba7
+      - APP_ACCENT_COLOR=#ba5e72
+      - APP_SUPPORT_EMAIL=CHANGE_ME
+      - APP_FOOTER_TEXT=Ambiente de testes - Clara Ferreira CRM
+    networks:
+      - inoovawebpro
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.clara_staging_frontend.rule=Host(`staging-crm.SEUDOMINIO.com.br`)
+        - traefik.http.routers.clara_staging_frontend.entrypoints=websecure
+        - traefik.http.routers.clara_staging_frontend.tls.certresolver=letsencryptresolver
+        - traefik.http.routers.clara_staging_frontend.service=clara_staging_frontend
+        - traefik.http.services.clara_staging_frontend.loadbalancer.server.port=80
+        - traefik.http.services.clara_staging_frontend.loadbalancer.passHostHeader=1
+
+## ================================================================
+
+volumes:
+  clara_staging_postgres_data:
+  clara_staging_db_backups:
+  clara_staging_redis_data:
+  clara_staging_rails_storage:
+  clara_staging_baileys_storage:
+
+networks:
+  inoovawebpro:
+    external: true
+    name: inoovawebpro
