@@ -6,3 +6,8 @@ tmp/*
 
 /log/*
 /tmp/*
+
+# Secrets locais (tokens de API de terceiros etc.) — nunca commitar.
+.env
+.env.*
+!.env.example

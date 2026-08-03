@@ -218,8 +218,8 @@ services:
       - API_URL=https://api-staging-crm.SEUDOMINIO.com.br
       - APP_NAME=Clara Ferreira CRM (Staging)
       - APP_LOGO_URL=
-      - APP_PRIMARY_COLOR=#FF007F
-      - APP_ACCENT_COLOR=#FF007F
+      - APP_PRIMARY_COLOR=#d49ba7
+      - APP_ACCENT_COLOR=#ba5e72
       - APP_SUPPORT_EMAIL=CHANGE_ME
       - APP_FOOTER_TEXT=Ambiente de testes - Clara Ferreira CRM
     networks:

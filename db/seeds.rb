@@ -1,88 +1,53 @@
-# Clear existing data
-Message.destroy_all
-Conversation.destroy_all
-Contact.destroy_all
-User.destroy_all
-Account.destroy_all
+# Seed mínimo: só a conta e os usuários de login. Dados de revendedora (Contact) NÃO
+# são mais seedados aqui — vêm exclusivamente da sincronização com o Jueri
+# (JueriApiService). Idempotente de propósito: não apaga dados reais existentes.
+#
+# ATENÇÃO: troque essas senhas antes de rodar em qualquer ambiente compartilhado.
 
-# Create Account
-account = Account.create!(name: 'Clara Ferreira Acessórios')
+account = Account.find_or_create_by!(name: 'Clara Ferreira Acessórios')
 
-# Create User
-# ATENÇÃO: troque essa senha antes de rodar em qualquer ambiente compartilhado.
-user = User.create!(
-  account: account,
-  email: 'admin@claraferreira.example.com',
-  password: 'MudeEstaSenha123!',
-  password_confirmation: 'MudeEstaSenha123!',
-  first_name: 'Clara',
-  last_name: 'Ferreira',
-  role: :admin
-)
+User.find_or_create_by!(email: 'admin@claraferreira.example.com') do |u|
+  u.account = account
+  u.password = 'MudeEstaSenha123!'
+  u.password_confirmation = 'MudeEstaSenha123!'
+  u.first_name = 'Clara'
+  u.last_name = 'Ferreira'
+  # 'admin' aqui seria admin GLOBAL do SaaS (equipe técnica, vê todas as empresas) —
+  # a dona da Clara Ferreira precisa de 'empresa' (dono/acesso total só na própria
+  # conta). Login.vue redireciona role 'admin' pro painel /admin (SaaS Master), não
+  # pro dashboard normal — usar :admin aqui por engano manda a dona pro painel errado.
+  u.role = :empresa
+end
 
-# Create Contacts (dado fictício de exemplo — revendedoras reais virão via sync com o Jueri)
-contact1 = Contact.create!(
-  account: account,
-  name: 'Amanda Rocha',
-  email: 'amanda@example.com',
-  phone: '+55 31 99812-4471'
-)
+# Vendedora (papel "atendente" no schema atual — vira "consultor" na Fase 2)
+User.find_or_create_by!(email: 'vendedora@claraferreira.example.com') do |u|
+  u.account = account
+  u.password = 'MudeEstaSenha123!'
+  u.password_confirmation = 'MudeEstaSenha123!'
+  u.first_name = 'Beatriz'
+  u.last_name = 'Lima'
+  u.role = :atendente
+  u.department = 'vendedora'
+end
 
-contact2 = Contact.create!(
-  account: account,
-  name: 'Patrícia Mendes',
-  email: 'patricia@example.com',
-  phone: '+55 19 99440-2218'
-)
+# Pipelines customizáveis (espelham o Kommo que a empresa já usava — Varejo,
+# Onboarding, Atacado, Prospecção). Consignado NÃO entra aqui: usa a régua automática
+# em Contact#status, não esse sistema genérico. Idempotente — find_or_create_by! não
+# duplica se já existir.
+{
+  'Varejo'      => %w[Novo\ Lead Qualificando Negociando Fechado],
+  'Onboarding'  => %w[Cadastro\ Recebido Documentação Primeira\ Maleta Concluído],
+  'Atacado'     => %w[Novo\ Contato Proposta\ Enviada Negociando Fechado],
+  'Prospecção'  => %w[Novo\ Lead Em\ Contato Qualificado Descartado]
+}.each_with_index do |(nome, etapas), index|
+  pipeline = Pipeline.find_or_create_by!(account: account, name: nome) do |p|
+    p.position = index + 1
+  end
+  next if pipeline.pipeline_stages.any?
 
-# Create Conversations
-conv1 = Conversation.create!(
-  account: account,
-  contact: contact1,
-  user: user,
-  status: :open,
-  source: 'whatsapp',
-  unread_count: 2
-)
+  etapas.each_with_index do |etapa, stage_index|
+    pipeline.pipeline_stages.create!(name: etapa, position: stage_index)
+  end
+end
 
-conv2 = Conversation.create!(
-  account: account,
-  contact: contact2,
-  user: user,
-  status: :open,
-  source: 'whatsapp',
-  unread_count: 0
-)
-
-# Create Messages
-Message.create!(
-  account: account,
-  conversation: conv1,
-  sender_type: 'Contact',
-  sender_id: contact1.id,
-  text: 'Oi, boa noite!',
-  status: :read,
-  created_at: 1.hour.ago
-)
-
-Message.create!(
-  account: account,
-  conversation: conv1,
-  sender_type: 'User',
-  sender_id: user.id,
-  text: 'Boa noite Amanda, como posso ajudar?',
-  status: :read,
-  created_at: 55.minutes.ago
-)
-
-Message.create!(
-  account: account,
-  conversation: conv2,
-  sender_type: 'Contact',
-  sender_id: contact2.id,
-  text: 'Pode me enviar o catálogo atualizado?',
-  status: :read,
-  created_at: 1.day.ago
-)
-
-puts "Database seeded successfully!"
+puts "Seed concluído — conta, usuários de login e pipelines prontos. Revendedoras vêm do Jueri."

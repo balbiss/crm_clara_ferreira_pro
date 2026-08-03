@@ -2,6 +2,22 @@ module Webhooks
   class BaileysController < ApplicationController
     skip_before_action :verify_authenticity_token, raise: false
 
+    # Chaves de mídia de verdade dentro de msg.message — usadas pra decidir se a
+    # mensagem tem um arquivo real pra baixar. Antes o código tratava QUALQUER
+    # chave terminada em "Message" como mídia (ex: templateMessage, reactionMessage,
+    # protocolMessage), o que fazia o sistema tentar baixar "mídia" de mensagens que
+    # nunca tiveram arquivo nenhum (template com botão, reação de emoji, evento de
+    # protocolo) — daí o "Arquivo não pôde ser baixado" aparecendo à toa.
+    MEDIA_MESSAGE_KEYS = %w[
+      imageMessage videoMessage audioMessage documentMessage
+      stickerMessage documentWithCaptionMessage
+    ].freeze
+
+    # Eventos do WhatsApp que não são mensagem de chat de verdade (reação com
+    # emoji, eventos internos de protocolo, atualização de enquete) — não devem
+    # virar um balão de conversa.
+    NON_CONTENT_MESSAGE_KEYS = %w[reactionMessage protocolMessage pollUpdateMessage].freeze
+
     def create
       # The baileys-api webhook payload typically contains events
       event = params[:event]
@@ -78,6 +94,25 @@ module Webhooks
         
         # Ignorar mensagens de grupos
         next if remote_jid.include?('@g.us')
+
+        # Baileys às vezes entrega primeiro um evento "stub" sem conteúdo (ex:
+        # messageStubType 2 "Message absent from node", comum durante o handshake
+        # de criptografia) e só segundos depois reenvia o mesmo id de mensagem já
+        # com o texto real. Sem esse skip, o evento vazio cria o registro da
+        # mensagem primeiro com texto em branco (cai no fallback "Arquivo não
+        # suportado"), e a dedup por source_id abaixo descarta a entrega seguinte
+        # que já traria o conteúdo de verdade.
+        msg_content = msg[:message] || msg['message']
+        stub_type = msg[:messageStubType] || msg['messageStubType']
+        next if msg_content.blank? && stub_type.present?
+
+        # Ignora eventos que não são conteúdo de chat de verdade (reação, evento de
+        # protocolo, atualização de enquete) — messageContextInfo sozinho não conta,
+        # ele acompanha praticamente toda mensagem do WhatsApp.
+        if msg_content.present?
+          relevant_keys = msg_content.keys.map(&:to_s) - ['messageContextInfo']
+          next if relevant_keys.present? && relevant_keys.all? { |k| NON_CONTENT_MESSAGE_KEYS.include?(k) }
+        end
 
         # Tratamento de fromMe (Humano do nosso lado enviou mensagem)
         if msg.dig(:key, :fromMe)
@@ -158,6 +193,15 @@ module Webhooks
           end
         end
 
+        # Templates/mensagens com botão (comum em contatos comerciais tipo operadora)
+        # guardam o texto em outro lugar do payload, não no campo padrão.
+        if text.blank?
+          text = msg.dig(:message, :templateMessage, :hydratedTemplate, :hydratedContentText).presence ||
+                 msg.dig(:message, :buttonsMessage, :contentText).presence ||
+                 msg.dig(:message, :listMessage, :description).presence ||
+                 ''
+        end
+
         Rails.logger.info("Incoming MSG Payload: #{msg.to_json}")
 
         next if Message.exists?(source_id: source_id)
@@ -165,8 +209,11 @@ module Webhooks
         # Usa a conta do próprio inbox (evita fallback para Account.first errado)
         account = inbox.account
 
-        # Find or create contact
-        contact = Contact.find_or_create_by(phone: contact_phone_formatted, account_id: account.id) do |c|
+        # Find or create contact — casa pelo telefone principal OU por qualquer telefone
+        # adicional já vinculado (briefing seção 7: revendedora pode falar por vários
+        # números, não pode virar lead duplicado).
+        contact = Contact.find_by_any_phone(account.id, contact_phone_formatted)
+        contact ||= Contact.create!(account_id: account.id, phone: contact_phone_formatted) do |c|
           c.name = msg[:pushName] || msg['pushName'] || contact_phone_formatted
           c.jid = contact_jid
           c.source = 'WhatsApp'
@@ -232,7 +279,7 @@ module Webhooks
         end
 
         msg_obj = msg[:message] || msg['message'] || {}
-        media_type_key = msg_obj.keys.find { |k| k.to_s.end_with?('Message') && k.to_s != 'extendedTextMessage' }
+        media_type_key = msg_obj.keys.find { |k| MEDIA_MESSAGE_KEYS.include?(k.to_s) }
         
         if media_type_key
           media_info = msg_obj[media_type_key]

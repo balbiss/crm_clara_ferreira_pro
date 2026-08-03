@@ -213,8 +213,8 @@ services:
       - API_URL=https://api-crm.SEUDOMINIO.com.br
       - APP_NAME=Clara Ferreira CRM
       - APP_LOGO_URL=
-      - APP_PRIMARY_COLOR=#FF007F
-      - APP_ACCENT_COLOR=#FF007F
+      - APP_PRIMARY_COLOR=#d49ba7
+      - APP_ACCENT_COLOR=#ba5e72
       - APP_SUPPORT_EMAIL=CHANGE_ME
       - APP_FOOTER_TEXT=© 2026 Clara Ferreira Acessórios. Todos os direitos reservados.
     networks:
