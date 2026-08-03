@@ -29,6 +29,16 @@
               <input type="text" v-model="formData.name" placeholder="Nome do contato" required autocomplete="off" />
             </div>
 
+            <div class="form-group" v-if="isFullPortfolio">
+              <label>Responsável (consultor)</label>
+              <select v-model="formData.user_id">
+                <option :value="null">Sem responsável</option>
+                <option v-for="agent in store.agents" :key="agent.id" :value="agent.id">
+                  {{ agent.first_name }} {{ agent.last_name }}
+                </option>
+              </select>
+            </div>
+
             <div class="form-row">
               <div class="form-group half">
                 <label>CPF</label>
@@ -56,77 +66,63 @@
                 </div>
               </div>
               <div class="form-group half">
-                <label>Profissão</label>
-                <input type="text" v-model="formData.profession" placeholder="Ex: Engenheiro" autocomplete="off" />
+                <label>Instagram</label>
+                <input type="text" v-model="formData.cadastro.instagram" placeholder="@perfil" autocomplete="off" />
               </div>
             </div>
           </div>
 
           <div class="form-section">
-            <h3>Qualificação Imobiliária</h3>
-            
-            <div class="form-group">
-              <label>Renda Bruta (R$)</label>
-              <input type="number" step="0.01" v-model="formData.gross_income" placeholder="0.00" autocomplete="off" />
+            <h3>Dados de Cadastro</h3>
+            <div class="form-row">
+              <div class="form-group half">
+                <label>ID Jueri (ERP)</label>
+                <input type="text" v-model="formData.cadastro.id_jueri" placeholder="Código no Jueri" autocomplete="off" />
+              </div>
+              <div class="form-group half">
+                <label>Origem do lead</label>
+                <input type="text" v-model="formData.cadastro.origem" placeholder="Ex: Indicação, Instagram" autocomplete="off" />
+              </div>
             </div>
+          </div>
 
-            <!-- Checkboxes and conditional inputs -->
-            <div class="qualification-checklists">
-              
-              <!-- Entrada -->
-              <div class="checklist-item">
-                <div class="checklist-header">
-                  <span class="question-text">Possui Valor de Entrada?</span>
-                  <div class="yes-no-group">
-                    <label class="yes-no-btn" :class="{ active: formData.has_down_payment === true }">
-                      <input type="radio" :value="true" v-model="formData.has_down_payment" /> Sim
-                    </label>
-                    <label class="yes-no-btn" :class="{ active: formData.has_down_payment === false }">
-                      <input type="radio" :value="false" v-model="formData.has_down_payment" /> Não
-                    </label>
-                  </div>
-                </div>
-                <div class="conditional-input" v-if="formData.has_down_payment">
-                  <input type="number" step="0.01" v-model="formData.down_payment" placeholder="Qual o valor? (R$)" autocomplete="off" />
-                </div>
+          <div class="form-section">
+            <h3>Telefones Adicionais</h3>
+            <p style="font-size: 0.85rem; color: #6b7280; margin-bottom: 12px; margin-top: -10px;">
+              Mesma revendedora pode falar por vários números (pessoal, mãe, sócia etc.) — todos ficam vinculados a este cadastro único (briefing seção 7).
+            </p>
+            <div v-for="(tel, index) in formData.telefonesAdicionais" :key="index" class="form-row" style="margin-bottom: 10px; align-items: flex-end;">
+              <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                <label v-if="index === 0">Identificação</label>
+                <input type="text" v-model="tel.label" placeholder="Ex: Telefone da mãe" autocomplete="off" />
               </div>
-
-              <!-- FGTS -->
-              <div class="checklist-item">
-                <div class="checklist-header">
-                  <span class="question-text">Possui Saldo FGTS?</span>
-                  <div class="yes-no-group">
-                    <label class="yes-no-btn" :class="{ active: formData.has_fgts === true }">
-                      <input type="radio" :value="true" v-model="formData.has_fgts" /> Sim
-                    </label>
-                    <label class="yes-no-btn" :class="{ active: formData.has_fgts === false }">
-                      <input type="radio" :value="false" v-model="formData.has_fgts" /> Não
-                    </label>
-                  </div>
-                </div>
-                <div class="conditional-input" v-if="formData.has_fgts">
-                  <input type="number" step="0.01" v-model="formData.fgts_balance" placeholder="Qual o saldo? (R$)" autocomplete="off" />
-                </div>
+              <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                <label v-if="index === 0">Número</label>
+                <input type="text" v-model="tel.numero" placeholder="+5511999999999" autocomplete="off" />
               </div>
+              <button type="button" @click="formData.telefonesAdicionais.splice(index, 1)" class="btn-cancel" style="padding: 10px; height: 38px; border-color: #ef4444; color: #ef4444; display: flex; align-items: center; justify-content: center;" title="Remover">
+                Remover
+              </button>
+            </div>
+            <button type="button" @click="formData.telefonesAdicionais.push({label: '', numero: ''})" style="background: none; border: none; color: #d49ba7; cursor: pointer; font-weight: 500; font-size: 0.9rem; padding: 0; margin-top: 5px;">
+              + Adicionar telefone
+            </button>
+          </div>
 
-              <!-- Dependentes -->
-              <div class="checklist-item">
-                <div class="checklist-header">
-                  <span class="question-text">Possui Dependentes?</span>
-                  <div class="yes-no-group">
-                    <label class="yes-no-btn" :class="{ active: formData.has_dependents === true }">
-                      <input type="radio" :value="true" v-model="formData.has_dependents" /> Sim
-                    </label>
-                    <label class="yes-no-btn" :class="{ active: formData.has_dependents === false }">
-                      <input type="radio" :value="false" v-model="formData.has_dependents" /> Não
-                    </label>
-                  </div>
-                </div>
-                <div class="conditional-input" v-if="formData.has_dependents">
-                  <input type="number" v-model="formData.dependents" placeholder="Quantidade de dependentes" autocomplete="off" />
-                </div>
+          <div class="form-section">
+            <h3>Dados da Revenda</h3>
+            <p style="font-size: 0.85rem; color: #6b7280; margin-bottom: 12px; margin-top: -10px;">
+              Campos usados na aba Principal e no funil Consignado.
+            </p>
+            <div class="form-row" v-for="pair in revendaFieldPairs" :key="pair[0].key">
+              <div class="form-group half">
+                <label>{{ pair[0].label }}</label>
+                <input type="text" v-model="formData.revenda[pair[0].key]" autocomplete="off" />
               </div>
-
+              <div class="form-group half" v-if="pair[1]">
+                <label>{{ pair[1].label }}</label>
+                <input type="text" v-model="formData.revenda[pair[1].key]" autocomplete="off" />
+              </div>
             </div>
           </div>
 
@@ -138,8 +134,8 @@
             </div>
 
             <div class="form-group">
-              <label>Nome da empresa</label>
-              <input type="text" v-model="formData.company_name" placeholder="Digite o nome da empresa" autocomplete="off" />
+              <label>Nome da empresa vinculada</label>
+              <input type="text" v-model="formData.company_name" placeholder="Ex: Victória Cosméticos" autocomplete="off" />
             </div>
           </div>
 
@@ -161,7 +157,7 @@
                 Remover
               </button>
             </div>
-            <button type="button" @click="formData.customAttributesArray.push({key: '', value: ''})" style="background: none; border: none; color: #3b82f6; cursor: pointer; font-weight: 500; font-size: 0.9rem; padding: 0; margin-top: 5px;">
+            <button type="button" @click="formData.customAttributesArray.push({key: '', value: ''})" style="background: none; border: none; color: #d49ba7; cursor: pointer; font-weight: 500; font-size: 0.9rem; padding: 0; margin-top: 5px;">
               + Adicionar novo atributo
             </button>
           </div>
@@ -231,7 +227,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useConversationsStore } from '../store/conversations'
 import Swal from 'sweetalert2'
 
@@ -243,8 +239,45 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 const store = useConversationsStore()
 
+// Transferência de responsável (briefing seção 22/30: "gerente transfere
+// revendedoras entre responsáveis") — só quem enxerga a carteira toda pode
+// reatribuir. O backend (ContactsController#contact_params) já ignora esse
+// campo se quem enviar não for full_portfolio, isso aqui é só a UI.
+const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
+const isFullPortfolio = computed(() => ['empresa', 'admin', 'gerente', 'diretoria'].includes(currentUser.role))
+
+onMounted(() => {
+  if (isFullPortfolio.value && !store.agents.length) store.fetchAgents()
+})
+
+// Campos da régua/revenda — espelham a aba Principal em Conversas.vue.
+// Ficam em custom_attributes (jsonb) pra não depender de migration nova.
+const REVENDA_FIELDS = [
+  { key: 'venda', label: 'Venda' },
+  { key: 'proximo_agendamento', label: 'Próximo agendamento' },
+  { key: 'limite_inicial', label: 'Limite Inicial' },
+  { key: 'dia_fechamento', label: 'Dia Fechamento' },
+  { key: 'data_agendamento', label: 'Data de Agendamento' },
+  { key: 'obs_fechamento', label: 'Obs Fechamento' },
+  { key: 'dia_pf_fechamento', label: 'Dia p/ Fechamento' },
+  { key: 'horario_fechamento', label: 'Horário de Fechamento' },
+  { key: 'atraso', label: 'Atraso' },
+  { key: 'observacao_mes', label: 'Observação do mês' },
+  { key: 'meta', label: 'Meta' },
+  { key: 'desafio_combinado', label: 'Desafio combinado para o mês' },
+  { key: 'como_chegar_meta', label: 'Como chegar na Meta' },
+]
+const revendaFieldPairs = []
+for (let i = 0; i < REVENDA_FIELDS.length; i += 2) {
+  revendaFieldPairs.push([REVENDA_FIELDS[i], REVENDA_FIELDS[i + 1]])
+}
+
+const CADASTRO_KEYS = ['instagram', 'id_jueri', 'origem']
+const RESERVED_KEYS = [...REVENDA_FIELDS.map(f => f.key), ...CADASTRO_KEYS, 'pedidos', 'telefones_adicionais']
+
 const formData = ref({
   name: '',
+  user_id: null,
   email: '',
   phone: '',
   bio: '',
@@ -253,21 +286,17 @@ const formData = ref({
   city: '',
   cpf: '',
   birth_date: '',
-  profession: '',
-  gross_income: '',
-  down_payment: '',
-  fgts_balance: '',
-  dependents: '',
-  has_down_payment: false,
-  has_fgts: false,
-  has_dependents: false,
   cep: '',
   street: '',
   neighborhood: '',
   state: '',
   address_number: '',
   address_complement: '',
-  customAttributesArray: []
+  revenda: {},
+  cadastro: {},
+  telefonesAdicionais: [],
+  customAttributesArray: [],
+  _originalCustomAttributes: {}
 })
 const loading = ref(false)
 const loadingCep = ref(false)
@@ -306,8 +335,15 @@ const buscarCep = async () => {
 
 watch(() => props.contact, (newContact) => {
   if (newContact) {
+    const custom = newContact.custom_attributes || {}
+    const revenda = {}
+    REVENDA_FIELDS.forEach(f => { revenda[f.key] = custom[f.key] || '' })
+    const cadastro = {}
+    CADASTRO_KEYS.forEach(k => { cadastro[k] = custom[k] || '' })
+
     formData.value = {
       name: newContact.name || '',
+      user_id: newContact.user_id ?? null,
       email: newContact.email || '',
       phone: newContact.phone || '',
       bio: newContact.bio || '',
@@ -316,21 +352,24 @@ watch(() => props.contact, (newContact) => {
       city: newContact.city || '',
       cpf: newContact.cpf || '',
       birth_date: newContact.birth_date || '',
-      profession: newContact.profession || '',
-      gross_income: newContact.gross_income || '',
-      down_payment: newContact.down_payment || '',
-      fgts_balance: newContact.fgts_balance || '',
-      dependents: newContact.dependents || '',
-      has_down_payment: !!newContact.down_payment && parseFloat(newContact.down_payment) > 0,
-      has_fgts: !!newContact.fgts_balance && parseFloat(newContact.fgts_balance) > 0,
-      has_dependents: !!newContact.dependents && parseInt(newContact.dependents) > 0,
       cep: newContact.cep || '',
       street: newContact.street || '',
       neighborhood: newContact.neighborhood || '',
       state: newContact.state || '',
       address_number: newContact.address_number || '',
       address_complement: newContact.address_complement || '',
-      customAttributesArray: newContact.custom_attributes ? Object.keys(newContact.custom_attributes).map(k => ({ key: k, value: newContact.custom_attributes[k] })) : []
+      revenda,
+      cadastro,
+      // Fonte de verdade agora é a tabela reseller_phones (não mais o jsonb
+      // custom_attributes.telefones_adicionais, que o backend intercepta e
+      // some do payload salvo — ver Contact#extrair_telefones_adicionais_do_jsonb).
+      telefonesAdicionais: Array.isArray(newContact.reseller_phones)
+        ? newContact.reseller_phones.map(rp => ({ label: rp.label || '', numero: rp.phone }))
+        : (Array.isArray(custom.telefones_adicionais) ? custom.telefones_adicionais.map(t => ({ ...t })) : []),
+      customAttributesArray: Object.keys(custom)
+        .filter(k => !RESERVED_KEYS.includes(k))
+        .map(k => ({ key: k, value: custom[k] })),
+      _originalCustomAttributes: custom
     }
   }
 }, { immediate: true })
@@ -342,18 +381,26 @@ const close = () => {
 const save = async () => {
   if (!props.contact) return
   loading.value = true
-  
-  // Clean up data before sending
-  const dataToSave = { ...formData.value }
-  if (!dataToSave.has_down_payment) dataToSave.down_payment = null
-  if (!dataToSave.has_fgts) dataToSave.fgts_balance = null
-  if (!dataToSave.has_dependents) dataToSave.dependents = null
-  
-  delete dataToSave.has_down_payment
-  delete dataToSave.has_fgts
-  delete dataToSave.has_dependents
 
-  const custom_attributes = {}
+  const dataToSave = { ...formData.value }
+
+  // Preserva chaves não gerenciadas por este modal (ex: "pedidos" do Financeiro)
+  // e sobrescreve só o que o modal edita.
+  const custom_attributes = { ...(dataToSave._originalCustomAttributes || {}) }
+  Object.keys(custom_attributes).forEach(k => {
+    if (!RESERVED_KEYS.includes(k)) delete custom_attributes[k]
+  })
+  REVENDA_FIELDS.forEach(f => {
+    if (dataToSave.revenda[f.key]) custom_attributes[f.key] = dataToSave.revenda[f.key]
+    else delete custom_attributes[f.key]
+  })
+  CADASTRO_KEYS.forEach(k => {
+    if (dataToSave.cadastro[k]) custom_attributes[k] = dataToSave.cadastro[k]
+    else delete custom_attributes[k]
+  })
+  const validPhones = dataToSave.telefonesAdicionais.filter(t => t.numero && t.numero.trim())
+  if (validPhones.length) custom_attributes.telefones_adicionais = validPhones
+  else delete custom_attributes.telefones_adicionais
   dataToSave.customAttributesArray.forEach(attr => {
     if (attr.key && attr.key.trim()) {
       custom_attributes[attr.key.trim()] = attr.value
@@ -361,6 +408,10 @@ const save = async () => {
   })
   dataToSave.custom_attributes = custom_attributes
   delete dataToSave.customAttributesArray
+  delete dataToSave.revenda
+  delete dataToSave.cadastro
+  delete dataToSave.telefonesAdicionais
+  delete dataToSave._originalCustomAttributes
 
   try {
     await store.updateContact(props.contact.id, dataToSave)
@@ -484,7 +535,7 @@ const save = async () => {
   font-weight: 500;
 }
 
-.form-group input, .form-group textarea {
+.form-group input, .form-group textarea, .form-group select {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid #e5e7eb;
@@ -495,11 +546,11 @@ const save = async () => {
   transition: all 0.2s;
 }
 
-.form-group input:focus, .form-group textarea:focus {
+.form-group input:focus, .form-group textarea:focus, .form-group select:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: #d49ba7;
   background: white;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  box-shadow: 0 0 0 3px rgba(212, 155, 167, 0.1);
 }
 
 .qualification-checklists {
@@ -563,7 +614,7 @@ const save = async () => {
   background: white;
   color: #1f2937;
   font-weight: 600;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 2px rgba(43,0,22,0.06), 0 6px 16px rgba(43,0,22,0.09);
 }
 
 .conditional-input {
@@ -587,8 +638,8 @@ const save = async () => {
 
 .conditional-input input:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: #d49ba7;
+  box-shadow: 0 0 0 3px rgba(212, 155, 167, 0.1);
 }
 
 .phone-input-wrapper {
@@ -629,7 +680,7 @@ const save = async () => {
   width: 16px;
   height: 16px;
   border: 2px solid #e5e7eb;
-  border-top-color: #3b82f6;
+  border-top-color: #d49ba7;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -693,7 +744,7 @@ const save = async () => {
 }
 
 .btn-primary {
-  background: var(--primary, #3b82f6);
+  background: var(--primary, #d49ba7);
   color: white;
   border: none;
   padding: 8px 16px;
@@ -704,7 +755,7 @@ const save = async () => {
 }
 
 .btn-primary:hover {
-  background: var(--primary-dark, #2563eb);
+  background: var(--primary-dark, #ba5e72);
 }
 
 .btn-primary:disabled {

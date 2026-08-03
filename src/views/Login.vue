@@ -55,7 +55,7 @@ const handleLogin = async () => {
       icon: 'success',
       title: 'Login realizado!',
       text: `Bem-vindo de volta ao ${brand.name}.`,
-      confirmButtonColor: '#2563eb',
+      confirmButtonColor: '#ba5e72',
       timer: 1500,
       showConfirmButton: false
     })
@@ -71,7 +71,7 @@ const handleLogin = async () => {
       icon: 'error',
       title: 'Acesso Negado',
       text: 'E-mail ou senha incorretos. Verifique e tente novamente.',
-      confirmButtonColor: '#2563eb',
+      confirmButtonColor: '#ba5e72',
       customClass: { icon: 'swal-icon-pulse-slow' }
     })
   } finally {
@@ -86,23 +86,28 @@ const handleLogin = async () => {
     <!-- Lado esquerdo: imagem + branding -->
     <div class="login-hero">
       <div class="hero-overlay"></div>
-      <div class="hero-content">
+      <div class="hero-top fade-in-up" style="animation-delay: 0.05s">
+        <div class="hero-logo-card">
+          <img src="/logos/clara-ferreira-logo-white.png" alt="Clara Ferreira Acessórios" class="hero-logo" />
+        </div>
+      </div>
+      <div class="hero-content hero-content--bottom fade-in-up" style="animation-delay: 0.2s">
         <h1 class="hero-brand">{{ brandMain }}<span>{{ brandAccent }}</span></h1>
-        <p class="hero-tagline">Gerencie seus leads, imóveis e equipe em um só lugar — com IA trabalhando 24h para você.</p>
+        <p class="hero-tagline">Gerencie sua carteira de revendedoras e a régua de relacionamento em um só lugar — com IA trabalhando 24h para você.</p>
         <div class="hero-badges">
           <span class="hero-badge">IA no WhatsApp</span>
           <span class="hero-badge">Rodízio automático</span>
-          <span class="hero-badge">Portais integrados</span>
+          <span class="hero-badge">Sincronização Jueri</span>
         </div>
       </div>
     </div>
 
     <!-- Lado direito: formulário -->
     <div class="login-panel">
-      <div class="auth-card">
+      <div class="auth-card fade-in-up" style="animation-delay: 0.3s">
         <div class="auth-header">
           <h2>Bem-vindo de volta</h2>
-          <p>Acesse sua conta para gerenciar seus imóveis e leads.</p>
+          <p>Acesse sua conta para gerenciar suas revendedoras e leads.</p>
         </div>
 
         <form @submit.prevent="handleLogin" class="auth-form">
@@ -174,13 +179,32 @@ const handleLogin = async () => {
   min-height: 100vh;
 }
 
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-up {
+  opacity: 0;
+  animation: fadeInUp 0.6s ease-out forwards;
+}
+
 /* ── Lado esquerdo: hero com imagem ── */
 .login-hero {
   flex: 1;
   position: relative;
-  background: url('/login-bg.jpg') center center / cover no-repeat;
+  background: linear-gradient(135deg, #d49ba7 0%, #ba5e72 55%, #6b2e3b 100%);
   display: flex;
-  align-items: flex-end;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 3rem;
   padding: 3rem;
 
   @media (max-width: 768px) { display: none; }
@@ -191,9 +215,34 @@ const handleLogin = async () => {
   inset: 0;
   background: linear-gradient(
     to bottom,
-    rgba(15, 23, 42, 0.35) 0%,
-    rgba(15, 23, 42, 0.72) 100%
+    rgba(0, 0, 0, 0.05) 0%,
+    rgba(0, 0, 0, 0.4) 100%
   );
+}
+
+.hero-top {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-logo-card {
+  width: 100%;
+  max-width: 650px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-logo {
+  width: 100%;
+  max-width: 650px;
+  height: auto;
+  display: block;
 }
 
 .hero-content {
@@ -203,12 +252,16 @@ const handleLogin = async () => {
   max-width: 520px;
 }
 
+.hero-content--bottom {
+  margin-top: auto;
+}
+
 .hero-brand {
   font-size: 2.2rem;
   font-weight: 800;
   margin-bottom: 1rem;
   letter-spacing: -0.03em;
-  span { color: #60a5fa; }
+  span { color: #ffd9ec; }
 }
 
 .hero-tagline {
@@ -303,8 +356,8 @@ const handleLogin = async () => {
     color: var(--text-main, #111827);
 
     &:focus {
-      border-color: var(--primary, #4338ca);
-      box-shadow: 0 0 0 3px rgba(67,56,202,0.12);
+      border-color: var(--primary, #d49ba7);
+      box-shadow: 0 0 0 3px rgba(212, 155, 167,0.12);
     }
   }
 }
@@ -326,7 +379,7 @@ const handleLogin = async () => {
     display: flex;
     align-items: center;
     padding: 0;
-    &:hover { color: var(--primary, #4338ca); }
+    &:hover { color: var(--primary-hover, #ba5e72); }
   }
 }
 
@@ -346,14 +399,14 @@ const handleLogin = async () => {
 
   .forgot-password {
     font-weight: 500;
-    color: var(--primary, #4338ca);
+    color: var(--primary-hover, #ba5e72);
     text-decoration: none;
     &:hover { text-decoration: underline; }
   }
 }
 
 .btn-primary {
-  background: var(--primary, #4338ca);
+  background: linear-gradient(135deg, #ba5e72 0%, #9c4a5c 100%);
   color: white;
   border: none;
   border-radius: 8px;
@@ -362,10 +415,14 @@ const handleLogin = async () => {
   font-weight: 600;
   cursor: pointer;
   margin-top: 0.25rem;
-  transition: opacity 0.2s;
+  box-shadow: 0 4px 14px rgba(154, 60, 80, 0.35);
+  transition: box-shadow 0.2s, transform 0.2s, opacity 0.2s;
   width: 100%;
 
-  &:hover:not(:disabled) { opacity: 0.9; }
+  &:hover:not(:disabled) {
+    box-shadow: 0 6px 18px rgba(154, 60, 80, 0.45);
+    transform: translateY(-1px);
+  }
   &:disabled { opacity: 0.6; cursor: not-allowed; }
 }
 
@@ -377,7 +434,7 @@ const handleLogin = async () => {
 
   a {
     font-weight: 600;
-    color: var(--primary, #4338ca);
+    color: var(--primary-hover, #ba5e72);
     text-decoration: none;
     &:hover { text-decoration: underline; }
   }
@@ -394,8 +451,8 @@ const handleLogin = async () => {
   gap: 0.5rem;
   width: 100%;
   background: transparent;
-  color: var(--primary, #4338ca);
-  border: 1px solid var(--primary, #4338ca);
+  color: var(--primary-hover, #ba5e72);
+  border: 1px solid var(--primary-hover, #ba5e72);
   border-radius: 8px;
   padding: 0.7rem;
   font-size: 0.9rem;
@@ -403,22 +460,22 @@ const handleLogin = async () => {
   cursor: pointer;
   transition: background 0.2s;
 
-  &:hover { background: rgba(67,56,202,0.06); }
+  &:hover { background: rgba(212, 155, 167,0.06); }
 }
 
 .ios-hint {
   display: flex;
   align-items: flex-start;
   gap: 0.5rem;
-  background: rgba(67,56,202,0.05);
-  border: 1px solid rgba(67,56,202,0.15);
+  background: rgba(212, 155, 167,0.05);
+  border: 1px solid rgba(212, 155, 167,0.15);
   border-radius: 8px;
   padding: 0.75rem 0.9rem;
   font-size: 0.8rem;
   color: var(--text-muted, #6b7280);
   line-height: 1.4;
 
-  svg { flex-shrink: 0; margin-top: 0.15rem; color: var(--primary, #4338ca); }
+  svg { flex-shrink: 0; margin-top: 0.15rem; color: var(--primary-hover, #ba5e72); }
   strong { color: var(--text-main, #111827); }
 }
 </style>

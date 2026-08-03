@@ -414,8 +414,6 @@ export const useConversationsStore = defineStore('conversations', {
             } else {
               this.fetchConversations()
             }
-          } else if (payload.event === 'property_match_found') {
-            window.dispatchEvent(new CustomEvent('property-match-found', { detail: payload }))
           } else if (payload.event === 'snooze_expired') {
             const conv = this.conversations.find(c => Number(c.id) === Number(payload.conversation_id))
             if (conv) {

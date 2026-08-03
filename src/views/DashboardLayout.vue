@@ -5,10 +5,8 @@ import api from '../api'
 import Swal from 'sweetalert2'
 import { useInboxesStore } from '../store/inboxes'
 import { useContactsStore } from '../store/contacts'
-import { usePropertiesStore } from '../store/properties'
-import { useCondominiumsStore } from '../store/condominiums'
-import { useAppointmentsStore } from '../store/appointments'
 import { useAgentsStore } from '../store/agents'
+import { usePipelinesStore } from '../store/pipelines'
 import {
   Search,
   Inbox,
@@ -20,7 +18,6 @@ import {
   ChevronDown,
   Users,
   Home,
-  Building,
   Kanban,
   Briefcase,
   User,
@@ -40,7 +37,18 @@ import {
   CreditCard,
   BookOpen,
   Menu,
-  X
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Mail,
+  Bot,
+  Zap,
+  List,
+  UserX,
+  ListChecks,
+  Plus,
+  MoreVertical,
+  GripVertical
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -49,10 +57,20 @@ const isSettingsOpen = ref(false)
 const showUserMenu = ref(false)
 const autoOffline = ref(false)
 const isConversasOpen = ref(true)
+const isPipelinesOpen = ref(false)
+const isPipelinesMenuOpen = ref(false)
+const isReorderModalOpen = ref(false)
+const reorderList = ref([])
 const isMobileSidebarOpen = ref(false)
+const isSidebarCollapsed = ref(localStorage.getItem('sidebar_collapsed') === 'true')
 
 const toggleMobileSidebar = () => { isMobileSidebarOpen.value = !isMobileSidebarOpen.value }
 const closeMobileSidebar = () => { isMobileSidebarOpen.value = false }
+
+const toggleSidebarCollapsed = () => {
+  isSidebarCollapsed.value = !isSidebarCollapsed.value
+  localStorage.setItem('sidebar_collapsed', isSidebarCollapsed.value)
+}
 
 // Notification Logic
 const notifications = ref([])
@@ -121,10 +139,8 @@ const markAllAsRead = async () => {
 
 const inboxesStore = useInboxesStore()
 const contactsStore = useContactsStore()
-const propertiesStore = usePropertiesStore()
-const condominiumsStore = useCondominiumsStore()
-const appointmentsStore = useAppointmentsStore()
 const agentsStore = useAgentsStore()
+const pipelinesStore = usePipelinesStore()
 
 // Dados reais do usuário logado
 const currentUser = ref({ first_name: '', last_name: '', email: '', account_name: '' })
@@ -151,9 +167,27 @@ const loadUser = () => {
   }
 }
 
+// Carteira inteira (Painel Gerencial) — gerente também entra aqui.
 const isAdminOrEmpresa = computed(() => {
-  return ['admin', 'empresa'].includes(currentUser.value.role) || !!currentUser.value.permissions?.admin
+  return ['admin', 'empresa', 'gerente', 'diretoria'].includes(currentUser.value.role) || !!currentUser.value.permissions?.admin
 })
+
+// Configurações críticas do sistema (briefing seção 30) — gerente NÃO entra
+// aqui, só diretoria/empresa/admin. Usado pra Agentes/Inboxes/Tags/Asaas/Conta.
+const isCriticalConfig = computed(() => {
+  return ['admin', 'empresa', 'diretoria'].includes(currentUser.value.role) || !!currentUser.value.permissions?.admin
+})
+
+const isFinanceiro = computed(() => currentUser.value.role === 'financeiro')
+
+// Badge de perfil na sidebar — deixa visível na hora qual nível de RBAC está
+// ativo na sessão, evita chamado de suporte por botão/tela "sumida" que na
+// verdade é trava de permissão (ex: consultor sem ver Configurações).
+const ROLE_LABELS = {
+  consultor: 'Consultor', gerente: 'Gerente', diretoria: 'Diretoria', financeiro: 'Financeiro',
+  atendente: 'Atendente', empresa: 'Dono da conta', admin: 'Admin'
+}
+const roleLabel = computed(() => ROLE_LABELS[currentUser.value.role] || currentUser.value.role)
 
 const userInitials = () => {
   const fn = currentUser.value.first_name || ''
@@ -303,10 +337,8 @@ onMounted(() => {
   // Only fetch stores if not already loaded
   if (!inboxesStore.isLoadedOnce) inboxesStore.fetchInboxes()
   if (!contactsStore.isLoadedOnce) contactsStore.fetchContacts()
-  if (!propertiesStore.isLoadedOnce) propertiesStore.fetchProperties()
-  if (!condominiumsStore.isLoadedOnce) condominiumsStore.fetchCondominiums()
-  if (!appointmentsStore.isLoadedOnce) appointmentsStore.fetchAppointments()
   if (!agentsStore.isLoadedOnce) agentsStore.fetchAgents()
+  if (!pipelinesStore.isLoadedOnce) pipelinesStore.fetchPipelines()
 
   window.addEventListener('keydown', handlePaletteKeydown)
   const savedTheme = localStorage.getItem('theme') || 'system'
@@ -319,7 +351,6 @@ onMounted(() => {
   fetchTags()
   window.addEventListener('tags-updated', fetchTags)
   window.addEventListener('lead-atribuido', handleLeadAtribuido)
-  window.addEventListener('property-match-found', handlePropertyMatchFound)
   window.addEventListener('snooze-expired', handleSnoozeExpired)
 })
 
@@ -336,7 +367,7 @@ const handleLeadAtribuido = (e) => {
     html: `<strong>${contact_name}</strong><br><small style="color:#6b7280">${origem}</small>`,
     showConfirmButton: true,
     confirmButtonText: 'Ver conversa',
-    confirmButtonColor: '#4338ca',
+    confirmButtonColor: '#d49ba7',
     showCloseButton: true,
     timer: 12000,
     timerProgressBar: true,
@@ -364,25 +395,6 @@ const handleLeadAtribuido = (e) => {
   })
 }
 
-const handlePropertyMatchFound = (e) => {
-  const { property_title, match_count } = e.detail
-  Swal.fire({
-    toast: true,
-    position: 'top-end',
-    icon: 'success',
-    title: '🏠 Match de Leads Encontrado!',
-    html: `<strong>${property_title}</strong><br><small style="color:#6b7280">${match_count} lead(s) compatível(is) foram notificados no WhatsApp</small>`,
-    showConfirmButton: true,
-    confirmButtonText: 'Ver Imóveis',
-    confirmButtonColor: '#10b981',
-    showCloseButton: true,
-    timer: 15000,
-    timerProgressBar: true
-  }).then((result) => {
-    if (result.isConfirmed) router.push('/imoveis')
-  })
-}
-
 const handleSnoozeExpired = (e) => {
   const { contact_name } = e.detail
   Swal.fire({
@@ -393,7 +405,7 @@ const handleSnoozeExpired = (e) => {
     html:            `<strong>${contact_name || 'Lead'}</strong><br><small style="color:#6b7280">O tempo de adiamento expirou — conversa reaberta.</small>`,
     showConfirmButton: true,
     confirmButtonText: 'Ver conversa',
-    confirmButtonColor: '#4338ca',
+    confirmButtonColor: '#d49ba7',
     showCloseButton: true,
     timer:           12000,
     timerProgressBar: true
@@ -408,7 +420,6 @@ onUnmounted(() => {
   document.removeEventListener('visibilitychange', handleVisibilityChange)
   window.removeEventListener('tags-updated', fetchTags)
   window.removeEventListener('lead-atribuido', handleLeadAtribuido)
-  window.removeEventListener('property-match-found', handlePropertyMatchFound)
   window.removeEventListener('snooze-expired', handleSnoozeExpired)
 })
 
@@ -416,6 +427,35 @@ const handleLogout = () => {
   localStorage.removeItem('auth_token')
   localStorage.removeItem('user')
   window.location.href = '/login'
+}
+
+const createPipeline = async () => {
+  isPipelinesMenuOpen.value = false
+  const { value: name } = await Swal.fire({
+    title: 'Novo pipeline', input: 'text', inputPlaceholder: 'Ex: Atacado, Prospecção...',
+    showCancelButton: true, confirmButtonColor: '#d49ba7', confirmButtonText: 'Criar', cancelButtonText: 'Cancelar'
+  })
+  if (!name || !name.trim()) return
+  const pipeline = await pipelinesStore.createPipeline(name.trim())
+  router.push(`/pipelines/${pipeline.slug}`)
+}
+
+const openReorderModal = () => {
+  isPipelinesMenuOpen.value = false
+  reorderList.value = [...pipelinesStore.pipelines].sort((a, b) => a.position - b.position)
+  isReorderModalOpen.value = true
+}
+
+const moveReorderItem = (index, direction) => {
+  const target = index + direction
+  if (target < 0 || target >= reorderList.value.length) return
+  const list = reorderList.value
+  ;[list[index], list[target]] = [list[target], list[index]]
+}
+
+const saveReorder = async () => {
+  await pipelinesStore.reorderPipelines(reorderList.value)
+  isReorderModalOpen.value = false
 }
 </script>
 
@@ -425,7 +465,12 @@ const handleLogout = () => {
     <div v-if="isMobileSidebarOpen" class="mobile-overlay" @click="closeMobileSidebar"></div>
 
     <!-- Primary Sidebar -->
-    <aside class="sidebar" :class="{ 'mobile-open': isMobileSidebarOpen }">
+    <aside class="sidebar" :class="{ 'mobile-open': isMobileSidebarOpen, 'collapsed': isSidebarCollapsed }">
+      <button class="sidebar-collapse-btn" @click="toggleSidebarCollapsed" :title="isSidebarCollapsed ? 'Expandir menu' : 'Recolher menu'">
+        <ChevronRight v-if="isSidebarCollapsed" class="icon-xs" />
+        <ChevronLeft v-else class="icon-xs" />
+      </button>
+
       <!-- Workspace Header -->
       <div class="workspace-header">
         <div class="workspace-info">
@@ -481,91 +526,133 @@ const handleLogout = () => {
       <!-- Navigation -->
       <nav class="nav-menu">
         <router-link to="/dashboard" class="nav-item">
+          <Home class="icon" />
+          <span>Início</span>
+        </router-link>
+
+        <router-link v-if="!isFinanceiro" to="/carteira" class="nav-item">
+          <Users class="icon" />
+          <span>Minhas Revendedoras</span>
+        </router-link>
+
+        <router-link to="/inativas" class="nav-item">
+          <UserX class="icon" />
+          <span>Inativas</span>
+        </router-link>
+
+        <router-link v-if="!isFinanceiro" to="/tarefas" class="nav-item">
+          <ListChecks class="icon" />
+          <span>Tarefas</span>
+        </router-link>
+
+        <router-link v-if="isAdminOrEmpresa" to="/gerencial" class="nav-item">
           <BarChart2 class="icon" />
-          <span>Dashboard</span>
+          <span>Gerencial</span>
+        </router-link>
+
+        <router-link v-if="isAdminOrEmpresa" to="/relatorios" class="nav-item">
+          <TrendingUp class="icon" />
+          <span>Relatórios</span>
         </router-link>
 
         <div class="settings-section">
           <div class="settings-header" @click="toggleConversas">
             <div class="left">
               <MessageCircle class="icon-sm" />
-              <span>Conversas</span>
+              <span>Comunicações</span>
             </div>
             <ChevronDown class="icon-xs chevron-icon" :class="{ 'rotate': isConversasOpen }" />
           </div>
           <div class="settings-menu" v-show="isConversasOpen">
-            <router-link to="/conversas" class="nav-item sub-item" exact-active-class="active">Todas as conversas</router-link>
-            <router-link to="/conversas/mencoes" class="nav-item sub-item" exact-active-class="active">Menções</router-link>
-            <router-link to="/conversas/participantes" class="nav-item sub-item" exact-active-class="active">Participantes</router-link>
-            <router-link to="/conversas/nao-atendidas" class="nav-item sub-item" exact-active-class="active">Não atendidas</router-link>
+            <router-link to="/conversas" class="nav-item sub-item" exact-active-class="active"><MessageCircle class="icon-sm" /> Inbox de chat</router-link>
+            <router-link to="/email" class="nav-item sub-item" exact-active-class="active"><Mail class="icon-sm" /> Inbox de e-mail</router-link>
+            <router-link to="/conversas/participantes" class="nav-item sub-item" exact-active-class="active"><Users class="icon-sm" /> Chats da equipe</router-link>
           </div>
         </div>
 
-        <router-link to="/contatos" class="nav-item">
-          <Users class="icon" />
-          <span>Contatos</span>
-        </router-link>
+        <div class="settings-section">
+          <div class="settings-header pipelines-header">
+            <div class="left" @click="isPipelinesOpen = !isPipelinesOpen">
+              <Kanban class="icon-sm" />
+              <span>Pipelines</span>
+            </div>
+            <div class="pipelines-header-actions">
+              <button
+                v-if="isAdminOrEmpresa"
+                class="icon-btn-inline"
+                title="Mais opções"
+                @click.stop="isPipelinesMenuOpen = !isPipelinesMenuOpen"
+              ><MoreVertical class="icon-xs" /></button>
+              <ChevronDown class="icon-xs chevron-icon" :class="{ 'rotate': isPipelinesOpen }" @click="isPipelinesOpen = !isPipelinesOpen" />
+            </div>
+            <div v-if="isPipelinesMenuOpen" class="pipelines-menu-overlay" @click="isPipelinesMenuOpen = false"></div>
+            <div v-if="isPipelinesMenuOpen" class="pipelines-dropdown">
+              <button class="pipelines-dropdown-item" @click.stop="createPipeline"><Plus class="icon-xs" /> Adicionar funil de vendas</button>
+              <button class="pipelines-dropdown-item" @click.stop="openReorderModal"><GripVertical class="icon-xs" /> Reordenar pipelines</button>
+            </div>
+          </div>
+          <div class="settings-menu" v-show="isPipelinesOpen">
+            <router-link to="/funil" class="nav-item sub-item" exact-active-class="active"><Badge class="icon-sm" /> Consignado</router-link>
+            <router-link
+              v-for="p in pipelinesStore.pipelines"
+              :key="p.id"
+              :to="`/pipelines/${p.slug}`"
+              class="nav-item sub-item"
+              exact-active-class="active"
+            ><Hash class="icon-sm" /> {{ p.name }}</router-link>
+            <router-link to="/pipelines/todos-leads" class="nav-item sub-item" exact-active-class="active"><ListChecks class="icon-sm" /> Todos os leads</router-link>
+          </div>
+        </div>
 
-        <router-link to="/imoveis" class="nav-item">
-          <Home class="icon" />
-          <span>Imóveis</span>
-        </router-link>
+        <div v-if="isReorderModalOpen" class="modal-overlay" @click.self="isReorderModalOpen = false">
+          <div class="reorder-modal">
+            <div class="reorder-modal-header">
+              <h3>Reordenar pipelines</h3>
+              <button class="close-btn" @click="isReorderModalOpen = false">&times;</button>
+            </div>
+            <div class="reorder-modal-body">
+              <div v-for="(p, index) in reorderList" :key="p.id" class="reorder-item">
+                <GripVertical class="icon-sm reorder-grip" />
+                <span class="reorder-name">{{ p.name }}</span>
+                <div class="reorder-arrows">
+                  <button :disabled="index === 0" @click="moveReorderItem(index, -1)" title="Mover pra cima"><ArrowUp class="icon-xs" /></button>
+                  <button :disabled="index === reorderList.length - 1" @click="moveReorderItem(index, 1)" title="Mover pra baixo"><ArrowDown class="icon-xs" /></button>
+                </div>
+              </div>
+            </div>
+            <div class="reorder-modal-footer">
+              <button class="btn-cancel" @click="isReorderModalOpen = false">Cancelar</button>
+              <button class="btn-primary" @click="saveReorder">Salvar ordem</button>
+            </div>
+          </div>
+        </div>
 
-        <router-link to="/condominios" class="nav-item">
-          <Building class="icon" />
-          <span>Condomínios</span>
-        </router-link>
-
-        <router-link to="/agendamentos" class="nav-item" active-class="active">
+        <router-link to="/calendario" class="nav-item">
           <CalendarDays class="icon" />
-          <span>Agendamentos</span>
+          <span>Calendário</span>
         </router-link>
 
-        <router-link v-if="isAdminOrEmpresa" to="/agentes" class="nav-item" active-class="active">
+        <router-link to="/segmentos" class="nav-item">
           <Badge class="icon" />
-          <span>Agentes</span>
+          <span>Segmentos</span>
         </router-link>
 
-        <router-link to="/funil" class="nav-item">
-          <Kanban class="icon" />
-          <span>Funil de Vendas</span>
+        <router-link to="/listas" class="nav-item">
+          <List class="icon" />
+          <span>Listas</span>
         </router-link>
 
-        <router-link to="/relatorios" class="nav-item" active-class="active">
-          <TrendingUp class="icon" />
-          <span>Relatórios</span>
+        <router-link to="/agente-ia" class="nav-item">
+          <Bot class="icon" />
+          <span>Agente de IA</span>
         </router-link>
 
-        <router-link to="/manual" class="nav-item" active-class="active">
-          <BookOpen class="icon" />
-          <span>Manual do Sistema</span>
+        <router-link to="/automacoes" class="nav-item">
+          <Zap class="icon" />
+          <span>Automações</span>
         </router-link>
 
-        <div class="nav-section">
-          <h3 class="section-title">Canais</h3>
-          <router-link 
-            v-for="inbox in inboxesStore.inboxes" 
-            :key="inbox.id"
-            :to="'/conversas/inbox/' + inbox.id"
-            class="nav-item sub-item"
-            exact-active-class="active"
-          >
-            <img v-if="inbox.provider === 'baileys'" src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WA" class="icon-img" />
-            <img v-else-if="inbox.provider === 'instagram'" src="https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png" alt="IG" class="icon-img" />
-            <Hash v-else class="icon" />
-            <span>{{ inbox.name }}</span>
-          </router-link>
-        </div>
-
-        <div class="nav-section" v-if="tags.length > 0">
-          <h3 class="section-title">Etiquetas</h3>
-          <a href="#" class="nav-item sub-item" v-for="tag in tags" :key="tag.id">
-            <span class="tag-color" :style="{ background: tag.color }"></span>
-            <span>{{ tag.name }}</span>
-          </a>
-        </div>
-
-        <div class="nav-section settings-section" v-if="isAdminOrEmpresa">
+        <div class="nav-section settings-section" v-if="isCriticalConfig">
           <div class="settings-header" @click="toggleSettings">
             <div class="left">
               <Settings class="icon-sm" />
@@ -575,13 +662,23 @@ const handleLogout = () => {
           </div>
           <div class="settings-menu" v-show="isSettingsOpen">
             <router-link to="/settings/account" class="nav-item sub-item" active-class="active"><Briefcase class="icon-sm" /> Conta</router-link>
-            <router-link to="/suporte" class="nav-item sub-item"><HelpCircle class="icon-sm" /> Central de Suporte</router-link>
             <router-link to="/settings/inboxes" class="nav-item sub-item"><Inbox class="icon-sm" /> Caixas de Entrada</router-link>
             <router-link to="/settings/tags" class="nav-item sub-item" active-class="active"><Tag class="icon-sm" /> Etiquetas</router-link>
-            <router-link v-if="isAdminOrEmpresa" to="/settings/portals" class="nav-item sub-item" active-class="active"><TrendingUp class="icon-sm" /> Portais Imobiliários</router-link>
-            <router-link v-if="isAdminOrEmpresa" to="/settings/asaas" class="nav-item sub-item" active-class="active"><CreditCard class="icon-sm" /> Cobrança (Asaas)</router-link>
+            <router-link to="/settings/asaas" class="nav-item sub-item" active-class="active"><CreditCard class="icon-sm" /> Cobrança (Asaas)</router-link>
+            <router-link to="/agentes" class="nav-item sub-item" active-class="active"><Badge class="icon-sm" /> Agentes</router-link>
           </div>
         </div>
+
+        <router-link to="/suporte" class="nav-item" active-class="active">
+          <HelpCircle class="icon" />
+          <span>Ajuda</span>
+        </router-link>
+
+        <button type="button" class="nav-item nav-item-btn" @click="toggleNotifications">
+          <Bell class="icon" />
+          <span>Central de Notificação</span>
+          <span v-if="unreadCount > 0" class="nav-badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
+        </button>
       </nav>
 
       <!-- Bottom Profile -->
@@ -621,6 +718,7 @@ const handleLogout = () => {
           <div class="user-info">
             <span class="name">{{ userDisplayName() }}</span>
             <span class="email">{{ currentUser.email }}</span>
+            <span class="role-badge" :class="'role-' + currentUser.role">{{ roleLabel }}</span>
           </div>
         </div>
       </div>
@@ -703,11 +801,84 @@ const handleLogout = () => {
 
 .sidebar {
   width: 256px;
-  background-color: var(--bg-secondary);
-  border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  position: relative;
+  transition: width 0.18s ease;
+
+  /* Sobrescreve as variáveis de tema só dentro do menu lateral — o resto do app continua claro */
+  --bg-secondary: #2b0016;
+  --bg-tertiary: rgba(255, 255, 255, 0.08);
+  --bg-hover: rgba(255, 255, 255, 0.08);
+  --text-main: #ffffff;
+  --text-muted: rgba(255, 255, 255, 0.65);
+  --border-color: rgba(255, 255, 255, 0.12);
+  --input-focus: rgba(255, 255, 255, 0.14);
+
+  background-color: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
+
+  &.collapsed {
+    width: 72px;
+
+    .workspace-name,
+    .search-bar input,
+    .nav-item span:not(.notification-badge),
+    .section-title,
+    .settings-header .left span,
+    .settings-header .chevron-icon,
+    .user-info {
+      display: none;
+    }
+
+    .workspace-header { justify-content: center; }
+    .workspace-header > svg { display: none; }
+    .header-actions { padding: 0 0.5rem 1rem; flex-direction: column; }
+    .search-bar { justify-content: center; padding: 0.4rem; }
+    .nav-item { justify-content: center; }
+    .settings-header { justify-content: center; }
+
+    /* Submenus viram flyout ao lado em vez de empurrar o conteúdo */
+    .settings-menu {
+      position: absolute;
+      left: calc(100% + 6px);
+      top: 0;
+      width: 210px;
+      margin-left: 0;
+      padding: 0.5rem;
+      border-radius: 10px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+      z-index: 60;
+
+      .sub-item { display: flex; }
+    }
+
+    .nav-section { padding: 0 0.25rem; }
+  }
+}
+
+.sidebar-collapse-btn {
+  position: absolute;
+  top: 22px;
+  right: -11px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  border: 2px solid var(--bg-primary, #fff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 70;
+  padding: 0;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+
+  &:hover { opacity: 0.9; }
 }
 
 .workspace-header {
@@ -832,12 +1003,12 @@ const handleLogout = () => {
 .btn-mark-all {
   background: transparent;
   border: none;
-  color: #0ea5e9;
+  color: #d49ba7;
   font-size: 0.75rem;
   font-weight: 500;
   cursor: pointer;
   padding: 0;
-  &:hover { text-decoration: underline; color: #0284c7; }
+  &:hover { text-decoration: underline; color: #ba5e72; }
 }
 
 .notifications-list { max-height: 250px; overflow-y: auto; }
@@ -868,11 +1039,11 @@ const handleLogout = () => {
 }
 
 .unread-dot {
-  width: 6px; height: 6px; background: #3b82f6; border-radius: 50%;
+  width: 6px; height: 6px; background: #d49ba7; border-radius: 50%;
 }
 
-.icon-sm { width: 16px; height: 16px; color: #6b7280; }
-.icon-xs { width: 14px; height: 14px; color: #6b7280; }
+.icon-sm { width: 16px; height: 16px; color: rgba(255,255,255,0.7); }
+.icon-xs { width: 14px; height: 14px; color: rgba(255,255,255,0.7); }
 
 .nav-menu {
   flex: 1;
@@ -905,6 +1076,33 @@ const handleLogout = () => {
   }
 }
 
+.nav-item-btn {
+  width: 100%;
+  background: none;
+  border: none;
+  font-family: inherit;
+  cursor: pointer;
+  position: relative;
+}
+
+.nav-badge {
+  margin-left: auto;
+  background: var(--primary);
+  color: white;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
+  line-height: 1.4;
+}
+
+.sidebar.collapsed .nav-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  margin-left: 0;
+}
+
 .nav-section {
   margin-top: 1.5rem;
 
@@ -912,7 +1110,7 @@ const handleLogout = () => {
     font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #9ca3af;
+    color: rgba(255, 255, 255, 0.5);
     font-weight: 600;
     padding: 0 0.75rem;
     margin-bottom: 0.5rem;
@@ -964,7 +1162,7 @@ const handleLogout = () => {
       font-size: 0.85rem;
       color: var(--text-main);
       opacity: 0.8;
-      
+
       &.active {
         background-color: var(--bg-hover);
         color: var(--text-main);
@@ -972,6 +1170,195 @@ const handleLogout = () => {
         font-weight: 500;
       }
     }
+  }
+
+  .pipelines-header {
+    position: relative;
+
+    .left { cursor: pointer; }
+
+    .pipelines-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.15rem;
+    }
+
+    .icon-btn-inline {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 5px;
+      background: none;
+      border: none;
+      padding: 0;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+
+      &:hover { background: var(--bg-hover); color: var(--text-main); }
+    }
+
+    .pipelines-menu-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+    }
+
+    .pipelines-dropdown {
+      position: absolute;
+      top: calc(100% + 2px);
+      right: 0.5rem;
+      min-width: 220px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      box-shadow: 0 10px 15px -3px var(--shadow-color), 0 4px 6px -2px var(--shadow-sm);
+      padding: 0.35rem;
+      z-index: 41;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .pipelines-dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 0.6rem;
+      font-size: 0.85rem;
+      color: var(--text-main);
+      background: none;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      text-align: left;
+      width: 100%;
+
+      &:hover { background: var(--bg-hover); }
+    }
+  }
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.reorder-modal {
+  width: 380px;
+  max-width: 90vw;
+  max-height: 80vh;
+  background: var(--bg-secondary);
+  border-radius: 10px;
+  box-shadow: 0 10px 15px -3px var(--shadow-color), 0 4px 6px -2px var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.reorder-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+
+  h3 { margin: 0; font-size: 1rem; color: var(--text-main); }
+
+  .close-btn {
+    background: none;
+    border: none;
+    font-size: 1.3rem;
+    line-height: 1;
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+}
+
+.reorder-modal-body {
+  padding: 0.75rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.reorder-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 8px;
+  background: var(--bg-tertiary);
+
+  .reorder-grip { color: var(--text-muted); flex-shrink: 0; }
+
+  .reorder-name {
+    flex: 1;
+    font-size: 0.9rem;
+    color: var(--text-main);
+  }
+
+  .reorder-arrows {
+    display: flex;
+    gap: 2px;
+
+    button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 5px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+      color: var(--text-main);
+      cursor: pointer;
+
+      &:hover:not(:disabled) { background: var(--bg-hover); }
+      &:disabled { opacity: 0.35; cursor: not-allowed; }
+    }
+  }
+}
+
+.reorder-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  padding: 0.9rem 1.25rem;
+  border-top: 1px solid var(--border-color);
+
+  .btn-cancel {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--text-main);
+    font-weight: 500;
+    font-size: 0.85rem;
+
+    &:hover { background: var(--bg-hover); }
+  }
+
+  .btn-primary {
+    background: var(--primary, #d49ba7);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.85rem;
+
+    &:hover { background: var(--primary-hover, #ba5e72); }
   }
 }
 
@@ -1025,7 +1412,7 @@ const handleLogout = () => {
 
   input {
     opacity: 0; width: 0; height: 0;
-    &:checked + .slider { background-color: #1f93ff; }
+    &:checked + .slider { background-color: #d49ba7; }
     &:checked + .slider:before { transform: translateX(16px); }
   }
 
@@ -1124,6 +1511,23 @@ const handleLogout = () => {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+
+    .role-badge {
+      align-self: flex-start;
+      margin-top: 0.25rem;
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      padding: 0.1rem 0.45rem;
+      border-radius: 20px;
+      background: var(--bg-tertiary);
+      color: var(--text-muted);
+
+      &.role-gerente, &.role-diretoria { background: rgba(212, 155, 167, 0.15); color: var(--primary-hover); }
+      &.role-financeiro { background: #dcfce7; color: #166534; }
+      &.role-admin, &.role-empresa { background: #e0e7ff; color: #3730a3; }
     }
   }
 }

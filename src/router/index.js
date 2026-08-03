@@ -1,6 +1,15 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-const OWNER_ROLES = ['empresa', 'admin']
+// Três níveis de acesso (briefing seção 30) — espelham os do backend
+// (ApplicationController#owner?/full_portfolio?/finance?):
+// - FULL_PORTFOLIO_ROLES: enxerga a carteira inteira (Painel Gerencial).
+// - CRITICAL_CONFIG_ROLES: configurações críticas do sistema. Gerente NÃO
+//   entra aqui — ele opera a carteira, não mexe em config.
+// - FINANCE_BLOCKED_ROUTES: telas operacionais (Carteira/Tarefas) que o
+//   Financeiro não deve ver — ele vê Inativas/Conversas/Cobrança.
+const FULL_PORTFOLIO_ROLES = ['empresa', 'admin', 'gerente', 'diretoria']
+const CRITICAL_CONFIG_ROLES = ['empresa', 'admin', 'diretoria']
+const FINANCE_BLOCKED_ROUTES = ['revendedoras_ativas', 'tarefas']
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -39,6 +48,27 @@ const router = createRouter({
           component: () => import('../views/Dashboard.vue')
         },
         {
+          path: 'carteira',
+          name: 'revendedoras_ativas',
+          component: () => import('../views/RevendedorasAtivas.vue')
+        },
+        {
+          path: 'inativas',
+          name: 'revendedoras_inativas',
+          component: () => import('../views/RevendedorasInativas.vue')
+        },
+        {
+          path: 'tarefas',
+          name: 'tarefas',
+          component: () => import('../views/TarefasView.vue')
+        },
+        {
+          path: 'gerencial',
+          name: 'gerencial',
+          component: () => import('../views/GerencialView.vue'),
+          meta: { requiresFullPortfolio: true }
+        },
+        {
           path: 'conversas',
           name: 'conversas',
           component: () => import('../views/Conversas.vue')
@@ -64,116 +94,123 @@ const router = createRouter({
           component: () => import('../views/ContactDetails.vue')
         },
         {
-          path: 'imoveis',
-          name: 'imoveis',
-          component: () => import('../views/Properties.vue')
+          path: 'email',
+          name: 'inbox_email',
+          component: () => import('../views/ComingSoon.vue'),
+          meta: { title: 'Inbox de e-mail', description: 'Atendimento por e-mail integrado ao CRM — ainda não disponível.' }
         },
         {
-          path: 'imoveis/novo',
-          name: 'imoveis_novo',
-          component: () => import('../views/PropertyForm.vue')
+          path: 'pipelines/todos-leads',
+          name: 'pipeline_todos_leads',
+          component: () => import('../views/TodosLeadsView.vue')
         },
         {
-          path: 'imoveis/:id/editar',
-          name: 'imoveis_editar',
-          component: () => import('../views/PropertyForm.vue')
+          path: 'pipelines/:slug',
+          name: 'pipeline_board',
+          component: () => import('../views/PipelineBoard.vue')
         },
         {
-          path: 'condominios',
-          name: 'condominios',
-          component: () => import('../views/Condominiums.vue')
+          path: 'pipelines/:slug/automatize',
+          name: 'pipeline_automation',
+          component: () => import('../views/PipelineAutomation.vue'),
+          meta: { requiresCriticalConfig: true }
         },
         {
-          path: 'condominios/novo',
-          name: 'condominios_novo',
-          component: () => import('../views/CondominiumForm.vue')
+          path: 'calendario',
+          name: 'calendario',
+          component: () => import('../views/ComingSoon.vue'),
+          meta: { title: 'Calendário', description: 'Agenda consolidada de agendamentos — ainda não disponível.' }
         },
         {
-          path: 'condominios/:id/editar',
-          name: 'condominios_editar',
-          component: () => import('../views/CondominiumForm.vue')
+          path: 'segmentos',
+          name: 'segmentos',
+          component: () => import('../views/ComingSoon.vue'),
+          meta: { title: 'Segmentos', description: 'Segmentação de carteira — ainda não disponível.' }
         },
         {
-          path: 'agendamentos',
-          name: 'agendamentos',
-          component: () => import('../views/Appointments.vue')
+          path: 'listas',
+          name: 'listas',
+          component: () => import('../views/ComingSoon.vue'),
+          meta: { title: 'Listas', description: 'Listas salvas e filtros personalizados — ainda não disponível.' }
         },
         {
-          path: 'agendamentos/novo',
-          name: 'agendamentos_novo',
-          component: () => import('../views/AppointmentForm.vue')
+          path: 'agente-ia',
+          name: 'agente_ia',
+          component: () => import('../views/ComingSoon.vue'),
+          meta: { title: 'Agente de IA', description: 'Configuração do assistente de IA — ainda não disponível.' }
         },
         {
-          path: 'agendamentos/:id/editar',
-          name: 'agendamentos_editar',
-          component: () => import('../views/AppointmentForm.vue')
+          path: 'automacoes',
+          name: 'automacoes',
+          component: () => import('../views/ComingSoon.vue'),
+          meta: { title: 'Automações', description: 'Regras automáticas de tarefas e mensagens — ainda não disponível.' }
         },
         // Rotas exclusivas do dono (empresa/admin)
         {
           path: 'agentes',
           name: 'agentes',
           component: () => import('../views/Agents.vue'),
-          meta: { requiresOwner: true }
+          meta: { requiresCriticalConfig: true }
         },
         {
           path: 'agentes/novo',
           name: 'agentes_novo',
           component: () => import('../views/AgentForm.vue'),
-          meta: { requiresOwner: true }
+          meta: { requiresCriticalConfig: true }
         },
         {
           path: 'agentes/:id/editar',
           name: 'agentes_editar',
           component: () => import('../views/AgentForm.vue'),
-          meta: { requiresOwner: true }
+          meta: { requiresCriticalConfig: true }
         },
         {
           path: 'settings/inboxes',
           name: 'SettingsInboxes',
           component: () => import('../views/SettingsInboxes.vue'),
-          meta: { requiresOwner: true }
+          meta: { requiresCriticalConfig: true }
         },
         {
           path: 'settings/inboxes/new',
           name: 'settings_inboxes_new',
           component: () => import('../views/NewInbox.vue'),
-          meta: { requiresOwner: true }
+          meta: { requiresCriticalConfig: true }
         },
         {
           path: 'settings/inboxes/:id',
           name: 'settings_inbox_detail',
           component: () => import('../views/SettingsInboxDetail.vue'),
-          meta: { requiresOwner: true }
+          meta: { requiresCriticalConfig: true }
         },
         {
           path: 'settings/account',
           name: 'SettingsAccount',
           component: () => import('../views/settings/Account.vue'),
-          meta: { requiresOwner: true }
+          meta: { requiresCriticalConfig: true }
         },
         {
           path: 'settings/tags',
           name: 'SettingsTags',
           component: () => import('../views/settings/Tags.vue'),
-          meta: { requiresOwner: true }
-        },
-        {
-          path: 'settings/portals',
-          name: 'SettingsPortals',
-          component: () => import('../views/settings/Portals.vue'),
-          meta: { requiresOwner: true }
+          meta: { requiresCriticalConfig: true }
         },
         {
           path: 'settings/asaas',
           name: 'SettingsAsaas',
           component: () => import('../views/settings/Asaas.vue'),
-          meta: { requiresOwner: true }
+          meta: { requiresCriticalConfig: true }
         },
         // Rotas abertas a todos
         {
           path: 'funil',
           name: 'funil',
           component: () => import('../views/Kanban.vue')
+        },
+        {
+          path: 'funil/automatize',
+          name: 'regua_automation',
+          component: () => import('../views/ReguaAutomation.vue'),
+          meta: { requiresCriticalConfig: true }
         },
         {
           path: 'suporte',
@@ -183,7 +220,8 @@ const router = createRouter({
         {
           path: 'relatorios',
           name: 'relatorios',
-          component: () => import('../views/Reports.vue')
+          component: () => import('../views/Reports.vue'),
+          meta: { requiresFullPortfolio: true }
         },
         {
           path: 'manual',
@@ -246,6 +284,23 @@ router.beforeEach((to, _from, next) => {
   // Área /admin: apenas usuários com role 'admin'
   if (to.path.startsWith('/admin') && (!user || user.role !== 'admin')) {
     return next({ name: 'dashboard' })
+  }
+
+  // Painel Gerencial: gerente/diretoria/empresa/admin (carteira inteira)
+  if (to.meta?.requiresFullPortfolio && user && !FULL_PORTFOLIO_ROLES.includes(user.role) && !user.permissions?.admin) {
+    return next({ name: 'dashboard' })
+  }
+
+  // Configurações críticas do sistema: só diretoria/empresa/admin — gerente
+  // acompanha a operação, mas não mexe em config (briefing seção 30).
+  if (to.meta?.requiresCriticalConfig && user && !CRITICAL_CONFIG_ROLES.includes(user.role) && !user.permissions?.admin) {
+    return next({ name: 'dashboard' })
+  }
+
+  // Financeiro não opera Carteira/Tarefas (telas operacionais do consultor) —
+  // ele trabalha em Inativas/Conversas/Cobrança (briefing seção 30).
+  if (user?.role === 'financeiro' && FINANCE_BLOCKED_ROUTES.includes(to.name)) {
+    return next({ name: 'revendedoras_inativas' })
   }
 
   // Rotas com requiresOwner: empresa, admin, ou agente com permissao administrativa total

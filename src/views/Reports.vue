@@ -2,16 +2,19 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { Bar, Doughnut } from 'vue-chartjs'
 import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, ArcElement, CategoryScale, LinearScale } from 'chart.js'
-import { Download, Users, TrendingUp, Tag, CalendarCheck, RefreshCw, FileText, BarChart2, Clock, Home } from 'lucide-vue-next'
+import { Download, Users, TrendingUp, Tag, RefreshCw, FileText, BarChart2, Clock } from 'lucide-vue-next'
 import api from '../api'
 import Swal from 'sweetalert2'
 
 const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
-const isOwner     = computed(() => ['empresa', 'admin'].includes(currentUser.role))
+// Relatórios de equipe (agents/tags/performance/export) exigem carteira inteira
+// no backend (ApplicationController#full_portfolio?) — gerente/diretoria também
+// entram aqui, não só empresa/admin.
+const isOwner     = computed(() => ['empresa', 'admin', 'gerente', 'diretoria'].includes(currentUser.role))
 
 ChartJS.register(Title, Tooltip, Legend, BarElement, ArcElement, CategoryScale, LinearScale)
 
-const activeTab          = ref('appointments')
+const activeTab          = ref('overview')
 const period             = ref('month')
 const startDate          = ref('')
 const endDate            = ref('')
@@ -20,7 +23,6 @@ const overview           = ref(null)
 const agentsData         = ref([])
 const tagsData           = ref([])
 const selectedTag        = ref(null)
-const appointmentsReport = ref(null)
 const performanceData    = ref(null)
 
 const periodOptions = [
@@ -50,7 +52,7 @@ const fetchAgents = async (silent = false) => {
   try {
     const r = await api.get('/reports/by_agent', { params: periodParams.value })
     agentsData.value = r.data.agents || []
-  } catch { Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Erro ao carregar corretores.', showConfirmButton: false, timer: 3000 }) }
+  } catch { Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Erro ao carregar consultoras.', showConfirmButton: false, timer: 3000 }) }
   finally { isLoading.value = false }
 }
 
@@ -61,15 +63,6 @@ const fetchTags = async (silent = false) => {
     tagsData.value = r.data.tags || []
     if (tagsData.value.length && !selectedTag.value) selectedTag.value = tagsData.value[0]
   } catch { Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Erro ao carregar etiquetas.', showConfirmButton: false, timer: 3000 }) }
-  finally { isLoading.value = false }
-}
-
-const fetchAppointments = async (silent = false) => {
-  if (!silent) isLoading.value = true
-  try {
-    const r = await api.get('/appointments/report', { params: periodParams.value })
-    appointmentsReport.value = r.data
-  } catch { Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Erro ao carregar agendamentos.', showConfirmButton: false, timer: 3000 }) }
   finally { isLoading.value = false }
 }
 
@@ -93,13 +86,6 @@ const exportCSV = async (type, tagId = null) => {
   } catch { Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Erro ao exportar.', showConfirmButton: false, timer: 3000 }) }
 }
 
-const exportAppointments = async () => {
-  try {
-    const r = await api.get('/appointments/export', { params: periodParams.value, responseType: 'blob' })
-    downloadBlob(r, 'agendamentos.csv')
-  } catch { Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Erro ao exportar.', showConfirmButton: false, timer: 3000 }) }
-}
-
 const fetchPerformance = async (silent = false) => {
   if (!silent) isLoading.value = true
   try {
@@ -117,7 +103,6 @@ const loadTab = (silent = false) => {
   if (activeTab.value === 'overview')          fetchOverview(silent)
   else if (activeTab.value === 'agents')       fetchAgents(silent)
   else if (activeTab.value === 'tags')         fetchTags(silent)
-  else if (activeTab.value === 'appointments') fetchAppointments(silent)
   else if (activeTab.value === 'performance')  fetchPerformance(silent)
 }
 
@@ -148,9 +133,9 @@ const funnelChart = computed(() => {
   if (!overview.value) return { labels: [], datasets: [] }
   const f = overview.value.funnel
   return {
-    labels: ['Novos Leads', 'Visita Agendada', 'Proposta', 'Fechado'],
-    datasets: [{ label: 'Leads', data: [f.lead, f.visit, f.proposal, f.won],
-      backgroundColor: ['#6366f1','#f59e0b','#3b82f6','#10b981'],
+    labels: ['Ativa', '3º dia', '10º dia', '20º dia', 'Agendado'],
+    datasets: [{ label: 'Revendedoras', data: [f.revendedor_ativo, f.terceiro_dia, f.decimo_dia, f.vigesimo_dia, f.agendado],
+      backgroundColor: ['#6366f1','#f59e0b','#eab308','#d49ba7','#10b981'],
       borderRadius: 6, borderSkipped: false }]
   }
 })
@@ -163,7 +148,7 @@ const sourceChart = computed(() => {
   return {
     labels,
     datasets: [{ data: Object.values(src),
-      backgroundColor: ['#6366f1','#10b981','#f59e0b','#ef4444','#3b82f6','#ec4899','#0d9488'] }]
+      backgroundColor: ['#6366f1','#10b981','#f59e0b','#ef4444','#d49ba7','#ec4899','#0d9488'] }]
   }
 })
 
@@ -204,7 +189,7 @@ const donutOptions = {
     <div class="page-header">
       <div>
         <h1><FileText class="h-icon" /> Relatórios</h1>
-        <p>Análise completa de leads, corretores e campanhas</p>
+        <p>Análise completa de leads, consultoras e campanhas</p>
       </div>
       <div class="header-actions">
         <select v-model="period" class="period-select">
@@ -227,14 +212,11 @@ const donutOptions = {
 
     <!-- Tabs -->
     <div class="tabs">
-      <button :class="['tab', { active: activeTab === 'appointments' }]" @click="activeTab = 'appointments'">
-        <CalendarCheck class="ic" /> Agendamentos
-      </button>
       <button v-if="isOwner" :class="['tab', { active: activeTab === 'overview' }]" @click="activeTab = 'overview'">
         <TrendingUp class="ic" /> Visão Geral
       </button>
       <button v-if="isOwner" :class="['tab', { active: activeTab === 'agents' }]" @click="activeTab = 'agents'">
-        <Users class="ic" /> Por Corretor
+        <Users class="ic" /> Por Consultora
       </button>
       <button v-if="isOwner" :class="['tab', { active: activeTab === 'tags' }]" @click="activeTab = 'tags'">
         <Tag class="ic" /> Por Etiqueta
@@ -264,13 +246,13 @@ const donutOptions = {
           <div class="kpi-val red">{{ overview.by_temperature.quente }}</div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-top"><span class="kpi-label">Negócios Fechados</span></div>
-          <div class="kpi-val green">{{ overview.funnel.won }}</div>
+          <div class="kpi-top"><span class="kpi-label">Acertos Agendados</span></div>
+          <div class="kpi-val green">{{ overview.funnel.agendado }}</div>
         </div>
         <div class="kpi-card">
           <div class="kpi-top"><span class="kpi-label">Taxa de Conversão</span></div>
           <div class="kpi-val indigo">
-            {{ overview.total_leads > 0 ? ((overview.funnel.won / overview.total_leads) * 100).toFixed(1) : 0 }}%
+            {{ overview.total_leads > 0 ? ((overview.funnel.agendado / overview.total_leads) * 100).toFixed(1) : 0 }}%
           </div>
         </div>
       </div>
@@ -316,12 +298,12 @@ const donutOptions = {
       </div>
     </template>
 
-    <!-- ===== POR CORRETOR ===== -->
+    <!-- ===== POR CONSULTORA ===== -->
     <template v-else-if="activeTab === 'agents'">
       <div class="chart-row" v-if="agentsData.length">
         <div class="chart-panel wide">
           <div class="chart-head">
-            Leads por Corretor
+            Leads por Consultora
             <button class="btn-export" @click="exportCSV('agents')"><Download class="ic" /> Exportar CSV</button>
           </div>
           <div class="chart-body">
@@ -331,16 +313,14 @@ const donutOptions = {
       </div>
 
       <div class="table-panel">
-        <div class="chart-head">Desempenho Detalhado por Corretor</div>
+        <div class="chart-head">Desempenho Detalhado por Consultora</div>
         <div class="table-scroll-wrapper">
         <table class="report-table">
           <thead>
             <tr>
-              <th>Corretor</th>
+              <th>Consultora</th>
               <th>Leads Recebidos</th>
               <th>Quentes</th>
-              <th>Visitas Agendadas</th>
-              <th>Visitas Realizadas</th>
               <th>Fechados</th>
               <th>Conversão</th>
               <th>Conv. Abertas</th>
@@ -348,14 +328,12 @@ const donutOptions = {
           </thead>
           <tbody>
             <tr v-if="agentsData.length === 0">
-              <td colspan="8" class="no-data-cell">Nenhum corretor encontrado.</td>
+              <td colspan="6" class="no-data-cell">Nenhuma consultora encontrada.</td>
             </tr>
             <tr v-for="a in agentsData" :key="a.id">
               <td class="agent-name">{{ a.name }}</td>
               <td class="center"><span class="badge-num blue">{{ a.leads_received }}</span></td>
               <td class="center"><span class="badge-num red">{{ a.quentes }}</span></td>
-              <td class="center">{{ a.visits_scheduled }}</td>
-              <td class="center">{{ a.visits_done }}</td>
               <td class="center"><span class="badge-num green">{{ a.won }}</span></td>
               <td class="center">
                 <span :class="['rate', a.conversion_rate >= 20 ? 'rate-good' : a.conversion_rate >= 5 ? 'rate-mid' : 'rate-low']">
@@ -428,95 +406,6 @@ const donutOptions = {
       </div>
     </template>
 
-    <!-- ===== AGENDAMENTOS ===== -->
-    <template v-else-if="activeTab === 'appointments' && appointmentsReport">
-      <!-- KPIs de status -->
-      <div :class="['kpi-row', { refreshed: justRefreshed }]">
-        <div class="kpi-card">
-          <div class="kpi-top"><span class="kpi-label">Total</span></div>
-          <div class="kpi-val">{{ appointmentsReport.total }}</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-top"><span class="kpi-label">Pendentes</span></div>
-          <div class="kpi-val" style="color:#f59e0b">{{ appointmentsReport.by_status.pending }}</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-top"><span class="kpi-label">Realizados</span></div>
-          <div class="kpi-val green">{{ appointmentsReport.by_status.completed }}</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-top"><span class="kpi-label">Cancelados</span></div>
-          <div class="kpi-val red">{{ appointmentsReport.by_status.cancelled }}</div>
-        </div>
-      </div>
-
-      <!-- Por corretor (só owner) -->
-      <div class="table-panel" v-if="isOwner && appointmentsReport.by_agent?.length" style="margin-bottom:1rem">
-        <div class="chart-head">Agendamentos por Corretor</div>
-        <div class="table-scroll-wrapper">
-        <table class="report-table">
-          <thead>
-            <tr>
-              <th>Corretor</th>
-              <th class="center">Total</th>
-              <th class="center">Realizados</th>
-              <th class="center">Taxa</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="a in appointmentsReport.by_agent" :key="a.id">
-              <td class="agent-name">{{ a.name }}</td>
-              <td class="center"><span class="badge-num blue">{{ a.total }}</span></td>
-              <td class="center"><span class="badge-num green">{{ a.done }}</span></td>
-              <td class="center">
-                <span :class="['rate', a.total > 0 && (a.done/a.total) >= 0.5 ? 'rate-good' : 'rate-mid']">
-                  {{ a.total > 0 ? ((a.done / a.total) * 100).toFixed(0) : 0 }}%
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        </div>
-      </div>
-
-      <!-- Lista completa -->
-      <div class="table-panel">
-        <div class="chart-head">
-          Lista de Agendamentos
-          <button class="btn-export" @click="exportAppointments"><Download class="ic" /> Exportar CSV</button>
-        </div>
-        <div class="table-scroll-wrapper">
-        <table class="report-table">
-          <thead>
-            <tr>
-              <th>Data</th>
-              <th>Horário</th>
-              <th>Cliente</th>
-              <th>Imóvel</th>
-              <th v-if="isOwner">Corretor</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="!appointmentsReport.appointments?.length">
-              <td :colspan="isOwner ? 6 : 5" class="no-data-cell">Nenhum agendamento no período.</td>
-            </tr>
-            <tr v-for="a in appointmentsReport.appointments" :key="a.id">
-              <td>{{ a.appointment_date ? new Date(a.appointment_date).toLocaleDateString('pt-BR') : '—' }}</td>
-              <td>{{ a.start_time || '—' }} {{ a.end_time ? '– ' + a.end_time : '' }}</td>
-              <td class="agent-name">{{ a.contact?.name || a.contact?.phone || '—' }}</td>
-              <td>{{ a.property?.title || '—' }}</td>
-              <td v-if="isOwner">{{ a.agent || '—' }}</td>
-              <td>
-                <span :class="['status-badge', a.status?.toLowerCase()]">{{ a.status || '—' }}</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        </div>
-      </div>
-    </template>
-
     <!-- ===== PERFORMANCE ===== -->
     <template v-else-if="activeTab === 'performance' && performanceData">
 
@@ -545,20 +434,19 @@ const donutOptions = {
         </div>
       </div>
 
-      <!-- Taxa de conversão por corretor -->
+      <!-- Taxa de conversão por consultora -->
       <div class="chart-panel mt-section">
         <div class="panel-head-row">
           <Users class="ic-purple" />
-          <span>Taxa de Conversão por Corretor</span>
+          <span>Taxa de Conversão por Consultora</span>
           <button class="btn-export-sm" @click="exportCSV('agents')"><Download class="ic" /> CSV</button>
         </div>
         <div class="table-wrap" v-if="agentsData.length">
           <table class="report-table">
             <thead>
               <tr>
-                <th>Corretor</th>
+                <th>Consultora</th>
                 <th>Leads</th>
-                <th>Visitas</th>
                 <th>Fechados</th>
                 <th>Conversão</th>
               </tr>
@@ -567,7 +455,6 @@ const donutOptions = {
               <tr v-for="a in agentsData" :key="a.id">
                 <td class="agent-name">{{ a.name }}</td>
                 <td>{{ a.leads_received }}</td>
-                <td>{{ a.visits_scheduled }}</td>
                 <td>{{ a.won }}</td>
                 <td>
                   <span class="conv-badge" :class="a.conversion_rate >= 20 ? 'green' : a.conversion_rate >= 5 ? 'amber' : 'grey'">
@@ -578,26 +465,7 @@ const donutOptions = {
             </tbody>
           </table>
         </div>
-        <div class="no-data-msg" v-else>Nenhum corretor encontrado no período.</div>
-      </div>
-
-      <!-- Top imóveis consultados pela IA -->
-      <div class="chart-panel mt-section">
-        <div class="panel-head-row">
-          <Home class="ic-purple" />
-          <span>Imóveis Mais Consultados pela IA</span>
-        </div>
-        <div v-if="performanceData.top_properties.length">
-          <div class="prop-rank-item" v-for="(p, i) in performanceData.top_properties" :key="p.id">
-            <span class="rank-num">{{ i + 1 }}</span>
-            <div class="prop-rank-info">
-              <span class="prop-rank-title">{{ p.title || 'Sem título' }}</span>
-              <span class="prop-rank-sub">{{ p.neighborhood }} · R$ {{ Number(p.price).toLocaleString('pt-BR') }}</span>
-            </div>
-            <span class="prop-rank-count">{{ p.search_count }}x</span>
-          </div>
-        </div>
-        <div class="no-data-msg" v-else>Nenhum imóvel consultado ainda. A contagem começa quando a IA busca imóveis para leads.</div>
+        <div class="no-data-msg" v-else>Nenhuma consultora encontrada no período.</div>
       </div>
 
     </template>
@@ -666,9 +534,9 @@ const donutOptions = {
   animation: flash-update 0.6s ease;
 }
 @keyframes flash-update {
-  0%   { box-shadow: 0 0 0 0 rgba(99,102,241,0); }
-  30%  { box-shadow: 0 0 0 4px rgba(99,102,241,0.25); }
-  100% { box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+  0%   { box-shadow: 0 0 0 0 rgba(212, 155, 167,0); }
+  30%  { box-shadow: 0 0 0 4px rgba(212, 155, 167,0.25); }
+  100% { box-shadow: 0 1px 2px rgba(43,0,22,0.06), 0 6px 16px rgba(43,0,22,0.09); }
 }
 
 .spinning { animation: spin 0.8s linear infinite; }
@@ -706,7 +574,7 @@ const donutOptions = {
   background: var(--bg-secondary, #fff);
   border: 1px solid var(--border-color, #e8edf2);
   border-radius: 12px; padding: 1.1rem 1.25rem;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  box-shadow: 0 1px 2px rgba(43,0,22,0.06), 0 6px 16px rgba(43,0,22,0.09);
 }
 
 .kpi-top {
@@ -716,13 +584,13 @@ const donutOptions = {
 
 .kpi-label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted, #94a3b8); }
 .kpi-badge { font-size: 0.65rem; padding: 0.15rem 0.5rem; border-radius: 10px; font-weight: 600;
-  &.blue { background: #eff6ff; color: #2563eb; } }
+  &.blue { background: #eff6ff; color: #1d4ed8; } }
 
 .kpi-val {
   font-size: 2rem; font-weight: 800; color: var(--text-main, #0f172a); letter-spacing: -0.02em;
   &.red    { color: #dc2626; }
   &.green  { color: #059669; }
-  &.indigo { color: #4338ca; }
+  &.indigo { color: #d49ba7; }
 }
 
 /* Charts */
@@ -732,7 +600,7 @@ const donutOptions = {
 
 .chart-panel {
   background: var(--bg-secondary, #fff); border: 1px solid var(--border-color, #e8edf2);
-  border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  border-radius: 12px; overflow: hidden; box-shadow: 0 1px 2px rgba(43,0,22,0.06), 0 6px 16px rgba(43,0,22,0.09);
   &.wide { grid-column: 1 / -1; }
 }
 
@@ -747,10 +615,10 @@ const donutOptions = {
 
 .btn-export {
   display: inline-flex; align-items: center; gap: 0.35rem;
-  background: #6366f1; color: white; border: none; border-radius: 7px;
+  background: #d49ba7; color: white; border: none; border-radius: 7px;
   padding: 0.4rem 0.9rem; font-size: 0.78rem; font-weight: 600; cursor: pointer;
   transition: background 0.15s;
-  &:hover { background: #4f46e5; }
+  &:hover { background: #ba5e72; }
   &.green { background: #059669; &:hover { background: #047857; } }
   .ic { width: 13px; height: 13px; }
 }
@@ -759,7 +627,7 @@ const donutOptions = {
 .breakdown-panel {
   background: var(--bg-secondary, #fff); border: 1px solid var(--border-color, #e8edf2);
   border-radius: 12px; margin-bottom: 1.5rem; overflow: hidden;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  box-shadow: 0 1px 2px rgba(43,0,22,0.06), 0 6px 16px rgba(43,0,22,0.09);
 }
 
 .temp-row { display: flex; gap: 1rem; padding: 1.5rem 1.25rem; }
@@ -778,7 +646,7 @@ const donutOptions = {
 /* Tabelas */
 .table-panel {
   background: var(--bg-secondary, #fff); border: 1px solid var(--border-color, #e8edf2);
-  border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  border-radius: 12px; overflow: hidden; box-shadow: 0 1px 2px rgba(43,0,22,0.06), 0 6px 16px rgba(43,0,22,0.09);
 }
 
 .table-wrap,
@@ -793,7 +661,7 @@ const donutOptions = {
   th { font-weight: 600; color: var(--text-main); background: var(--bg-primary, #fafafa); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }
   td { color: var(--text-muted); }
   tr:last-child td { border-bottom: none; }
-  tr:hover td { background: rgba(99,102,241,0.03); }
+  tr:hover td { background: rgba(212, 155, 167,0.03); }
 }
 
 .agent-name { color: var(--text-main) !important; font-weight: 500; }
@@ -802,7 +670,7 @@ const donutOptions = {
 
 .badge-num {
   display: inline-block; padding: 0.15rem 0.6rem; border-radius: 20px; font-weight: 700; font-size: 0.85rem;
-  &.blue  { background: #eff6ff; color: #2563eb; }
+  &.blue  { background: #eff6ff; color: #1d4ed8; }
   &.red   { background: #fef2f2; color: #dc2626; }
   &.green { background: #ecfdf5; color: #059669; }
 }
@@ -818,7 +686,7 @@ const donutOptions = {
 
 .tags-sidebar {
   background: var(--bg-secondary, #fff); border: 1px solid var(--border-color, #e8edf2);
-  border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  border-radius: 12px; overflow: hidden; box-shadow: 0 1px 2px rgba(43,0,22,0.06), 0 6px 16px rgba(43,0,22,0.09);
   height: fit-content;
 }
 
@@ -835,8 +703,8 @@ const donutOptions = {
   padding: 0.65rem 1rem; cursor: pointer;
   border-bottom: 1px solid var(--border-color, #f8fafc);
   transition: background 0.15s;
-  &:hover { background: rgba(99,102,241,0.04); }
-  &.active { background: rgba(99,102,241,0.08); }
+  &:hover { background: rgba(212, 155, 167,0.04); }
+  &.active { background: rgba(212, 155, 167,0.08); }
 }
 
 .tag-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
@@ -845,7 +713,7 @@ const donutOptions = {
 
 .no-tags { padding: 1rem; font-size: 0.82rem; color: var(--text-muted); text-align: center; }
 
-.tags-content { background: var(--bg-secondary, #fff); border: 1px solid var(--border-color, #e8edf2); border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+.tags-content { background: var(--bg-secondary, #fff); border: 1px solid var(--border-color, #e8edf2); border-radius: 12px; overflow: hidden; box-shadow: 0 1px 2px rgba(43,0,22,0.06), 0 6px 16px rgba(43,0,22,0.09); }
 
 .tag-badge { display: inline-block; padding: 0.2rem 0.7rem; border-radius: 20px; color: white; font-size: 0.82rem; font-weight: 700; }
 .export-group { display: flex; gap: 0.5rem; }
@@ -860,7 +728,7 @@ const donutOptions = {
 .status-badge {
   display: inline-block; padding: 0.2rem 0.65rem; border-radius: 10px; font-size: 0.72rem; font-weight: 700;
   &.pending, &.agendado   { background: #fffbeb; color: #d97706; }
-  &.confirmed, &.confirmado { background: #eff6ff; color: #2563eb; }
+  &.confirmed, &.confirmado { background: #eff6ff; color: #1d4ed8; }
   &.completed, &.realizado  { background: #ecfdf5; color: #059669; }
   &.cancelled, &.cancelado  { background: #fef2f2; color: #dc2626; }
 }

@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Config local (URL da API etc.) — cada ambiente/dev tem o seu, não commitar.
+.env
+.env.*
+!.env.example
