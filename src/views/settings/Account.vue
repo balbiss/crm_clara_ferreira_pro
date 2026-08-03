@@ -1,12 +1,8 @@
 <template>
   <div class="account-settings-container">
-    <div v-if="showTrialWarning" class="trial-warning-banner">
-      <strong>Atenção:</strong> Seu período de teste de 7 dias acabou ou sua assinatura está inativa. Assine agora para continuar usando o CRM.
-    </div>
-
     <div class="header-section">
       <h1 class="page-title">Configurações da Conta</h1>
-      <p class="page-subtitle">Gerencie as preferências gerais e a assinatura do seu workspace.</p>
+      <p class="page-subtitle">Gerencie as preferências gerais do seu workspace.</p>
     </div>
 
     <div class="settings-grid">
@@ -17,7 +13,7 @@
           
           <div class="form-group">
             <label>Nome da Conta</label>
-            <input type="text" v-model="accountName" class="form-control" placeholder="Ex: Minha Imobiliária" />
+            <input type="text" v-model="accountName" class="form-control" placeholder="Ex: Clara Ferreira Acessórios" />
           </div>
 
           <div class="form-group">
@@ -61,33 +57,6 @@
       </div>
 
       <div class="settings-column">
-        <!-- Seção de Assinatura (SaaS) -->
-    <div class="settings-card subscription-card">
-      <h2 class="section-title">Assinatura do Sistema</h2>
-      <p class="section-description">Gerencie seu plano e pagamentos do CRM.</p>
-      
-      <div v-if="loadingSubscription" class="loading-text">Carregando...</div>
-      <div v-else>
-        <div class="status-active" v-if="subscriptionStatus === 'active'">
-          <p><strong>Plano Atual:</strong> {{ planName }} <span class="badge success">Ativo</span></p>
-          <p>Sua assinatura está ativa e sendo cobrada normalmente.</p>
-          <button class="btn btn-secondary" :disabled="loadingPortal" @click="openPortal">
-            {{ loadingPortal ? 'Carregando...' : 'Gerenciar Assinatura' }}
-          </button>
-        </div>
-
-        <div class="status-inactive" v-else>
-          <p><strong>Plano Atual:</strong> {{ planName }} <span class="badge warning">{{ subscriptionStatus === 'trialing' ? 'Em Teste' : 'Pendente' }}</span></p>
-          <p v-if="trialEndsAt">Seu período de teste grátis termina em: <strong>{{ formatDate(trialEndsAt) }}</strong>.</p>
-          <p v-else>Você não possui uma assinatura ativa no momento.</p>
-          
-          <button class="btn btn-primary" :disabled="loadingCheckout" @click="startCheckout">
-            {{ loadingCheckout ? 'Gerando Link...' : 'Assinar Agora' }}
-          </button>
-        </div>
-      </div>
-    </div>
-
         <!-- Seção de Meta Ads (Lead Ads) -->
         <div class="settings-card">
           <h2 class="section-title">Meta Ads (Geração de Cadastros)</h2>
@@ -120,15 +89,6 @@ const accountName = ref('')
 const userEmail = ref('')
 const siteLanguage = ref('pt-BR')
 
-const subscriptionStatus = ref('pending')
-const planName = ref('Plano Premium')
-const trialEndsAt = ref(null)
-
-const loadingSubscription = ref(false)
-const loadingCheckout = ref(false)
-const loadingPortal = ref(false)
-const showTrialWarning = ref(false)
-
 const loadingPassword = ref(false)
 const passwordForm = ref({
   current_password: '',
@@ -144,15 +104,7 @@ const fetchAccountData = async () => {
     const response = await api.get('/account')
     accountName.value = response.data.account_name
     userEmail.value = response.data.email
-    subscriptionStatus.value = response.data.subscription_status
-    trialEndsAt.value = response.data.trial_ends_at
-    planName.value = response.data.plan_name
     facebookPageName.value = response.data.facebook_page_name || ''
-    
-    // Se o trial_ends_at for no futuro e não for active, mostramos como trialing no visual
-    if (subscriptionStatus.value !== 'active' && trialEndsAt.value && new Date(trialEndsAt.value) > new Date()) {
-      subscriptionStatus.value = 'trialing'
-    }
   } catch (error) {
     console.error('Erro ao buscar dados da conta:', error)
   }
@@ -161,16 +113,11 @@ const fetchAccountData = async () => {
 onMounted(() => {
   fetchAccountData()
 
-  // Verifica se a URL indica bloqueio por assinatura
-  if (window.location.search.includes('blocked=true')) {
-    showTrialWarning.value = true
-  }
-
   const params = new URLSearchParams(window.location.search)
   if (params.get('facebook_leads_connected')) {
-    Swal.fire({ icon: 'success', title: 'Facebook conectado!', text: 'Os leads das suas campanhas já vão cair aqui no CRM.', confirmButtonColor: '#1f73ff' })
+    Swal.fire({ icon: 'success', title: 'Facebook conectado!', text: 'Os leads das suas campanhas já vão cair aqui no CRM.', confirmButtonColor: '#d49ba7' })
   } else if (params.get('facebook_leads_error')) {
-    Swal.fire({ icon: 'error', title: 'Erro ao conectar', text: params.get('facebook_leads_error'), confirmButtonColor: '#1f73ff' })
+    Swal.fire({ icon: 'error', title: 'Erro ao conectar', text: params.get('facebook_leads_error'), confirmButtonColor: '#d49ba7' })
   }
 })
 
@@ -181,7 +128,7 @@ const connectFacebookLeads = async () => {
     window.location.href = response.data.url
   } catch (error) {
     loadingFacebookLeads.value = false
-    Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível iniciar a conexão com o Facebook.', confirmButtonColor: '#1f73ff' })
+    Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível iniciar a conexão com o Facebook.', confirmButtonColor: '#d49ba7' })
   }
 }
 
@@ -191,16 +138,10 @@ const disconnectFacebookLeads = async () => {
     await api.post('/facebook_leads_oauth/disconnect')
     facebookPageName.value = ''
   } catch (error) {
-    Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível desconectar.', confirmButtonColor: '#1f73ff' })
+    Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível desconectar.', confirmButtonColor: '#d49ba7' })
   } finally {
     loadingFacebookLeads.value = false
   }
-}
-
-const formatDate = (dateString) => {
-  if (!dateString) return ''
-  const options = { day: '2-digit', month: '2-digit', year: 'numeric' }
-  return new Date(dateString).toLocaleDateString('pt-BR', options)
 }
 
 const updatePassword = async () => {
@@ -209,7 +150,7 @@ const updatePassword = async () => {
       icon: 'warning',
       title: 'Atenção',
       text: 'Preencha a senha atual e a nova senha.',
-      confirmButtonColor: '#1f73ff'
+      confirmButtonColor: '#d49ba7'
     })
     return
   }
@@ -218,7 +159,7 @@ const updatePassword = async () => {
       icon: 'warning',
       title: 'Atenção',
       text: 'A nova senha e a confirmação não batem.',
-      confirmButtonColor: '#1f73ff'
+      confirmButtonColor: '#d49ba7'
     })
     return
   }
@@ -230,7 +171,7 @@ const updatePassword = async () => {
       icon: 'success',
       title: 'Sucesso!',
       text: response.data.message || 'Senha alterada com sucesso!',
-      confirmButtonColor: '#1f73ff',
+      confirmButtonColor: '#d49ba7',
       timer: 2000,
       showConfirmButton: false
     })
@@ -244,7 +185,7 @@ const updatePassword = async () => {
       icon: 'error',
       title: 'Oops...',
       text: errorMsg,
-      confirmButtonColor: '#1f73ff'
+      confirmButtonColor: '#d49ba7'
     })
   } finally {
     loadingPassword.value = false
@@ -258,7 +199,7 @@ const updateSettings = async () => {
       icon: 'success',
       title: 'Configurações Salvas!',
       text: response.data.message || 'Configurações atualizadas com sucesso!',
-      confirmButtonColor: '#1f73ff',
+      confirmButtonColor: '#d49ba7',
       timer: 2000,
       showConfirmButton: false
     })
@@ -275,50 +216,12 @@ const updateSettings = async () => {
       icon: 'error',
       title: 'Falha ao salvar',
       text: 'Ocorreu um erro ao atualizar as configurações.',
-      confirmButtonColor: '#1f73ff'
+      confirmButtonColor: '#d49ba7'
     })
   }
 }
 
-const startCheckout = async () => {
-  loadingCheckout.value = true
-  try {
-    const response = await api.post('/billing/checkout')
-    if (response.data && response.data.url) {
-      window.location.href = response.data.url
-    }
-  } catch (error) {
-    console.error('Erro ao gerar checkout:', error)
-    Swal.fire({
-      icon: 'error',
-      title: 'Erro de Pagamento',
-      text: 'Não foi possível gerar o link de pagamento. Tente novamente mais tarde.',
-      confirmButtonColor: '#1f73ff'
-    })
-  } finally {
-    loadingCheckout.value = false
-  }
-}
 
-const manageSubscription = async () => {
-  loadingPortal.value = true
-  try {
-    const response = await api.post('/billing/portal')
-    if (response.data && response.data.url) {
-      window.location.href = response.data.url
-    }
-  } catch (error) {
-    console.error('Erro ao abrir portal:', error)
-    Swal.fire({
-      icon: 'error',
-      title: 'Erro',
-      text: 'Não foi possível acessar o portal do cliente.',
-      confirmButtonColor: '#1f73ff'
-    })
-  } finally {
-    loadingPortal.value = false
-  }
-}
 </script>
 
 <style scoped lang="scss">
@@ -361,7 +264,7 @@ const manageSubscription = async () => {
     border-radius: 8px;
     padding: 1.5rem;
     margin-bottom: 1.5rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 1px 2px rgba(43,0,22,0.06), 0 6px 16px rgba(43,0,22,0.09);
 
     .section-title {
       font-size: 1rem;
@@ -421,11 +324,11 @@ const manageSubscription = async () => {
       justify-content: center;
 
       &-primary {
-        background: #1f73ff; 
+        background: #d49ba7; 
         color: white;
         
         &:hover { 
-          background: #155bd5; 
+          background: #ba5e72; 
         }
       }
 
@@ -446,64 +349,40 @@ const manageSubscription = async () => {
     }
   }
 
-  .subscription-card {
-    border-top: 3px solid var(--primary-color);
-    background: linear-gradient(to bottom right, var(--surface-color), rgba(var(--primary-color-rgb), 0.02));
-    
-    .badge {
-      padding: 0.2rem 0.6rem;
-      border-radius: 12px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-      display: inline-block;
-      margin-left: 0.5rem;
-      
-      &.success { 
-        background: #dcfce7; 
-        color: #166534; 
-        border: 1px solid #bbf7d0;
-      }
-      &.warning { 
-        background: #fef9c3; 
-        color: #854d0e; 
-        border: 1px solid #fef08a;
-      }
+  .status-active, .status-inactive {
+    margin-top: 1rem;
+    background: var(--bg-color);
+    padding: 1rem;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+
+    strong {
+      font-size: 0.9rem;
+      color: var(--text-color);
     }
 
-    .status-active, .status-inactive {
-      margin-top: 1rem;
-      background: var(--bg-color);
-      padding: 1rem;
-      border-radius: 6px;
-      border: 1px solid var(--border-color);
-      
-      strong {
-        font-size: 0.9rem;
-        color: var(--text-color);
-      }
-      
-      p { 
-        margin-top: 0.5rem; 
-        margin-bottom: 1rem;
-        color: var(--text-muted); 
-        font-size: 0.85rem;
-        line-height: 1.4;
-      }
+    p {
+      margin-top: 0.5rem;
+      margin-bottom: 1rem;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      line-height: 1.4;
     }
   }
 
-  .trial-warning-banner {
-    background: #fef2f2;
-    color: #991b1b;
-    border: 1px solid #fecaca;
-    padding: 0.75rem 1rem;
-    border-radius: 6px;
-    margin-bottom: 1.5rem;
-    font-size: 0.85rem;
-    
-    strong {
-      font-weight: 600;
+  .badge {
+    padding: 0.2rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    display: inline-block;
+    margin-left: 0.5rem;
+
+    &.success {
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #bbf7d0;
     }
   }
 }

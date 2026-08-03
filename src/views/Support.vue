@@ -301,7 +301,7 @@ onMounted(() => {
 }
 
 .btn-primary {
-  background: #2563eb;
+  background: #ba5e72;
   color: white;
   border: none;
   padding: 0.5rem 1rem;
@@ -313,7 +313,7 @@ onMounted(() => {
 }
 
 .btn-primary:hover {
-  background: #1d4ed8;
+  background: #ba5e72;
 }
 
 .layout-container {
@@ -356,8 +356,8 @@ onMounted(() => {
 }
 
 .ticket-item.active {
-  background: #e0f2fe;
-  border-left: 3px solid #0ea5e9;
+  background: #fde5f1;
+  border-left: 3px solid #ba5e72;
 }
 
 .t-header h4 {
@@ -482,11 +482,11 @@ onMounted(() => {
 .msg-bubble {
   padding: 0.75rem 1rem;
   border-radius: 10px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 2px rgba(43,0,22,0.06), 0 6px 16px rgba(43,0,22,0.09);
 }
 
 .is-user .msg-bubble {
-  background: #2563eb;
+  background: #ba5e72;
   color: white;
   border-bottom-right-radius: 2px;
 }
@@ -505,7 +505,7 @@ onMounted(() => {
   opacity: 0.8;
 }
 
-.is-admin .msg-author { color: #2563eb; }
+.is-admin .msg-author { color: #ba5e72; }
 
 .msg-text {
   font-size: 0.9rem;
@@ -538,12 +538,12 @@ onMounted(() => {
 
 .chat-input input:focus {
   outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 2px rgba(37,99,235,0.2);
+  border-color: #ba5e72;
+  box-shadow: 0 0 0 2px rgba(214,0,107,0.2);
 }
 
 .btn-reply {
-  background: #2563eb;
+  background: #ba5e72;
   color: white;
   border: none;
   padding: 0 1.5rem;
@@ -553,7 +553,7 @@ onMounted(() => {
   transition: 0.2s;
 }
 
-.btn-reply:hover { background: #1d4ed8; }
+.btn-reply:hover { background: #ba5e72; }
 
 /* Detalhes Direita */
 .ticket-info-sidebar {

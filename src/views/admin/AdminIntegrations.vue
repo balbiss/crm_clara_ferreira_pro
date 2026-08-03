@@ -52,7 +52,7 @@ onMounted(() => {
   <div class="admin-integrations">
     <div class="header-row">
       <h2 class="page-title">Integrações Globais</h2>
-      <p class="subtitle">Gerencie as chaves de API e serviços centrais que alimentam todas as imobiliárias do SaaS.</p>
+      <p class="subtitle">Gerencie as chaves de API e serviços centrais que alimentam todas as empresas do SaaS.</p>
     </div>
     
     <div v-if="loading" class="loading">Carregando integrações...</div>
@@ -219,7 +219,7 @@ onMounted(() => {
 .integration-card {
   background: white;
   border-radius: 10px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 2px rgba(43,0,22,0.06), 0 6px 16px rgba(43,0,22,0.09);
   border: 1px solid #e2e8f0;
   padding: 1.25rem;
 }
@@ -288,8 +288,8 @@ onMounted(() => {
       
       &:focus {
         outline: none;
-        border-color: #38bdf8;
-        box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+        border-color: #d49ba7;
+        box-shadow: 0 0 0 2px rgba(212, 155, 167, 0.2);
       }
     }
     
@@ -308,12 +308,12 @@ onMounted(() => {
         transform: translateY(-50%);
         background: none;
         border: none;
-        color: #38bdf8;
+        color: #d49ba7;
         font-size: 0.75rem;
         cursor: pointer;
         font-weight: 500;
-        
-        &:hover { color: #0ea5e9; }
+
+        &:hover { color: #ba5e72; }
       }
     }
     
@@ -333,7 +333,7 @@ onMounted(() => {
 }
 
 .btn-primary {
-  background: #38bdf8;
+  background: #d49ba7;
   color: white;
   border: none;
   padding: 0.5rem 1rem;
@@ -342,9 +342,9 @@ onMounted(() => {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover {
-    background: #0ea5e9;
+    background: #ba5e72;
   }
   
   &.stripe-btn {

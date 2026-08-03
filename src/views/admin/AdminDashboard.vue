@@ -118,7 +118,7 @@ const formatCurrency = (value) => {
     }
     
     .metric-value {
-      color: #38bdf8;
+      color: #d49ba7;
     }
   }
 }

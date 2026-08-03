@@ -67,27 +67,27 @@ const closeModal = () => {
 
       <div class="modal-body scrollable">
         <p class="modal-desc">
-          Preencha os detalhes da sua imobiliária abaixo. A nossa inteligência artificial vai escrever um prompt de comportamento <strong>perfeito</strong> e à prova de falhas para sua secretária virtual.
+          Preencha os detalhes da sua empresa abaixo. A nossa inteligência artificial vai escrever um prompt de comportamento <strong>perfeito</strong> e à prova de falhas para sua secretária virtual.
         </p>
 
         <div class="form-group">
           <label>1. Identidade e Tom de Voz</label>
-          <textarea v-model="form.identity" placeholder="Ex: Somos a Imobiliária Alpha. A IA deve se chamar Ana, ter um tom amigável, prestativo e persuasivo, focado em fechar negócios."></textarea>
+          <textarea v-model="form.identity" placeholder="Ex: Somos a Clara Ferreira Acessórios, revenda consignada de joias e semijoias. A IA deve se chamar Ana, ter um tom amigável, prestativo e acolhedor com as revendedoras."></textarea>
         </div>
 
         <div class="form-group">
           <label>2. Institucional (Regras e Diferenciais)</label>
-          <textarea v-model="form.institutional" placeholder="Ex: Nosso horário é seg a sex das 9h às 18h. Nosso grande diferencial é aprovar financiamento em 24h. Trabalhamos apenas com imóveis de luxo e não fazemos locação."></textarea>
+          <textarea v-model="form.institutional" placeholder="Ex: Nosso horário é seg a sex das 9h às 18h. Trabalhamos com maletas consignadas e a régua de acompanhamento é no 3º, 10º e 20º dia após o envio."></textarea>
         </div>
 
         <div class="form-group">
           <label>3. FAQ (Perguntas Frequentes)</label>
-          <textarea v-model="form.faq" placeholder="Ex: - Aceita pet? Sim.&#10;- Aceita fiador? Não, apenas seguro fiança.&#10;- Faz minha casa minha vida? Não."></textarea>
+          <textarea v-model="form.faq" placeholder="Ex: - Posso trocar peças da maleta? Sim, em até 30 dias.&#10;- Como faço o acerto? Pelo link enviado no WhatsApp ou combinando com a consultora.&#10;- Tem taxa de adesão? Não."></textarea>
         </div>
 
         <div class="form-group">
           <label>4. Mensagem de Saudação (Primeiro Contato)</label>
-          <textarea v-model="form.greeting_message" placeholder="Ex: Olá! 👋 Bem-vindo à Imobiliária Alpha! Sou a Ana, sua assistente virtual. Estou aqui para te ajudar a encontrar o imóvel dos seus sonhos. Como posso te ajudar hoje?"></textarea>
+          <textarea v-model="form.greeting_message" placeholder="Ex: Olá! 👋 Bem-vinda à Clara Ferreira Acessórios! Sou a Ana, sua assistente virtual. Estou aqui para te ajudar com sua maleta consignada. Como posso te ajudar hoje?"></textarea>
           <small class="help-hint">Esta é a mensagem exata que a IA enviará quando um novo cliente entrar em contato pela primeira vez. Se não preencher, a IA criará uma saudação natural com base na identidade definida.</small>
         </div>
 
@@ -95,7 +95,7 @@ const closeModal = () => {
           <div class="form-group">
             <label>5. Modo de Atuação da IA</label>
             <select v-model="form.ai_role" class="form-select">
-              <option value="sdr_and_sales">Completo (Qualifica, Oferta Imóveis e Agenda)</option>
+              <option value="sdr_and_sales">Completo (Qualifica, Acompanha Régua e Agenda)</option>
               <option value="sdr_only">Apenas Pré-venda/SDR (Coleta dados e transfere)</option>
             </select>
           </div>
@@ -132,7 +132,7 @@ const closeModal = () => {
 
         <div class="form-group">
           <label>6. Regras de SDR (Pré-venda)</label>
-          <textarea v-model="form.sdr_rules" placeholder="Ex: Obrigatório coletar o Nome, Telefone, Bairro de interesse e se o cliente já tem aprovação na Caixa Econômica antes de enviar qualquer imóvel."></textarea>
+          <textarea v-model="form.sdr_rules" placeholder="Ex: Obrigatório coletar o Nome, Telefone e confirmar o ID da revendedora no Jueri antes de dar qualquer informação sobre pedidos."></textarea>
         </div>
 
         <div class="form-group">

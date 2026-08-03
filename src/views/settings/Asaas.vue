@@ -26,7 +26,7 @@ onMounted(async () => {
 
 const saveKey = async () => {
   if (!apiKey.value.trim()) {
-    return Swal.fire({ icon: 'warning', title: 'API Key vazia', text: 'Digite a chave antes de salvar.', confirmButtonColor: '#4338ca' })
+    return Swal.fire({ icon: 'warning', title: 'API Key vazia', text: 'Digite a chave antes de salvar.', confirmButtonColor: '#d49ba7' })
   }
   isSaving.value = true
   try {
@@ -35,7 +35,7 @@ const saveKey = async () => {
     testResult.value   = null
     Swal.fire({ icon: 'success', title: 'Salvo!', text: 'Configuração salva com sucesso.', timer: 1800, showConfirmButton: false })
   } catch (e) {
-    Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível salvar a configuração.', confirmButtonColor: '#4338ca' })
+    Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível salvar a configuração.', confirmButtonColor: '#d49ba7' })
   } finally {
     isSaving.value = false
   }
@@ -260,12 +260,12 @@ const departments = [
 .page-icon {
   width: 36px;
   height: 36px;
-  background: rgba(67,56,202,0.1);
+  background: rgba(212, 155, 167,0.1);
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #4338ca;
+  color: #d49ba7;
   flex-shrink: 0;
 }
 
@@ -365,7 +365,7 @@ const departments = [
   color: var(--text-main);
   outline: none;
   &.mono { font-family: 'Courier New', monospace; letter-spacing: 0.02em; }
-  &:focus { border-color: #4338ca; box-shadow: 0 0 0 3px rgba(67,56,202,0.1); }
+  &:focus { border-color: #d49ba7; box-shadow: 0 0 0 3px rgba(212, 155, 167,0.1); }
 }
 
 .eye-btn {
@@ -377,7 +377,7 @@ const departments = [
   color: var(--text-muted);
   display: flex;
   padding: 0;
-  &:hover { color: #4338ca; }
+  &:hover { color: #d49ba7; }
 }
 
 .divider {
@@ -412,7 +412,7 @@ const departments = [
   input[type="radio"] { display: none; }
 
   &.active {
-    background: #4338ca;
+    background: #d49ba7;
     color: #fff;
     font-weight: 600;
   }
@@ -514,8 +514,8 @@ const departments = [
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #4338ca;
-  background: rgba(67,56,202,0.08);
+  color: #d49ba7;
+  background: rgba(212, 155, 167,0.08);
   padding: 0.15rem 0.5rem;
   border-radius: 4px;
   white-space: nowrap;
@@ -523,7 +523,7 @@ const departments = [
 
 // Buttons
 .btn-primary {
-  background: #4338ca;
+  background: #d49ba7;
   color: #fff;
   border: none;
   border-radius: 7px;
@@ -550,7 +550,7 @@ const departments = [
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  &:hover:not(:disabled) { border-color: #4338ca; color: #4338ca; }
+  &:hover:not(:disabled) { border-color: #d49ba7; color: #d49ba7; }
   &:disabled { opacity: 0.45; cursor: not-allowed; }
 }
 

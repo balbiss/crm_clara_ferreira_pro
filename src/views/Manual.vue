@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import {
-  MessageCircle, Users, Home, Building, CalendarDays, Kanban,
+  MessageCircle, Users, UserCheck, UserX, ListChecks, LayoutGrid, Kanban,
   TrendingUp, Badge, Settings, CreditCard, BrainCircuit, Bell,
   BookOpen, ChevronRight, Search, Bot, Zap, Shield, ArrowRightLeft
 } from 'lucide-vue-next'
@@ -12,13 +12,13 @@ const searchQuery   = ref('')
 const sections = [
   { id: 'visao-geral',    label: 'Visão Geral',             icon: BookOpen },
   { id: 'conversas',      label: 'Conversas',               icon: MessageCircle },
-  { id: 'matching',       label: 'Matching Lead ↔ Imóvel',  icon: Zap },
   { id: 'transferencia',  label: 'Transferência de Conversa', icon: ArrowRightLeft },
-  { id: 'contatos',       label: 'Contatos / Leads',        icon: Users },
-  { id: 'imoveis',        label: 'Imóveis',                 icon: Home },
-  { id: 'condominios',    label: 'Condomínios',             icon: Building },
-  { id: 'agendamentos',   label: 'Agendamentos',            icon: CalendarDays },
-  { id: 'funil',          label: 'Funil de Vendas',         icon: Kanban },
+  { id: 'contatos',       label: 'Contatos / Revendedoras',  icon: Users },
+  { id: 'carteira',       label: 'Carteira Ativa',          icon: UserCheck },
+  { id: 'inativas',       label: 'Revendedoras Inativas',   icon: UserX },
+  { id: 'tarefas',        label: 'Tarefas / Régua',         icon: ListChecks },
+  { id: 'funil',          label: 'Funil (Kanban)',          icon: Kanban },
+  { id: 'gerencial',      label: 'Visão Gerencial',         icon: LayoutGrid },
   { id: 'relatorios',     label: 'Relatórios',              icon: TrendingUp },
   { id: 'agentes',        label: 'Agentes',                 icon: Badge },
   { id: 'configuracoes',  label: 'Configurações',           icon: Settings },
@@ -94,7 +94,7 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
         <!-- ══════════════════════════════════════ VISÃO GERAL -->
         <section id="visao-geral">
           <h1>Visão Geral do Sistema</h1>
-          <p class="lead">O <strong>VisitaIA CRM</strong> é uma plataforma completa de gestão de relacionamento para imobiliárias. Ele centraliza conversas do WhatsApp, leads, imóveis, agendamentos e cobranças em um único lugar.</p>
+          <p class="lead">O <strong>CRM Clara Ferreira</strong> é a plataforma de relacionamento com as revendedoras consignadas. Ele centraliza conversas do WhatsApp, o ciclo da régua (3º/10º/20º dia) e cobranças em um único lugar, sincronizado com o cadastro de revendedoras do ERP Jueri.</p>
 
           <div class="cards-row">
             <div class="info-card">
@@ -115,7 +115,7 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
               <Zap :size="20" />
               <div>
                 <strong>Automação</strong>
-                <p>Rodízio automático de leads entre corretores, mensagens agendadas e notificações em tempo real.</p>
+                <p>Rodízio automático de leads entre consultoras, mensagens agendadas e notificações em tempo real.</p>
               </div>
             </div>
           </div>
@@ -125,13 +125,13 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
             <table>
               <thead><tr><th>Módulo</th><th>Quem acessa</th><th>Função principal</th></tr></thead>
               <tbody>
-                <tr><td>Dashboard</td><td>Todos</td><td>KPIs, leads do dia, funil</td></tr>
+                <tr><td>Dashboard</td><td>Todos</td><td>KPIs, leads do dia, régua</td></tr>
                 <tr><td>Conversas</td><td>Todos</td><td>Chat WhatsApp em tempo real</td></tr>
-                <tr><td>Contatos</td><td>Todos*</td><td>Base de leads com histórico</td></tr>
-                <tr><td>Imóveis</td><td>Todos*</td><td>Catálogo de propriedades</td></tr>
-                <tr><td>Condomínios</td><td>Todos*</td><td>Lançamentos e empreendimentos</td></tr>
-                <tr><td>Agendamentos</td><td>Todos</td><td>Visitas e compromissos</td></tr>
-                <tr><td>Funil</td><td>Todos</td><td>Pipeline visual de vendas</td></tr>
+                <tr><td>Contatos</td><td>Todos*</td><td>Base de revendedoras com histórico</td></tr>
+                <tr><td>Carteira Ativa</td><td>Todos*</td><td>Revendedoras no ciclo ativo da régua</td></tr>
+                <tr><td>Revendedoras Inativas</td><td>Todos*</td><td>Fora do ciclo ativo ou suspensas</td></tr>
+                <tr><td>Tarefas</td><td>Todos</td><td>Ações da régua 3º/10º/20º dia</td></tr>
+                <tr><td>Funil</td><td>Todos</td><td>Pipeline visual em Kanban</td></tr>
                 <tr><td>Relatórios</td><td>Todos</td><td>Performance e métricas</td></tr>
                 <tr><td>Agentes</td><td>Dono/Admin</td><td>Gerenciar equipe</td></tr>
                 <tr><td>Configurações</td><td>Dono/Admin</td><td>Canais, tags, integrações</td></tr>
@@ -139,7 +139,7 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
               </tbody>
             </table>
           </div>
-          <p class="note">* Corretores veem apenas seus próprios registros. Donos e admins veem tudo.</p>
+          <p class="note">* Consultoras veem apenas seus próprios registros. Donos e admins veem tudo.</p>
         </section>
 
         <div class="divider" />
@@ -181,7 +181,7 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
 
           <h2>Atribuição de conversas</h2>
           <ul>
-            <li>Novas conversas entram automaticamente e são distribuídas via <strong>rodízio automático</strong> entre os corretores disponíveis</li>
+            <li>Novas conversas entram automaticamente e são distribuídas via <strong>rodízio automático</strong> entre as consultoras disponíveis</li>
             <li>O gestor pode reatribuir manualmente no painel lateral direito</li>
             <li>O agente recebe notificação pelo WhatsApp pessoal e push notification no celular</li>
           </ul>
@@ -204,68 +204,15 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
 
         <div class="divider" />
 
-        <!-- ══════════════════════════════════════ MATCHING -->
-        <section id="matching">
-          <h1>Matching Automático Lead ↔ Imóvel</h1>
-          <p class="lead">Quando um novo imóvel é cadastrado, o sistema usa Inteligência Artificial para comparar automaticamente com todos os leads ativos e notifica os compatíveis via WhatsApp.</p>
-
-          <h2>Como funciona</h2>
-          <ol>
-            <li>Você cadastra um novo imóvel com tipo, bairro, quartos e preço</li>
-            <li>O sistema compara o imóvel com a <strong>intenção de busca</strong> de cada lead ativo</li>
-            <li>A IA (GPT) decide: "Este imóvel atende a intenção do lead?" (SIM ou NÃO)</li>
-            <li>Os leads compatíveis recebem automaticamente uma mensagem no WhatsApp com os detalhes do imóvel</li>
-            <li>Uma notificação aparece no painel: <strong>"X leads compatíveis foram notificados"</strong></li>
-          </ol>
-
-          <h2>Executar matching manualmente</h2>
-          <p>Para imóveis já cadastrados, você pode re-executar o matching a qualquer momento:</p>
-          <ol>
-            <li>Acesse <strong>Imóveis</strong></li>
-            <li>No card do imóvel, clique no botão <span class="badge yellow">⚡ Matching</span> (ícone de raio amarelo)</li>
-            <li>Aguarde a notificação com o resultado na tela</li>
-          </ol>
-
-          <h2>Configurar a intenção do lead</h2>
-          <p>O matching usa o campo <strong>Intenção</strong> do contato. Quanto mais detalhado, melhor o resultado:</p>
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>Exemplo de intenção bem preenchida</th><th>Resultado</th></tr></thead>
-              <tbody>
-                <tr><td>"Quer comprar apartamento de 2 quartos no Setor Bueno até R$ 400 mil"</td><td><span class="badge green">Match preciso</span></td></tr>
-                <tr><td>"Quer comprar imóvel"</td><td><span class="badge yellow">Match amplo</span></td></tr>
-                <tr><td>(vazio)</td><td><span class="badge gray">Não participa</span></td></tr>
-              </tbody>
-            </table>
-          </div>
-          <p>Para editar a intenção: abra o contato → clique em <strong>Editar atributos</strong> → campo "Intenção".</p>
-
-          <h2>Mensagem enviada ao lead</h2>
-          <p>O lead recebe automaticamente no WhatsApp uma mensagem como:</p>
-          <div class="code-block">
-            "João! Temos um novo Apartamento em Setor Bueno, 2 quartos por R$ 380.000 que pode ser exatamente o que você procura! Posso te contar mais detalhes?"
-          </div>
-
-          <h2>Requisitos</h2>
-          <ul>
-            <li>A chave da OpenAI deve estar configurada em <strong>Admin → Configurações → OpenAI API Key</strong></li>
-            <li>O lead deve ter o campo <strong>Intenção</strong> preenchido</li>
-            <li>O lead não deve estar com status <strong>Ganho (won)</strong></li>
-            <li>O lead deve ter uma conversa ativa com um inbox de WhatsApp associado</li>
-          </ul>
-        </section>
-
-        <div class="divider" />
-
         <!-- ══════════════════════════════════════ TRANSFERÊNCIA -->
         <section id="transferencia">
           <h1>Transferência de Conversa entre Agentes</h1>
-          <p class="lead">Transfira uma conversa para outro corretor com uma nota de contexto — a nota aparece como mensagem privada no chat, visível apenas para a equipe.</p>
+          <p class="lead">Transfira uma conversa para outra consultora com uma nota de contexto — a nota aparece como mensagem privada no chat, visível apenas para a equipe.</p>
 
           <h2>Como transferir</h2>
           <ol>
             <li>Abra a conversa que deseja transferir</li>
-            <li>No painel direito, em <strong>Atendente</strong>, você verá o corretor atual</li>
+            <li>No painel direito, em <strong>Atendente</strong>, você verá a consultora atual</li>
             <li>Clique em <strong>"Transferir com nota"</strong></li>
             <li>No modal, selecione o <strong>agente de destino</strong></li>
             <li>Escreva a <strong>nota de contexto</strong> — explique o motivo da transferência e o que o próximo agente precisa saber</li>
@@ -277,20 +224,20 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
             <li>A conversa é atribuída ao novo agente</li>
             <li>O novo agente recebe uma <strong>notificação push</strong> e uma mensagem no WhatsApp pessoal</li>
             <li>A nota de transferência aparece no chat como <strong>mensagem privada</strong> (fundo amarelado), visível apenas para a equipe — o lead não vê</li>
-            <li>A tag <strong>com_atendente</strong> é mantida indicando que há um corretor responsável</li>
+            <li>A tag <strong>com_atendente</strong> é mantida indicando que há uma consultora responsável</li>
           </ul>
 
           <h2>Atribuição rápida sem nota</h2>
           <p>Se quiser apenas mudar o atendente sem escrever uma nota, use o <strong>dropdown de Atendente</strong> diretamente — a conversa é reatribuída imediatamente sem abrir o modal.</p>
 
           <h2>Quem pode transferir</h2>
-          <p>Qualquer agente com acesso à conversa pode transferir. Corretores só veem suas próprias conversas, portanto só conseguem transferir conversas que já estão atribuídas a eles.</p>
+          <p>Qualquer agente com acesso à conversa pode transferir. Consultoras só veem suas próprias conversas, portanto só conseguem transferir conversas que já estão atribuídas a elas.</p>
 
           <div class="info-card" style="margin-top: 1rem;">
             <ArrowRightLeft :size="20" />
             <div>
               <strong>Dica de uso</strong>
-              <p>Use a transferência quando um corretor sai de férias, quando o lead precisa de outro tipo de atendimento (ex: corretor para financeiro), ou quando há troca de plantão.</p>
+              <p>Use a transferência quando uma consultora sai de férias, quando o lead precisa de outro tipo de atendimento (ex: consultora para financeiro), ou quando há troca de plantão.</p>
             </div>
           </div>
         </section>
@@ -299,22 +246,21 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
 
         <!-- ══════════════════════════════════════ CONTATOS -->
         <section id="contatos">
-          <h1>Contatos / Leads</h1>
-          <p class="lead">Todos os leads captados pelo WhatsApp, portais imobiliários ou cadastro manual são armazenados como contatos.</p>
+          <h1>Contatos / Revendedoras</h1>
+          <p class="lead">Toda revendedora sincronizada do ERP Jueri, ou captada pelo WhatsApp, é armazenada como contato — a entidade central do CRM.</p>
 
           <h2>Campos do contato</h2>
           <div class="table-wrap">
             <table>
               <thead><tr><th>Campo</th><th>Descrição</th></tr></thead>
               <tbody>
-                <tr><td>Nome</td><td>Nome completo do lead</td></tr>
+                <tr><td>Nome</td><td>Nome completo da revendedora</td></tr>
                 <tr><td>Telefone / WhatsApp</td><td>Número principal de contato</td></tr>
                 <tr><td>E-mail</td><td>E-mail para envios</td></tr>
                 <tr><td>CPF/CNPJ</td><td>Necessário para gerar cobranças via Asaas</td></tr>
-                <tr><td>Temperatura</td><td>Quente / Morno / Frio — indica nível de interesse</td></tr>
-                <tr><td>Intenção</td><td>Comprar / Alugar / Vender</td></tr>
-                <tr><td>Origem</td><td>WhatsApp, Portal, Indicação, Site etc.</td></tr>
-                <tr><td>Profissão / Renda</td><td>Dados para qualificação financeira</td></tr>
+                <tr><td>Temperatura</td><td>Quente / Morno / Frio — indica nível de engajamento</td></tr>
+                <tr><td>Status</td><td>Etapa da régua: ativa, 3º/10º/20º dia, agendado, atrasada</td></tr>
+                <tr><td>Origem</td><td>WhatsApp, Indicação, Jueri (sincronização) etc.</td></tr>
                 <tr><td>Data de nascimento</td><td>Para personalização de atendimento</td></tr>
               </tbody>
             </table>
@@ -331,123 +277,105 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
           <p>Na aba <strong>Notas</strong> do contato, qualquer agente pode registrar observações que ficam visíveis para toda a equipe. As notas têm data, hora e nome de quem registrou.</p>
 
           <h2>Mesclar contatos</h2>
-          <p>Quando o mesmo lead aparece duplicado, use <strong>Contatos → Mesclar</strong>. O sistema mantém o histórico completo do contato principal e descarta o duplicado.</p>
+          <p>Quando a mesma revendedora aparece duplicada, use <strong>Contatos → Mesclar</strong>. O sistema mantém o histórico completo do contato principal e descarta o duplicado.</p>
 
           <h2>Bloquear contato</h2>
-          <p>Contatos bloqueados não ativam mais a IA e são marcados com status inativo. Use para leads que solicitaram não ser contactados.</p>
+          <p>Contatos bloqueados não ativam mais a IA e são marcados com status inativo. Use para revendedoras que solicitaram não ser contactadas.</p>
         </section>
 
         <div class="divider" />
 
-        <!-- ══════════════════════════════════════ IMÓVEIS -->
-        <section id="imoveis">
-          <h1>Imóveis</h1>
-          <p class="lead">Cadastre e gerencie todo o portfólio de imóveis da imobiliária com fotos, características técnicas e dados do proprietário.</p>
+        <!-- ══════════════════════════════════════ CARTEIRA ATIVA -->
+        <section id="carteira">
+          <h1>Carteira Ativa</h1>
+          <p class="lead">Lista as revendedoras que estão dentro do ciclo ativo da régua (do dia 0 até o acerto), com o status atual de cada uma.</p>
 
-          <h2>Cadastrando um imóvel</h2>
-          <ol>
-            <li>Acesse <strong>Imóveis → Novo Imóvel</strong></li>
-            <li>Preencha: título, código de referência, tipo (casa, apartamento, terreno etc.), endereço completo</li>
-            <li>Informe: preço, área total, área construída, quartos, suítes, banheiros, vagas de garagem</li>
-            <li>Adicione fotos (arraste ou clique para upload — múltiplas fotos aceitas)</li>
-            <li>Preencha dados do proprietário se necessário</li>
-            <li>Clique em <strong>Salvar</strong></li>
-          </ol>
+          <h2>Como funciona o ciclo</h2>
+          <p>Quando uma revendedora fica com status <strong>Ativa</strong>, o ciclo começa a contar (<code>cycle_started_at</code>). Um job automático (<strong>ReguaAutoAdvanceJob</strong>) avança o status dela sozinho conforme os dias passam: 3º dia → 10º dia → 20º dia → atrasada.</p>
 
-          <h2>Tipos de imóvel suportados</h2>
-          <p>Casa, Apartamento, Terreno, Sala Comercial, Galpão, Sítio/Chácara, Cobertura e outros.</p>
-
-          <h2>Visibilidade por agente</h2>
-          <p>Corretores visualizam apenas os imóveis que cadastraram. Donos e administradores visualizam todos.</p>
-
-          <h2>Vinculação com agendamentos</h2>
-          <p>Ao criar um agendamento de visita, você vincula o lead a um imóvel específico. O histórico de visitas por imóvel aparece nos relatórios.</p>
-        </section>
-
-        <div class="divider" />
-
-        <!-- ══════════════════════════════════════ CONDOMÍNIOS -->
-        <section id="condominios">
-          <h1>Condomínios / Lançamentos</h1>
-          <p class="lead">Gerencie empreendimentos e lançamentos imobiliários com informações de construtora, amenidades e faixas de preço.</p>
-
-          <h2>O que é um condomínio no CRM</h2>
-          <p>Um condomínio representa um <strong>empreendimento</strong> (prédio, loteamento, complexo) — diferente de um imóvel unitário. Permite agrupar múltiplas unidades sob um mesmo projeto.</p>
-
-          <h2>Campos principais</h2>
+          <h2>Ações disponíveis</h2>
           <ul>
-            <li><strong>Nome do empreendimento</strong></li>
-            <li><strong>Construtora / Incorporadora</strong></li>
-            <li><strong>Status de construção:</strong> Lançamento, Em obras, Pronto para morar</li>
-            <li><strong>Faixa de preço:</strong> valor mínimo e máximo das unidades</li>
-            <li><strong>Amenidades:</strong> piscina, academia, playground, segurança 24h etc.</li>
-            <li><strong>Fotos:</strong> imagens do projeto e das áreas comuns</li>
+            <li>Ver o histórico de conversa da revendedora</li>
+            <li>Mover manualmente para outra etapa da régua</li>
+            <li>Aplicar etiquetas (ex: <em>revendedora_engajada</em>, <em>revendedora_dificuldade</em>)</li>
           </ul>
         </section>
 
         <div class="divider" />
 
-        <!-- ══════════════════════════════════════ AGENDAMENTOS -->
-        <section id="agendamentos">
-          <h1>Agendamentos</h1>
-          <p class="lead">Gerencie visitas a imóveis e outros compromissos com leads, vinculando contato, imóvel e corretor responsável.</p>
+        <!-- ══════════════════════════════════════ INATIVAS -->
+        <section id="inativas">
+          <h1>Revendedoras Inativas</h1>
+          <p class="lead">Lista as revendedoras fora do ciclo ativo — suspensas por atraso ou que ainda não iniciaram um novo ciclo.</p>
 
-          <h2>Criando um agendamento</h2>
-          <ol>
-            <li>Acesse <strong>Agendamentos → Novo Agendamento</strong> ou clique no botão de calendário na conversa</li>
-            <li>Selecione o <strong>contato</strong> (lead)</li>
-            <li>Selecione o <strong>imóvel</strong> que será visitado</li>
-            <li>Defina <strong>data e horário</strong></li>
-            <li>Selecione o <strong>corretor responsável</strong></li>
-            <li>Clique em <strong>Salvar</strong></li>
-          </ol>
+          <h2>Quando uma revendedora fica inativa</h2>
+          <p>O job de régua move a revendedora para <strong>suspensa_atraso</strong> quando ela permanece atrasada e o mês vira sem acerto. A partir daí ela some da Carteira Ativa e aparece aqui até reiniciar o ciclo.</p>
 
-          <h2>Status dos agendamentos</h2>
+          <h2>Reativando o ciclo</h2>
+          <p>Ao mover o status de volta para <strong>Ativa</strong>, o ciclo reinicia automaticamente — <code>cycle_started_at</code> é atualizado para a data atual e a contagem da régua recomeça do zero.</p>
+        </section>
+
+        <div class="divider" />
+
+        <!-- ══════════════════════════════════════ TAREFAS -->
+        <section id="tarefas">
+          <h1>Tarefas / Régua</h1>
+          <p class="lead">Consolida as ações que a equipe precisa tomar em cada etapa da régua de relacionamento (3º, 10º e 20º dia, agendamento e cobrança de atraso).</p>
+
+          <h2>Etapas da régua</h2>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Status</th><th>Significado</th></tr></thead>
+              <thead><tr><th>Etapa</th><th>Significado</th></tr></thead>
               <tbody>
-                <tr><td><span class="badge blue">Agendado</span></td><td>Visita marcada, aguardando realização</td></tr>
-                <tr><td><span class="badge green">Realizado</span></td><td>Visita aconteceu</td></tr>
-                <tr><td><span class="badge red">Cancelado</span></td><td>Visita cancelada</td></tr>
-                <tr><td><span class="badge yellow">Reagendado</span></td><td>Nova data definida</td></tr>
+                <tr><td><span class="badge green">Ativa</span></td><td>Ciclo recém-iniciado, revendedora com peças em mãos</td></tr>
+                <tr><td><span class="badge yellow">3º dia</span></td><td>Primeiro check-in de acompanhamento</td></tr>
+                <tr><td><span class="badge yellow">10º dia</span></td><td>Segundo check-in</td></tr>
+                <tr><td><span class="badge blue">20º dia</span></td><td>Aproximando do prazo de acerto</td></tr>
+                <tr><td><span class="badge blue">Agendado</span></td><td>Acerto marcado com a revendedora</td></tr>
+                <tr><td><span class="badge red">Atrasada</span></td><td>Passou do prazo sem acerto</td></tr>
               </tbody>
             </table>
           </div>
+        </section>
 
-          <h2>Exportar relatório</h2>
-          <p>Em <strong>Agendamentos → Relatório</strong>, filtre por período, corretor ou imóvel e exporte em CSV para análise externa.</p>
+        <div class="divider" />
+
+        <!-- ══════════════════════════════════════ GERENCIAL -->
+        <section id="gerencial">
+          <h1>Visão Gerencial</h1>
+          <p class="lead">Painel exclusivo do dono/admin com uma visão consolidada de todas as consultoras e o estágio da régua de cada carteira.</p>
         </section>
 
         <div class="divider" />
 
         <!-- ══════════════════════════════════════ FUNIL -->
         <section id="funil">
-          <h1>Funil de Vendas (Kanban)</h1>
-          <p class="lead">Visualize e gerencie o pipeline de vendas em formato Kanban, movendo leads entre etapas com arrastar e soltar.</p>
+          <h1>Funil (Kanban)</h1>
+          <p class="lead">Visualize e gerencie a régua em formato Kanban, movendo revendedoras entre etapas com arrastar e soltar.</p>
 
           <h2>Etapas do funil</h2>
           <div class="table-wrap">
             <table>
               <thead><tr><th>Coluna</th><th>Significado</th></tr></thead>
               <tbody>
-                <tr><td>Novos Leads</td><td>Lead acabou de entrar, ainda não qualificado</td></tr>
-                <tr><td>Visita Agendada</td><td>Visita marcada, lead demonstrou interesse</td></tr>
-                <tr><td>Proposta Feita</td><td>Proposta ou oferta enviada ao lead</td></tr>
-                <tr><td>Negócio Fechado</td><td>Venda ou locação concluída</td></tr>
+                <tr><td>Ativa</td><td>Ciclo recém-iniciado</td></tr>
+                <tr><td>3º dia</td><td>Primeiro check-in</td></tr>
+                <tr><td>10º dia</td><td>Segundo check-in</td></tr>
+                <tr><td>20º dia</td><td>Aproximando do acerto</td></tr>
+                <tr><td>Agendado</td><td>Acerto marcado</td></tr>
               </tbody>
             </table>
           </div>
 
           <h2>Como usar</h2>
           <ul>
-            <li><strong>Mover lead:</strong> Arraste o card de uma coluna para outra</li>
-            <li><strong>Criar lead direto:</strong> Clique em "+" em qualquer coluna para adicionar um lead manualmente</li>
+            <li><strong>Mover revendedora:</strong> Arraste o card de uma coluna para outra</li>
+            <li><strong>Criar contato direto:</strong> Clique em "+" em qualquer coluna para adicionar um contato manualmente</li>
             <li><strong>Ver detalhes:</strong> Clique no card para abrir o perfil completo do contato</li>
           </ul>
 
           <h2>Informações nos cards</h2>
-          <p>Cada card mostra: nome do lead, temperatura (cor), telefone e intenção (comprar/alugar).</p>
+          <p>Cada card mostra: nome da revendedora, temperatura (cor) e telefone.</p>
         </section>
 
         <div class="divider" />
@@ -462,11 +390,10 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
             <table>
               <thead><tr><th>Aba</th><th>O que mostra</th></tr></thead>
               <tbody>
-                <tr><td>Visão Geral</td><td>Total de leads, temperatura, origem, intenção, funil de conversão</td></tr>
-                <tr><td>Por Corretor</td><td>Performance individual: leads, conversas, agendamentos, taxa de conversão</td></tr>
+                <tr><td>Visão Geral</td><td>Total de leads, temperatura, origem, funil da régua</td></tr>
+                <tr><td>Por Consultora</td><td>Performance individual: leads, conversas, taxa de conversão</td></tr>
                 <tr><td>Por Tag</td><td>Contagem de contatos por etiqueta</td></tr>
-                <tr><td>Performance</td><td>Tendência dos últimos 7 dias, tempo médio de resposta, imóveis mais vistos</td></tr>
-                <tr><td>Agendamentos</td><td>Relatório de visitas por período, corretor ou imóvel</td></tr>
+                <tr><td>Performance</td><td>Tendência dos últimos 7 dias, tempo médio de resposta</td></tr>
               </tbody>
             </table>
           </div>
@@ -483,14 +410,14 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
         <!-- ══════════════════════════════════════ AGENTES -->
         <section id="agentes">
           <h1>Agentes</h1>
-          <p class="lead">Gerencie os usuários que utilizam o CRM — corretores, suporte, financeiro e manutenção.</p>
+          <p class="lead">Gerencie os usuários que utilizam o CRM — consultoras, suporte, financeiro e manutenção.</p>
 
           <h2>Departamentos disponíveis</h2>
           <div class="table-wrap">
             <table>
               <thead><tr><th>Departamento</th><th>Função</th><th>Recebe leads via rodízio</th></tr></thead>
               <tbody>
-                <tr><td>Corretor</td><td>Atendimento e vendas</td><td>Sim</td></tr>
+                <tr><td>Consultora</td><td>Atendimento e vendas</td><td>Sim</td></tr>
                 <tr><td>Suporte</td><td>Atendimento pós-venda</td><td>Não</td></tr>
                 <tr><td>Financeiro</td><td>Cobranças e pagamentos</td><td>Não</td></tr>
                 <tr><td>Manutenção</td><td>Solicitações técnicas</td><td>Não</td></tr>
@@ -506,10 +433,10 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
           </ol>
 
           <h2>Rodízio automático (Round Robin)</h2>
-          <p>O rodízio distribui leads automaticamente entre corretores de forma equilibrada. Para cada corretor:</p>
+          <p>O rodízio distribui leads automaticamente entre consultoras de forma equilibrada. Para cada consultora:</p>
           <ul>
-            <li><strong>Ativar no rodízio:</strong> toggle verde na lista de agentes — o corretor entra na fila</li>
-            <li><strong>Desativar:</strong> toggle cinza — o corretor não recebe novos leads automáticos</li>
+            <li><strong>Ativar no rodízio:</strong> toggle verde na lista de agentes — a consultora entra na fila</li>
+            <li><strong>Desativar:</strong> toggle cinza — a consultora não recebe novos leads automáticos</li>
           </ul>
           <p>A fila de posição está visível em <strong>Agentes → Fila de Rodízio</strong>.</p>
 
@@ -535,14 +462,6 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
 
           <h2>Etiquetas (Tags)</h2>
           <p>Crie e personalize as etiquetas usadas nas conversas em <strong>Configurações → Etiquetas</strong>. Cada tag tem nome e cor.</p>
-
-          <h2>Portais Imobiliários</h2>
-          <p>Integre com portais para receber leads automaticamente:</p>
-          <ul>
-            <li><strong>Canal Pro / Zap Imóveis / Viva Real</strong> — configure em <strong>Configurações → Portais Imobiliários</strong></li>
-            <li>Copie a URL do webhook gerada e cadastre no painel do portal</li>
-            <li>Leads chegam automaticamente como novos contatos no CRM</li>
-          </ul>
 
           <h2>Conta</h2>
           <p>Em <strong>Configurações → Conta</strong>, altere o nome da empresa e a senha de acesso.</p>
@@ -585,7 +504,7 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
           </div>
 
           <h2>Quem pode gerar cobranças</h2>
-          <p>Financeiro, Suporte, Manutenção, Dono e Admin. <strong>Corretores não têm acesso</strong> à função de cobrança.</p>
+          <p>Financeiro, Suporte, Manutenção, Dono e Admin. <strong>Consultoras não têm acesso</strong> à função de cobrança.</p>
 
           <h2>Sandbox (ambiente de testes)</h2>
           <p>Use a chave de Sandbox para testar o fluxo sem movimentação financeira real. Obtenha a chave em <a href="https://sandbox.asaas.com" target="_blank">sandbox.asaas.com</a> (conta gratuita).</p>
@@ -612,7 +531,7 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
 
           <h2>Boas práticas para o Prompt</h2>
           <ul>
-            <li>Defina o nome da IA (ex: "Assistente Virtual da Imobiliária XYZ")</li>
+            <li>Defina o nome da IA (ex: "Assistente Virtual da Clara Ferreira")</li>
             <li>Liste o que a IA pode e não pode responder</li>
             <li>Inclua o horário de atendimento humano</li>
             <li>Defina o tom: formal, amigável, direto</li>
@@ -637,7 +556,7 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
 
           <h2>O que gera notificações</h2>
           <ul>
-            <li>Novo lead atribuído ao corretor (via rodízio automático ou atribuição manual)</li>
+            <li>Novo lead atribuído à consultora (via rodízio automático ou atribuição manual)</li>
           </ul>
 
           <h2>Compatibilidade</h2>
@@ -666,7 +585,7 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
               <thead><tr><th>Papel</th><th>Descrição</th></tr></thead>
               <tbody>
                 <tr><td><strong>Empresa / Dono</strong></td><td>Acesso total ao CRM, configurações, agentes e relatórios</td></tr>
-                <tr><td><strong>Atendente</strong></td><td>Acesso às suas próprias conversas, leads e imóveis</td></tr>
+                <tr><td><strong>Atendente</strong></td><td>Acesso às suas próprias conversas e revendedoras</td></tr>
                 <tr><td><strong>Admin (global)</strong></td><td>Painel administrativo do SaaS — exclusivo da equipe técnica</td></tr>
               </tbody>
             </table>
@@ -678,7 +597,7 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
               <thead>
                 <tr>
                   <th>Função</th>
-                  <th>Corretor</th>
+                  <th>Consultora</th>
                   <th>Suporte</th>
                   <th>Financeiro</th>
                   <th>Manutenção</th>
@@ -702,7 +621,6 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
             <li>Criar, editar e bloquear agentes</li>
             <li>Configurar canais WhatsApp (inboxes)</li>
             <li>Configurar a chave de API do Asaas</li>
-            <li>Integrar portais imobiliários</li>
             <li>Gerenciar etiquetas</li>
             <li>Ver relatórios de toda a equipe</li>
             <li>Visualizar todos os leads e conversas</li>
@@ -800,10 +718,10 @@ nav {
   }
 
   &.active {
-    background: rgba(67,56,202,0.08);
-    color: #4338ca;
+    background: rgba(212, 155, 167,0.08);
+    color: #d49ba7;
     font-weight: 600;
-    .arrow { opacity: 1; color: #4338ca; }
+    .arrow { opacity: 1; color: #d49ba7; }
   }
 }
 
@@ -832,7 +750,7 @@ h1 {
   color: var(--text-main);
   margin: 0 0 0.4rem;
   padding-bottom: 0.5rem;
-  border-bottom: 2px solid #4338ca;
+  border-bottom: 2px solid #d49ba7;
   display: inline-block;
 }
 
@@ -864,7 +782,7 @@ ul, ol {
   strong { color: var(--text-main); }
 }
 
-a { color: #4338ca; }
+a { color: #d49ba7; }
 
 // Cards row
 .cards-row {
@@ -882,7 +800,7 @@ a { color: #4338ca; }
   border-radius: 8px;
   padding: 0.9rem 1rem;
 
-  svg { color: #4338ca; flex-shrink: 0; margin-top: 2px; }
+  svg { color: #d49ba7; flex-shrink: 0; margin-top: 2px; }
 
   strong { display: block; font-size: 0.83rem; color: var(--text-main); margin-bottom: 0.2rem; }
   p { font-size: 0.78rem; color: var(--text-muted); margin: 0; line-height: 1.5; }
@@ -936,14 +854,14 @@ table {
   &.green  { background: rgba(16,185,129,0.1);   color: #059669; }
   &.yellow { background: rgba(245,158,11,0.1);   color: #d97706; }
   &.gray   { background: rgba(107,114,128,0.1);  color: #6b7280; }
-  &.blue   { background: rgba(59,130,246,0.1);   color: #2563eb; }
+  &.blue   { background: rgba(212, 155, 167,0.1);   color: #ba5e72; }
   &.red    { background: rgba(239,68,68,0.1);    color: #dc2626; }
 }
 
 .code-block {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
-  border-left: 3px solid #4338ca;
+  border-left: 3px solid #d49ba7;
   border-radius: 6px;
   padding: 0.8rem 1rem;
   font-size: 0.83rem;
@@ -968,8 +886,8 @@ table {
 }
 
 .footer-note {
-  background: rgba(67,56,202,0.05);
-  border: 1px solid rgba(67,56,202,0.15);
+  background: rgba(212, 155, 167,0.05);
+  border: 1px solid rgba(212, 155, 167,0.15);
   border-radius: 8px;
   padding: 1rem 1.25rem;
   font-size: 0.85rem;

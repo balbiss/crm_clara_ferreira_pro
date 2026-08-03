@@ -209,7 +209,7 @@ onMounted(() => {
 }
 
 .message-user .message-bubble {
-  background: #2563eb;
+  background: #ba5e72;
   color: white;
   border-bottom-right-radius: 2px;
 }
@@ -228,7 +228,7 @@ onMounted(() => {
   opacity: 0.8;
 }
 
-.message-admin .message-author { color: #2563eb; }
+.message-admin .message-author { color: #ba5e72; }
 
 .message-body {
   font-size: 0.95rem;
@@ -261,12 +261,12 @@ onMounted(() => {
 
 .chat-input-area input:focus {
   outline: none;
-  border-color: #38bdf8;
-  box-shadow: 0 0 0 2px rgba(56,189,248,0.2);
+  border-color: #d49ba7;
+  box-shadow: 0 0 0 2px rgba(212, 155, 167,0.2);
 }
 
 .btn-send {
-  background: #2563eb;
+  background: #ba5e72;
   color: white;
   border: none;
   padding: 0 1.5rem;
@@ -277,6 +277,6 @@ onMounted(() => {
 }
 
 .btn-send:hover {
-  background: #1d4ed8;
+  background: #ba5e72;
 }
 </style>

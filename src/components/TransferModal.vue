@@ -172,7 +172,7 @@ const confirm = () => {
   color: var(--text-main);
   outline: none;
   width: 100%;
-  &:focus { border-color: #4338ca; }
+  &:focus { border-color: #d49ba7; }
 }
 
 .textarea-field {
@@ -186,7 +186,7 @@ const confirm = () => {
   resize: none;
   outline: none;
   width: 100%;
-  &:focus { border-color: #4338ca; }
+  &:focus { border-color: #d49ba7; }
 }
 
 .char-count {
@@ -202,7 +202,7 @@ const confirm = () => {
   background: var(--bg-tertiary);
   border-radius: 6px;
   padding: 0.6rem 0.75rem;
-  border-left: 3px solid #4338ca;
+  border-left: 3px solid #d49ba7;
 }
 
 .modal-footer {
@@ -228,7 +228,7 @@ const confirm = () => {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  background: #4338ca;
+  background: #d49ba7;
   color: white;
   border: none;
   border-radius: 6px;
@@ -237,7 +237,7 @@ const confirm = () => {
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s;
-  &:hover:not(:disabled) { background: #3730a3; }
+  &:hover:not(:disabled) { background: #ba5e72; }
   &:disabled { opacity: 0.45; cursor: not-allowed; }
 }
 </style>

@@ -245,8 +245,8 @@ onMounted(() => {
 }
 
 .ticket-item.active {
-  background: #e0f2fe;
-  border-left: 3px solid #0ea5e9;
+  background: #fde5f1;
+  border-left: 3px solid #ba5e72;
 }
 
 .t-header h4 {
@@ -374,7 +374,7 @@ onMounted(() => {
 .msg-bubble {
   padding: 0.75rem 1rem;
   border-radius: 10px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 2px rgba(43,0,22,0.06), 0 6px 16px rgba(43,0,22,0.09);
 }
 
 .is-user .msg-bubble {
@@ -384,7 +384,7 @@ onMounted(() => {
 }
 
 .is-admin .msg-bubble {
-  background: #0ea5e9;
+  background: #d49ba7;
   color: white;
   border-bottom-right-radius: 2px;
 }
@@ -429,7 +429,7 @@ onMounted(() => {
 
 .chat-input input:focus {
   outline: none;
-  border-color: #0ea5e9;
+  border-color: #ba5e72;
 }
 
 .btn-reply {

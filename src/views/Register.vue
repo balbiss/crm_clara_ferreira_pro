@@ -45,7 +45,7 @@ const handleRegister = async () => {
       icon: 'success',
       title: '🎉 Conta criada!',
       html: `Bem-vindo(a) ao ${brand.name}!<br>Verifique seu e-mail e acesse o sistema.`,
-      confirmButtonColor: '#4338ca',
+      confirmButtonColor: '#d49ba7',
       confirmButtonText: 'Fazer login'
     })
 
@@ -56,7 +56,7 @@ const handleRegister = async () => {
       icon: 'error',
       title: 'Erro no cadastro',
       text: msg,
-      confirmButtonColor: '#4338ca'
+      confirmButtonColor: '#d49ba7'
     })
   } finally {
     isLoading.value = false
@@ -72,11 +72,11 @@ const handleRegister = async () => {
       <div class="hero-overlay"></div>
       <div class="hero-content">
         <h1 class="hero-brand">{{ brandMain }}<span>{{ brandAccent }}</span></h1>
-        <p class="hero-tagline">Cadastre sua imobiliária e comece a atender leads com IA no WhatsApp em minutos.</p>
+        <p class="hero-tagline">Cadastre sua empresa e comece a atender leads com IA no WhatsApp em minutos.</p>
         <div class="hero-badges">
           <span class="hero-badge">IA no WhatsApp</span>
           <span class="hero-badge">Rodízio automático</span>
-          <span class="hero-badge">Portais integrados</span>
+          <span class="hero-badge">Sincronização Jueri</span>
           <span class="hero-badge">Sem cartão de crédito</span>
         </div>
       </div>
@@ -86,7 +86,7 @@ const handleRegister = async () => {
     <div class="register-panel">
       <div class="auth-card">
         <div class="auth-header">
-          <h2>Cadastrar imobiliária</h2>
+          <h2>Cadastrar empresa</h2>
           <p>Crie sua conta gratuitamente e comece agora.</p>
         </div>
 
@@ -98,8 +98,8 @@ const handleRegister = async () => {
           </div>
 
           <div class="form-group">
-            <label>Nome da imobiliária</label>
-            <input v-model="form.company_name" type="text" placeholder="Ex: Imobiliária Central" required />
+            <label>Nome da empresa</label>
+            <input v-model="form.company_name" type="text" placeholder="Ex: Clara Ferreira Acessórios" required />
           </div>
 
           <!-- Responsável -->
@@ -121,7 +121,7 @@ const handleRegister = async () => {
           <div class="form-row">
             <div class="form-group">
               <label>E-mail</label>
-              <input v-model="form.email" type="email" placeholder="joao@imobiliaria.com.br" required />
+              <input v-model="form.email" type="email" placeholder="joao@empresa.com.br" required />
             </div>
             <div class="form-group">
               <label>WhatsApp <span class="optional">(opcional)</span></label>
@@ -206,7 +206,7 @@ const handleRegister = async () => {
 .login-hero {
   flex: 1;
   position: relative;
-  background: url('/login-bg.jpg') center center / cover no-repeat;
+  background: linear-gradient(135deg, #d49ba7 0%, #c2005f 55%, #6b0038 100%);
   display: flex;
   align-items: flex-end;
   padding: 3rem;
@@ -217,7 +217,7 @@ const handleRegister = async () => {
 .hero-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to bottom, rgba(15,23,42,0.35) 0%, rgba(15,23,42,0.72) 100%);
+  background: linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.4) 100%);
 }
 
 .hero-content {
@@ -232,7 +232,7 @@ const handleRegister = async () => {
   font-weight: 800;
   margin-bottom: 1rem;
   letter-spacing: -0.03em;
-  span { color: #60a5fa; }
+  span { color: #ffd9ec; }
 }
 
 .hero-tagline {
@@ -344,8 +344,8 @@ const handleRegister = async () => {
     box-sizing: border-box;
 
     &:focus {
-      border-color: #4338ca;
-      box-shadow: 0 0 0 3px rgba(67,56,202,0.1);
+      border-color: #d49ba7;
+      box-shadow: 0 0 0 3px rgba(212, 155, 167,0.1);
     }
   }
 }
@@ -366,7 +366,7 @@ const handleRegister = async () => {
     color: var(--text-muted, #6b7280);
     display: flex;
     padding: 0;
-    &:hover { color: #4338ca; }
+    &:hover { color: #d49ba7; }
   }
 }
 
@@ -382,7 +382,7 @@ const handleRegister = async () => {
 }
 
 .btn-primary {
-  background: #4338ca;
+  background: #d49ba7;
   color: white;
   border: none;
   border-radius: 8px;
@@ -406,7 +406,7 @@ const handleRegister = async () => {
 
   a {
     font-weight: 600;
-    color: #4338ca;
+    color: #d49ba7;
     text-decoration: none;
     &:hover { text-decoration: underline; }
   }
@@ -423,8 +423,8 @@ const handleRegister = async () => {
   gap: 0.5rem;
   width: 100%;
   background: transparent;
-  color: #4338ca;
-  border: 1px solid #4338ca;
+  color: #d49ba7;
+  border: 1px solid #d49ba7;
   border-radius: 8px;
   padding: 0.7rem;
   font-size: 0.9rem;
@@ -432,22 +432,22 @@ const handleRegister = async () => {
   cursor: pointer;
   transition: background 0.2s;
 
-  &:hover { background: rgba(67,56,202,0.06); }
+  &:hover { background: rgba(212, 155, 167,0.06); }
 }
 
 .ios-hint {
   display: flex;
   align-items: flex-start;
   gap: 0.5rem;
-  background: rgba(67,56,202,0.05);
-  border: 1px solid rgba(67,56,202,0.15);
+  background: rgba(212, 155, 167,0.05);
+  border: 1px solid rgba(212, 155, 167,0.15);
   border-radius: 8px;
   padding: 0.75rem 0.9rem;
   font-size: 0.8rem;
   color: var(--text-muted, #6b7280);
   line-height: 1.4;
 
-  svg { flex-shrink: 0; margin-top: 0.15rem; color: #4338ca; }
+  svg { flex-shrink: 0; margin-top: 0.15rem; color: #d49ba7; }
   strong { color: var(--text-main, #111827); }
 }
 </style>

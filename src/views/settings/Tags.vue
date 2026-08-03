@@ -12,11 +12,11 @@ const isEditing = ref(false)
 const form = ref({
   id: null,
   name: '',
-  color: '#2563eb'
+  color: '#ba5e72'
 })
 
 const colors = [
-  '#2563eb', // blue
+  '#ba5e72', // blue
   '#dc2626', // red
   '#16a34a', // green
   '#d97706', // orange
@@ -48,7 +48,7 @@ const openModal = (tag = null) => {
     form.value = { ...tag }
   } else {
     isEditing.value = false
-    form.value = { id: null, name: '', color: '#2563eb' }
+    form.value = { id: null, name: '', color: '#ba5e72' }
   }
   showModal.value = true
 }
@@ -190,14 +190,14 @@ const deleteTag = async (id) => {
 }
 .table-container {
   background: var(--bg-secondary); border: 1px solid var(--border-color);
-  border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  border-radius: 8px; overflow: hidden; box-shadow: 0 1px 2px rgba(43,0,22,0.06), 0 6px 16px rgba(43,0,22,0.09);
 }
 .data-table {
   width: 100%; border-collapse: collapse;
   th, td { padding: 1rem 1.5rem; text-align: left; border-bottom: 1px solid var(--border-color); }
   th { font-weight: 600; color: var(--text-main); font-size: 0.9rem; background: rgba(0,0,0,0.01); }
   td { color: var(--text-muted); font-size: 0.9rem; }
-  tr { transition: background-color 0.2s; &:hover { background: rgba(67, 56, 202, 0.02); } }
+  tr { transition: background-color 0.2s; &:hover { background: rgba(212, 155, 167, 0.02); } }
 }
 .color-dot { display: block; width: 16px; height: 16px; border-radius: 50%; }
 .tag-badge {

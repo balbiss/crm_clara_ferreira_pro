@@ -29,19 +29,22 @@ const tempColor = (t) => {
   const l = t.toLowerCase()
   if (l === 'quente') return { bg: '#fef2f2', text: '#dc2626', label: 'Quente' }
   if (l === 'morno')  return { bg: '#fffbeb', text: '#d97706', label: 'Morno'  }
-  return                     { bg: '#eff6ff', text: '#2563eb', label: 'Frio'   }
+  return                     { bg: '#eff6ff', text: '#1d4ed8', label: 'Frio'   }
 }
 
 const kanbanLabel = (s) => {
-  const map = { lead: 'Novo Lead', visit: 'Visita Agendada', proposal: 'Proposta', won: 'Fechado' }
+  const map = {
+    revendedor_ativo: 'Ativa', terceiro_dia: '3º Dia', decimo_dia: '10º Dia',
+    vigesimo_dia: '20º Dia', agendado: 'Agendado'
+  }
   return map[s] || s || '—'
 }
 
 onMounted(() => store.fetchDashboard())
 
-const dashTitle    = computed(() => isOwner.value ? 'Dashboard Imobiliário' : 'Meu Painel')
+const dashTitle    = computed(() => isOwner.value ? 'Dashboard' : 'Meu Painel')
 const dashSubtitle = computed(() => isOwner.value
-  ? 'Visão estratégica da sua imobiliária em tempo real.'
+  ? 'Visão estratégica da carteira de revendedoras em tempo real.'
   : 'Seus leads e atendimentos atribuídos a você.')
 
 const chartOptions = {
@@ -56,16 +59,17 @@ const chartOptions = {
 const funnelTotal = computed(() => {
   const k = kpis.value?.kanban
   if (!k) return 1
-  return (k.lead + k.visit + k.proposal + k.won) || 1
+  return (k.revendedor_ativo + k.terceiro_dia + k.decimo_dia + k.vigesimo_dia + k.agendado) || 1
 })
 
 const funnelItems = computed(() => {
   const k = kpis.value?.kanban || {}
   return [
-    { label: 'Novos Leads',      value: k.lead     || 0, color: '#6366f1', icon: Users },
-    { label: 'Visita Agendada',  value: k.visit    || 0, color: '#f59e0b', icon: Calendar },
-    { label: 'Proposta Feita',   value: k.proposal || 0, color: '#3b82f6', icon: Handshake },
-    { label: 'Negócio Fechado',  value: k.won      || 0, color: '#10b981', icon: CheckCircle }
+    { label: 'Ativa',    value: k.revendedor_ativo || 0, color: '#6366f1', icon: Users },
+    { label: '3º Dia',   value: k.terceiro_dia      || 0, color: '#f59e0b', icon: Calendar },
+    { label: '10º Dia',  value: k.decimo_dia        || 0, color: '#eab308', icon: Calendar },
+    { label: '20º Dia',  value: k.vigesimo_dia      || 0, color: '#d49ba7', icon: Handshake },
+    { label: 'Agendado', value: k.agendado          || 0, color: '#10b981', icon: CheckCircle }
   ]
 })
 </script>
@@ -194,8 +198,8 @@ const funnelItems = computed(() => {
         </div>
       </div>
 
-      <!-- Row 2: Conversas + Agendamentos -->
-      <div class="section-label mt-section">Atendimento & Agenda</div>
+      <!-- Row 2: Conversas -->
+      <div class="section-label mt-section">Atendimento</div>
       <div class="grid-4">
         <div class="kpi-card accent-purple">
           <div class="kpi-left">
@@ -223,19 +227,19 @@ const funnelItems = computed(() => {
           <div class="kpi-left">
             <div class="kpi-icon green"><CalendarDays /></div>
             <div>
-              <div class="kpi-val">{{ kpis.appointments.upcoming }}</div>
-              <div class="kpi-lbl">Visitas Agendadas</div>
+              <div class="kpi-val">{{ kpis.kanban.agendado }}</div>
+              <div class="kpi-lbl">Acertos Agendados</div>
             </div>
           </div>
-          <div class="kpi-sub">{{ kpis.appointments.today }} hoje</div>
+          <div class="kpi-sub">na régua ativa</div>
         </div>
 
         <div class="kpi-card accent-indigo">
           <div class="kpi-left">
             <div class="kpi-icon indigo"><CalendarCheck /></div>
             <div>
-              <div class="kpi-val">{{ kpis.appointments.done }}</div>
-              <div class="kpi-lbl">Visitas Realizadas</div>
+              <div class="kpi-val">{{ kpis.conversations.resolved }}</div>
+              <div class="kpi-lbl">Conversas Resolvidas</div>
             </div>
           </div>
           <div class="kpi-badge done">Concluídas</div>
@@ -243,13 +247,13 @@ const funnelItems = computed(() => {
       </div>
 
       <!-- Row 3: Funil + Gráfico -->
-      <div class="section-label mt-section">Funil de Vendas & Origem dos Leads</div>
+      <div class="section-label mt-section">Régua de Relacionamento & Origem dos Leads</div>
       <div class="grid-2-3">
 
         <!-- Funil -->
         <div class="panel">
           <div class="panel-head">
-            <BarChart2 class="ic" /> Funil de Vendas
+            <BarChart2 class="ic" /> Régua de Relacionamento
           </div>
           <div class="funnel-list">
             <div v-for="item in funnelItems" :key="item.label" class="funnel-item">
@@ -363,7 +367,7 @@ const funnelItems = computed(() => {
   position: relative;
   overflow: hidden;
   transition: transform 0.15s, box-shadow 0.15s;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  box-shadow: 0 1px 2px rgba(43,0,22,0.06), 0 6px 16px rgba(43,0,22,0.09);
 
   &:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.08); }
 
@@ -371,14 +375,14 @@ const funnelItems = computed(() => {
     content: '';
     position: absolute; top: 0; left: 0; right: 0; height: 3px;
   }
-  &.accent-blue::before   { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+  &.accent-blue::before   { background: linear-gradient(90deg, #d49ba7, #60a5fa); }
   &.accent-red::before    { background: linear-gradient(90deg, #ef4444, #f87171); }
   &.accent-amber::before  { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
   &.accent-teal::before   { background: linear-gradient(90deg, #0d9488, #2dd4bf); }
   &.accent-purple::before { background: linear-gradient(90deg, #7c3aed, #a78bfa); }
   &.accent-violet::before { background: linear-gradient(90deg, #8b5cf6, #c4b5fd); }
   &.accent-green::before  { background: linear-gradient(90deg, #10b981, #34d399); }
-  &.accent-indigo::before { background: linear-gradient(90deg, #4338ca, #818cf8); }
+  &.accent-indigo::before { background: linear-gradient(90deg, #d49ba7, #818cf8); }
 }
 
 .kpi-left {
@@ -390,14 +394,14 @@ const funnelItems = computed(() => {
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   svg { width: 20px; height: 20px; }
 
-  &.blue   { background: #eff6ff; color: #2563eb; }
+  &.blue   { background: #eff6ff; color: #1d4ed8; }
   &.red    { background: #fef2f2; color: #dc2626; }
   &.amber  { background: #fffbeb; color: #d97706; }
   &.teal   { background: #f0fdfa; color: #0f766e; }
   &.purple { background: #f5f3ff; color: #7c3aed; }
   &.violet { background: #f5f3ff; color: #7c3aed; }
   &.green  { background: #ecfdf5; color: #059669; }
-  &.indigo { background: #eef2ff; color: #4338ca; }
+  &.indigo { background: #eef2ff; color: #d49ba7; }
 }
 
 .kpi-val {
@@ -443,7 +447,7 @@ const funnelItems = computed(() => {
   background: var(--bg-secondary, #fff);
   border-radius: 14px;
   border: 1px solid var(--border-color, #e8edf2);
-  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  box-shadow: 0 1px 2px rgba(43,0,22,0.06), 0 6px 16px rgba(43,0,22,0.09);
   overflow: hidden;
   display: flex; flex-direction: column;
 }
@@ -581,11 +585,11 @@ const funnelItems = computed(() => {
   cursor: pointer;
   transition: all 0.15s;
   position: relative;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  box-shadow: 0 1px 2px rgba(43,0,22,0.06), 0 6px 16px rgba(43,0,22,0.09);
 
   &:hover {
     border-color: #6366f1;
-    box-shadow: 0 4px 16px rgba(99,102,241,0.12);
+    box-shadow: 0 4px 16px rgba(212, 155, 167,0.12);
     transform: translateY(-1px);
 
     .tlc-arrow { opacity: 1; transform: translateX(2px); }

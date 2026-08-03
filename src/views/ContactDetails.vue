@@ -297,18 +297,12 @@ const saveNote = async () => {
               <option value="Frio">Frio</option>
             </select>
 
-            <select v-model="contact.intention" class="form-input">
-              <option value="" disabled>Pretensão</option>
-              <option value="Venda">Venda</option>
-              <option value="Locação">Locação</option>
-            </select>
-            
             <select v-model="contact.source" class="form-input">
               <option value="" disabled>Mídia de Origem</option>
               <option value="WhatsApp API">WhatsApp API</option>
               <option value="Facebook">Facebook</option>
               <option value="Instagram">Instagram</option>
-              <option value="Portal Imobiliário">Portal Imobiliário</option>
+              <option value="Jueri">Jueri (sincronização)</option>
               <option value="Indicação">Indicação</option>
             </select>
           </div>
@@ -478,7 +472,7 @@ const saveNote = async () => {
 }
 
 .btn-primary {
-  background: #2563eb;
+  background: #ba5e72;
   color: white;
   padding: 0.5rem 1rem;
   border-radius: 6px;
@@ -487,7 +481,7 @@ const saveNote = async () => {
   font-size: 0.85rem;
   cursor: pointer;
   
-  &:hover { background: #1d4ed8; }
+  &:hover { background: #ba5e72; }
 }
 
 .content-grid {
@@ -586,7 +580,7 @@ const saveNote = async () => {
   outline: none;
 
   &::placeholder { color: #9ca3af; }
-  &:focus { box-shadow: 0 0 0 2px #bfdbfe; border-color: transparent; }
+  &:focus { box-shadow: 0 0 0 2px #ffd9ec; border-color: transparent; }
 }
 
 .phone-input-group {
@@ -683,7 +677,7 @@ const saveNote = async () => {
 }
 
 .btn-update {
-  background: #2563eb;
+  background: #ba5e72;
   color: white;
   padding: 0.6rem 1.2rem;
   border-radius: 6px;
@@ -692,7 +686,7 @@ const saveNote = async () => {
   font-size: 0.85rem;
   cursor: pointer;
   
-  &:hover { background: #1d4ed8; }
+  &:hover { background: #ba5e72; }
 }
 
 .danger-zone {
@@ -745,8 +739,8 @@ const saveNote = async () => {
   margin-bottom: -1px;
   
   &.active {
-    color: #2563eb;
-    border-bottom-color: #2563eb;
+    color: #ba5e72;
+    border-bottom-color: #ba5e72;
   }
   
   &:hover:not(.active) {
@@ -773,8 +767,8 @@ const saveNote = async () => {
     border-radius: 8px;
     background: #ffffff;
     margin-bottom: 1rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    border-left: 4px solid #3b82f6;
+    box-shadow: 0 1px 2px rgba(43,0,22,0.06), 0 6px 16px rgba(43,0,22,0.09);
+    border-left: 4px solid #d49ba7;
     
     .history-date {
       font-size: 0.8rem;
@@ -813,8 +807,8 @@ const saveNote = async () => {
       font-size: 0.95rem;
       
       &:focus {
-        border-color: #3b82f6;
-        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        border-color: #d49ba7;
+        box-shadow: 0 0 0 2px rgba(212, 155, 167, 0.2);
       }
     }
     
@@ -846,8 +840,8 @@ const saveNote = async () => {
     transition: all 0.2s;
     
     &:hover {
-      border-color: #3b82f6;
-      box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1);
+      border-color: #d49ba7;
+      box-shadow: 0 2px 4px rgba(212, 155, 167, 0.1);
       background: #f8fafc;
     }
 

@@ -21,7 +21,7 @@ onMounted(() => {
       icon: 'error',
       title: 'Link Inválido',
       text: 'O link de recuperação parece estar quebrado ou incompleto.',
-      confirmButtonColor: '#2563eb'
+      confirmButtonColor: '#ba5e72'
     }).then(() => {
       router.push('/login')
     })
@@ -34,7 +34,7 @@ const handleResetPassword = async () => {
       icon: 'warning',
       title: 'Atenção',
       text: 'As senhas não coincidem. Digite novamente.',
-      confirmButtonColor: '#2563eb'
+      confirmButtonColor: '#ba5e72'
     })
     return
   }
@@ -54,7 +54,7 @@ const handleResetPassword = async () => {
       icon: 'success',
       title: 'Senha Redefinida!',
       text: response.data.message || 'Sua senha foi redefinida com sucesso. Você já pode fazer login.',
-      confirmButtonColor: '#2563eb',
+      confirmButtonColor: '#ba5e72',
       timer: 2500,
       showConfirmButton: false
     })
@@ -71,7 +71,7 @@ const handleResetPassword = async () => {
       icon: 'error',
       title: 'Ops...',
       text: errorMsg,
-      confirmButtonColor: '#2563eb',
+      confirmButtonColor: '#ba5e72',
       customClass: { icon: 'swal-icon-pulse-slow' }
     })
   } finally {

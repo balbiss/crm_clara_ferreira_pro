@@ -13,8 +13,8 @@ const showPassword = ref(false)
 const groups = ref([])
 
 const DEPARTMENTS = [
-  { value: 'corretor',    label: 'Corretor',    desc: 'Atende novos leads de venda e locação' },
-  { value: 'suporte',     label: 'Suporte',     desc: 'Atende clientes com problemas no imóvel' },
+  { value: 'corretor',    label: 'Consultora',  desc: 'Atende novas revendedoras e a régua de relacionamento' },
+  { value: 'suporte',     label: 'Suporte',     desc: 'Atende clientes com dúvidas e problemas' },
   { value: 'financeiro',  label: 'Financeiro',  desc: 'Cobranças, boletos e contratos' },
   { value: 'manutencao',  label: 'Manutenção',  desc: 'Reparos e serviços técnicos' },
 ]
@@ -31,10 +31,8 @@ const form = ref({
   permissions: {
     admin: false,
     view_all_contacts: true,
-    view_all_properties: true,
     export_data: false,
-    delete_data: false,
-    view_all_appointments: true
+    delete_data: false
   }
 })
 
@@ -55,10 +53,8 @@ const fetchAgent = async (id) => {
       permissions: data.permissions || {
         admin: false,
         view_all_contacts: false,
-        view_all_properties: false,
         export_data: false,
-        delete_data: false,
-        view_all_appointments: false
+        delete_data: false
       }
     }
   } catch (error) {
@@ -148,7 +144,7 @@ const saveAgent = async () => {
 
         <div class="input-group">
           <label>E-mail de Login</label>
-          <input type="email" v-model="form.email" required placeholder="joao@imobiliaria.com" />
+          <input type="email" v-model="form.email" required placeholder="joao@claraferreira.com" />
         </div>
 
         <div class="input-group">
@@ -189,7 +185,7 @@ const saveAgent = async () => {
         <div class="input-group" v-if="form.department === 'corretor' && groups.length > 0">
           <label>Grupo de Rodízio <span class="text-muted text-xs">(opcional)</span></label>
           <select v-model="form.round_robin_group_id">
-            <option :value="null">Sem grupo (rodízio com todos os corretores da conta)</option>
+            <option :value="null">Sem grupo (rodízio com todas as consultoras da conta)</option>
             <option v-for="group in groups" :key="group.id" :value="group.id">{{ group.name }}</option>
           </select>
         </div>
@@ -206,7 +202,7 @@ const saveAgent = async () => {
       <!-- Coluna da Direita: Permissões -->
       <div class="card permissions-card">
         <h3>Permissões de Acesso</h3>
-        <p class="subtitle">Defina o que este corretor poderá ver ou fazer no sistema.</p>
+        <p class="subtitle">Defina o que esta consultora poderá ver ou fazer no sistema.</p>
 
         <div class="permission-item admin-highlight">
           <label class="switch-container">
@@ -224,19 +220,6 @@ const saveAgent = async () => {
         <hr class="divider" />
 
         <div class="permission-list" :class="{'disabled-list': form.permissions.admin}">
-          <div class="permission-item">
-            <label class="switch-container">
-              <div class="toggle-switch">
-                <input type="checkbox" v-model="form.permissions.view_all_properties" :disabled="form.permissions.admin">
-                <span class="slider"></span>
-              </div>
-              <div class="perm-text">
-                <strong>Ver Todos os Imóveis</strong>
-                <span>Se desmarcado, ele só verá os imóveis captados por ele mesmo.</span>
-              </div>
-            </label>
-          </div>
-
           <div class="permission-item">
             <label class="switch-container">
               <div class="toggle-switch">
@@ -263,19 +246,6 @@ const saveAgent = async () => {
             </label>
           </div>
 
-          <div class="permission-item">
-            <label class="switch-container">
-              <div class="toggle-switch">
-                <input type="checkbox" v-model="form.permissions.view_all_appointments" :disabled="form.permissions.admin">
-                <span class="slider"></span>
-              </div>
-              <div class="perm-text">
-                <strong>Ver Todos os Agendamentos</strong>
-                <span>Se desmarcado, ele só verá os agendamentos atribuídos a ele.</span>
-              </div>
-            </label>
-          </div>
-
           <div class="permission-item text-danger-hover">
             <label class="switch-container">
               <div class="toggle-switch">
@@ -284,7 +254,7 @@ const saveAgent = async () => {
               </div>
               <div class="perm-text">
                 <strong>Apagar Registros</strong>
-                <span>Pode excluir permanentemente imóveis, contatos e negociações.</span>
+                <span>Pode excluir permanentemente contatos e negociações.</span>
               </div>
             </label>
           </div>
@@ -297,7 +267,7 @@ const saveAgent = async () => {
       <div class="actions">
         <button class="btn-cancel" @click="router.push('/agentes')">Cancelar</button>
         <button class="btn-primary" @click="saveAgent">
-          <Save class="icon-sm" /> {{ isEditing ? 'Salvar Alterações' : 'Criar Corretor' }}
+          <Save class="icon-sm" /> {{ isEditing ? 'Salvar Alterações' : 'Criar Consultora' }}
         </button>
       </div>
     </div>
@@ -337,7 +307,7 @@ const saveAgent = async () => {
   border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 1.5rem;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 2px rgba(43,0,22,0.06), 0 6px 16px rgba(43,0,22,0.09);
 
   h3 { margin-bottom: 1.5rem; color: var(--text-main); font-size: 1.2rem; }
   .subtitle { color: var(--text-muted); font-size: 0.9rem; margin-top: -1rem; margin-bottom: 1.5rem; }
@@ -385,7 +355,7 @@ const saveAgent = async () => {
       display: flex;
       align-items: center;
       border-radius: 4px;
-      &:hover { color: var(--primary); background: rgba(67, 56, 202, 0.06); }
+      &:hover { color: var(--primary); background: rgba(212, 155, 167, 0.06); }
     }
   }
 }
@@ -425,10 +395,10 @@ const saveAgent = async () => {
 }
 
 .admin-highlight {
-  background: rgba(67, 56, 202, 0.05);
+  background: rgba(212, 155, 167, 0.05);
   padding: 1rem;
   border-radius: 8px;
-  border: 1px solid rgba(67, 56, 202, 0.1);
+  border: 1px solid rgba(212, 155, 167, 0.1);
 }
 .disabled-list {
   opacity: 0.6; pointer-events: none;
@@ -484,7 +454,7 @@ const saveAgent = async () => {
   input[type="radio"] { display: none; }
   &.active {
     border-color: var(--primary);
-    background: rgba(67,56,202,0.04);
+    background: rgba(212, 155, 167,0.04);
   }
   &:hover { border-color: var(--primary); }
 }
@@ -492,7 +462,7 @@ const saveAgent = async () => {
   width: 10px; height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
-  &.dept-corretor   { background: #4338ca; }
+  &.dept-corretor   { background: #d49ba7; }
   &.dept-suporte    { background: #10b981; }
   &.dept-financeiro { background: #f59e0b; }
   &.dept-manutencao { background: #f97316; }

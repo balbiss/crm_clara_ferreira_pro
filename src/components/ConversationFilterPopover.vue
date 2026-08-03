@@ -261,7 +261,7 @@ const applyFilters = () => {
 }
 
 .btn-primary {
-  background: #1F73F1; /* Chatwoot blue */
+  background: #d49ba7; /* Chatwoot blue */
   border: none;
   padding: 0.5rem 1rem;
   border-radius: 6px;
@@ -273,7 +273,7 @@ const applyFilters = () => {
 }
 
 .btn-primary:hover {
-  background: #155ECC;
+  background: #ba5e72;
 }
 
 @media (max-width: 480px) {

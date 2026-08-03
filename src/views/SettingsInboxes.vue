@@ -218,7 +218,7 @@ const deleteInbox = async (id) => {
 }
 
 .btn-primary {
-  background: #1f93ff;
+  background: #d49ba7;
   color: white;
   padding: 0.55rem 1rem;
   border-radius: 6px;
@@ -229,7 +229,7 @@ const deleteInbox = async (id) => {
   cursor: pointer;
   
   &:hover {
-    background: #007bf5;
+    background: #d49ba7;
   }
 }
 
@@ -477,8 +477,8 @@ const deleteInbox = async (id) => {
     
     &:focus {
       outline: none;
-      border-color: #3b82f6;
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+      border-color: #d49ba7;
+      box-shadow: 0 0 0 3px rgba(212, 155, 167, 0.1);
     }
   }
 }

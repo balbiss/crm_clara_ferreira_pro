@@ -79,7 +79,7 @@ const logout = () => {
       margin: 0;
       
       span {
-        color: #38bdf8;
+        color: #d49ba7;
       }
     }
   }
@@ -100,8 +100,8 @@ const logout = () => {
       
       &:hover, &.router-link-active {
         background-color: #1e293b;
-        color: #38bdf8;
-        border-left: 3px solid #38bdf8;
+        color: #d49ba7;
+        border-left: 3px solid #d49ba7;
       }
     }
   }
@@ -139,7 +139,7 @@ const logout = () => {
     align-items: center;
     padding: 0 1.5rem;
     border-bottom: 1px solid #e2e8f0;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    box-shadow: 0 1px 2px rgba(43,0,22,0.06), 0 6px 16px rgba(43,0,22,0.09);
     
     .toggle-btn {
       background: none;

@@ -150,7 +150,7 @@ const blockCompany = async (company) => {
 const deleteCompany = async (company) => {
   const result = await Swal.fire({
     title: `Excluir PERMANENTEMENTE ${company.name}?`,
-    text: "Todos os contatos, conversas e imóveis dessa empresa serão apagados para sempre. Esta ação não pode ser desfeita!",
+    text: "Todos os contatos e conversas dessa empresa serão apagados para sempre. Esta ação não pode ser desfeita!",
     icon: 'error',
     showCancelButton: true,
     confirmButtonColor: '#dc2626',
@@ -238,7 +238,7 @@ const deleteCompany = async (company) => {
             <h4>Dados da Empresa (SaaS)</h4>
             <div class="form-group">
               <label>Nome da Empresa</label>
-              <input type="text" v-model="formData.account.name" required placeholder="Ex: Imobiliária Silva" />
+              <input type="text" v-model="formData.account.name" required placeholder="Ex: Clara Ferreira Acessórios" />
             </div>
             
             <div class="form-row">
@@ -274,7 +274,7 @@ const deleteCompany = async (company) => {
 
             <div class="form-group">
               <label>E-mail de Login</label>
-              <input type="email" v-model="formData.user.email" required placeholder="joao@imobiliaria.com" />
+              <input type="email" v-model="formData.user.email" required placeholder="joao@empresa.com" />
             </div>
 
             <div class="form-group">
@@ -390,7 +390,7 @@ const deleteCompany = async (company) => {
     
     &.edit-btn {
       background: #f1f5f9;
-      color: #3b82f6;
+      color: #d49ba7;
       border-color: #e2e8f0;
       &:hover { background: #e2e8f0; }
     }
@@ -418,7 +418,7 @@ const deleteCompany = async (company) => {
 }
 
 .btn-primary {
-  background: #38bdf8;
+  background: #d49ba7;
   color: white;
   border: none;
   padding: 0.5rem 1rem;
@@ -427,7 +427,7 @@ const deleteCompany = async (company) => {
   font-weight: 500;
   cursor: pointer;
   
-  &:hover { background: #0ea5e9; }
+  &:hover { background: #ba5e72; }
 }
 
 .btn-outline {
@@ -516,8 +516,8 @@ const deleteCompany = async (company) => {
       
       &:focus {
         outline: none;
-        border-color: #38bdf8;
-        box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+        border-color: #d49ba7;
+        box-shadow: 0 0 0 2px rgba(212, 155, 167, 0.2);
       }
     }
 

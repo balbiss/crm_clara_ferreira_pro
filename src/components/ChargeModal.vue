@@ -43,7 +43,7 @@ function defaultDueDate() {
 const saveCpf = async () => {
   const clean = cpfInput.value.replace(/\D/g, '')
   if (clean.length < 11) {
-    return Swal.fire({ icon: 'warning', title: 'CPF inválido', text: 'Digite um CPF ou CNPJ válido.', confirmButtonColor: '#4338ca' })
+    return Swal.fire({ icon: 'warning', title: 'CPF inválido', text: 'Digite um CPF ou CNPJ válido.', confirmButtonColor: '#d49ba7' })
   }
   isSavingCpf.value = true
   try {
@@ -51,7 +51,7 @@ const saveCpf = async () => {
     props.contact.cpf = cpfInput.value.trim()
     step.value = 2
   } catch (e) {
-    Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível salvar o CPF.', confirmButtonColor: '#4338ca' })
+    Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível salvar o CPF.', confirmButtonColor: '#d49ba7' })
   } finally {
     isSavingCpf.value = false
   }
@@ -60,7 +60,7 @@ const saveCpf = async () => {
 // ── Charge step ────────────────────────────────────────────────────
 const submitCharge = async () => {
   if (!value.value || parseFloat(value.value) <= 0) {
-    return Swal.fire({ icon: 'warning', title: 'Valor inválido', text: 'Informe um valor maior que zero.', confirmButtonColor: '#4338ca' })
+    return Swal.fire({ icon: 'warning', title: 'Valor inválido', text: 'Informe um valor maior que zero.', confirmButtonColor: '#d49ba7' })
   }
 
   isLoading.value = true
@@ -81,13 +81,13 @@ const submitCharge = async () => {
       html:  billingType.value === 'BOLETO'
         ? 'O boleto em PDF foi enviado pelo WhatsApp ao cliente.'
         : 'O QR Code PIX e o Copia e Cola foram enviados pelo WhatsApp.',
-      confirmButtonColor: '#4338ca',
+      confirmButtonColor: '#d49ba7',
       timer: 4000,
       showConfirmButton: false
     })
   } catch (e) {
     const msg = e.response?.data?.error || e.response?.data?.message || 'Erro ao gerar cobrança.'
-    Swal.fire({ icon: 'error', title: 'Erro', text: msg, confirmButtonColor: '#4338ca' })
+    Swal.fire({ icon: 'error', title: 'Erro', text: msg, confirmButtonColor: '#d49ba7' })
   } finally {
     isLoading.value = false
   }
@@ -309,10 +309,10 @@ const formatCpf = (v) => {
   svg { color: var(--text-muted); }
 
   &.active {
-    border-color: #4338ca;
-    background: rgba(67,56,202,0.05);
-    svg { color: #4338ca; }
-    span { color: #4338ca; }
+    border-color: #d49ba7;
+    background: rgba(212, 155, 167,0.05);
+    svg { color: #d49ba7; }
+    span { color: #d49ba7; }
   }
 }
 
@@ -337,7 +337,7 @@ const formatCpf = (v) => {
     outline: none;
     width: 100%;
     box-sizing: border-box;
-    &:focus { border-color: #4338ca; box-shadow: 0 0 0 3px rgba(67,56,202,0.1); }
+    &:focus { border-color: #d49ba7; box-shadow: 0 0 0 3px rgba(212, 155, 167,0.1); }
   }
 }
 
@@ -353,7 +353,7 @@ const formatCpf = (v) => {
 }
 
 .btn-primary {
-  background: #4338ca;
+  background: #d49ba7;
   color: white;
   border: none;
   border-radius: 8px;

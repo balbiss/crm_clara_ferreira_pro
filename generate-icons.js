@@ -25,7 +25,7 @@ for (const { name, size } of sizes) {
     const pad   = Math.round((size - inner) / 2)
     await sharp(svgBuffer)
       .resize(inner, inner)
-      .extend({ top: pad, bottom: pad, left: pad, right: pad, background: '#1f93ff' })
+      .extend({ top: pad, bottom: pad, left: pad, right: pad, background: '#d49ba7' })
       .png()
       .toFile(out)
   } else {

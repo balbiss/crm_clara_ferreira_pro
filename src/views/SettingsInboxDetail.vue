@@ -305,7 +305,7 @@ const saveSettings = async () => {
                   </button>
                 </div>
                 <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.25rem; margin-bottom: 1rem;">Instrua a IA sobre como ela deve agir, tom de voz, regras de negócio e limites de atendimento.</p>
-                <textarea class="form-input" v-model="inbox.ai_prompt" rows="12" placeholder="Ex: Você é a Ana, secretária inteligente da Imobiliária Alpha. Seu objetivo é pré-atender os leads de forma humanizada e amigável..."></textarea>
+                <textarea class="form-input" v-model="inbox.ai_prompt" rows="12" placeholder="Ex: Você é a Ana, assistente virtual da Clara Ferreira Acessórios. Seu objetivo é acompanhar as revendedoras na régua de forma humanizada e amigável..."></textarea>
               </div>
             </div>
           </div>
@@ -592,7 +592,7 @@ const saveSettings = async () => {
 }
 
 .btn-primary {
-  background: #1f93ff;
+  background: #d49ba7;
   color: white;
   padding: 0.65rem 1.5rem;
   border-radius: 6px;
@@ -602,7 +602,7 @@ const saveSettings = async () => {
   cursor: pointer;
   
   &:hover {
-    background: #007bf5;
+    background: #d49ba7;
   }
 }
 
@@ -688,7 +688,7 @@ const saveSettings = async () => {
   color: white;
   
   &:hover {
-    background: #007bf5;
+    background: #d49ba7;
   }
 }
 
