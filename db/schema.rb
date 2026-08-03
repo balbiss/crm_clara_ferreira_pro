@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_11_120001) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_03_000007) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -22,15 +22,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_11_120001) do
     t.string "facebook_page_id"
     t.string "facebook_page_name"
     t.datetime "facebook_token_expires_at"
+    t.string "jueri_webhook_token"
+    t.integer "min_pecas_ativa", default: 25, null: false
     t.string "name"
-    t.string "portal_token"
     t.string "stripe_customer_id"
     t.string "stripe_subscription_id"
     t.string "subscription_status"
     t.datetime "trial_ends_at"
     t.datetime "updated_at", null: false
     t.index ["facebook_page_id"], name: "index_accounts_on_facebook_page_id"
-    t.index ["portal_token"], name: "index_accounts_on_portal_token", unique: true
+    t.index ["jueri_webhook_token"], name: "index_accounts_on_jueri_webhook_token", unique: true
   end
 
   create_table "active_storage_attachments", force: :cascade do |t|
@@ -61,74 +62,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_11_120001) do
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
   end
 
-  create_table "appointments", force: :cascade do |t|
-    t.bigint "account_id", null: false
-    t.date "appointment_date"
-    t.string "broker_name"
-    t.bigint "condominium_id"
-    t.bigint "contact_id", null: false
-    t.datetime "created_at", null: false
-    t.string "end_time"
-    t.bigint "property_id"
-    t.string "start_time"
-    t.string "status"
-    t.datetime "updated_at", null: false
-    t.bigint "user_id"
-    t.index ["account_id", "appointment_date"], name: "idx_appointments_account_date"
-    t.index ["account_id", "status"], name: "idx_appointments_account_status"
-    t.index ["account_id"], name: "index_appointments_on_account_id"
-    t.index ["condominium_id"], name: "index_appointments_on_condominium_id"
-    t.index ["contact_id"], name: "index_appointments_on_contact_id"
-    t.index ["property_id"], name: "index_appointments_on_property_id"
-    t.index ["user_id"], name: "index_appointments_on_user_id"
-  end
-
-  create_table "condominia", force: :cascade do |t|
-    t.bigint "account_id", null: false
-    t.string "address"
-    t.string "administrator"
-    t.text "allotment_infrastructure"
-    t.string "architecture"
-    t.string "builder"
-    t.string "building_type"
-    t.string "built_area"
-    t.string "cep"
-    t.string "city"
-    t.text "commercial_features"
-    t.string "condominium_types"
-    t.string "construction_progress"
-    t.string "construction_year"
-    t.string "country"
-    t.datetime "created_at", null: false
-    t.date "delivery_date"
-    t.string "developer"
-    t.boolean "government_plan"
-    t.text "infrastructure"
-    t.string "land_area"
-    t.string "latitude"
-    t.text "leisure_features"
-    t.string "longitude"
-    t.decimal "max_price"
-    t.decimal "min_price"
-    t.string "name"
-    t.string "neighborhood"
-    t.string "number"
-    t.boolean "on_site_sales"
-    t.string "reference_point"
-    t.text "security_features"
-    t.text "services"
-    t.text "social_features"
-    t.string "state"
-    t.string "status"
-    t.string "street"
-    t.string "sub_type"
-    t.string "tags"
-    t.datetime "updated_at", null: false
-    t.index ["account_id", "neighborhood"], name: "idx_condominia_account_neighborhood"
-    t.index ["account_id", "status"], name: "idx_condominia_account_status"
-    t.index ["account_id"], name: "index_condominia_on_account_id"
-  end
-
   create_table "contacts", force: :cascade do |t|
     t.bigint "account_id", null: false
     t.string "address_complement"
@@ -144,38 +77,47 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_11_120001) do
     t.string "cpf"
     t.datetime "created_at", null: false
     t.jsonb "custom_attributes", default: {}
-    t.integer "dependents"
-    t.decimal "down_payment"
+    t.datetime "cycle_started_at"
+    t.boolean "desconsiderado", default: false, null: false
+    t.datetime "desconsiderado_at"
+    t.string "desconsiderado_motivo"
     t.string "email"
-    t.decimal "fgts_balance"
     t.string "first_name"
-    t.decimal "gross_income"
+    t.string "id_jueri"
     t.string "instagram_id"
     t.string "intention"
     t.string "jid"
+    t.datetime "jueri_synced_at"
     t.string "last_name"
     t.string "name"
     t.string "neighborhood"
+    t.integer "pecas_abertas_atual", default: 0, null: false
+    t.integer "pedidos_abertos_count", default: 0, null: false
     t.string "phone"
-    t.string "profession"
+    t.datetime "snapshot_calculado_em"
     t.string "source"
     t.string "state"
     t.string "status"
+    t.datetime "status_changed_at"
     t.string "street"
     t.string "temperature"
     t.datetime "updated_at", null: false
     t.bigint "user_id"
     t.index ["account_id", "created_at"], name: "idx_contacts_account_created_at"
+    t.index ["account_id", "desconsiderado"], name: "index_contacts_on_account_id_and_desconsiderado"
+    t.index ["account_id", "id_jueri"], name: "index_contacts_on_account_id_and_id_jueri", unique: true
+    t.index ["account_id", "instagram_id"], name: "index_contacts_on_account_id_and_instagram_id"
     t.index ["account_id", "jid"], name: "index_contacts_on_account_id_and_jid"
     t.index ["account_id", "source"], name: "idx_contacts_account_source"
     t.index ["account_id", "status"], name: "index_contacts_on_account_id_and_status"
     t.index ["account_id", "temperature"], name: "idx_contacts_account_temperature"
     t.index ["account_id"], name: "index_contacts_on_account_id"
-    t.index ["account_id", "instagram_id"], name: "index_contacts_on_account_id_and_instagram_id"
     t.index ["asaas_customer_id"], name: "index_contacts_on_asaas_customer_id"
     t.index ["instagram_id"], name: "index_contacts_on_instagram_id"
     t.index ["jid"], name: "index_contacts_on_jid"
+    t.index ["pecas_abertas_atual"], name: "index_contacts_on_pecas_abertas_atual"
     t.index ["phone"], name: "index_contacts_on_phone"
+    t.index ["status_changed_at"], name: "index_contacts_on_status_changed_at"
     t.index ["user_id"], name: "index_contacts_on_user_id"
   end
 
@@ -262,6 +204,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_11_120001) do
     t.index ["round_robin_group_id"], name: "index_inboxes_on_round_robin_group_id"
   end
 
+  create_table "lifecycle_events", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "contact_id", null: false
+    t.datetime "created_at", null: false
+    t.string "event_type", null: false
+    t.jsonb "metadata", default: {}
+    t.datetime "occurred_at", null: false
+    t.bigint "pedido_id"
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "event_type"], name: "index_lifecycle_events_on_account_id_and_event_type"
+    t.index ["account_id"], name: "index_lifecycle_events_on_account_id"
+    t.index ["contact_id", "event_type", "occurred_at"], name: "idx_lifecycle_events_contact_type_time"
+    t.index ["contact_id"], name: "idx_lifecycle_events_iniciada_unica", unique: true, where: "((event_type)::text = 'iniciada'::text)"
+    t.index ["contact_id"], name: "index_lifecycle_events_on_contact_id"
+    t.index ["pedido_id"], name: "index_lifecycle_events_on_pedido_id"
+  end
+
   create_table "messages", force: :cascade do |t|
     t.bigint "account_id", null: false
     t.bigint "conversation_id", null: false
@@ -286,7 +245,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_11_120001) do
     t.text "content"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.bigint "user_id", null: false
+    t.bigint "user_id"
     t.index ["account_id"], name: "index_notes_on_account_id"
     t.index ["contact_id"], name: "index_notes_on_contact_id"
     t.index ["user_id"], name: "index_notes_on_user_id"
@@ -304,57 +263,70 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_11_120001) do
     t.index ["account_id"], name: "index_notifications_on_account_id"
   end
 
-  create_table "properties", force: :cascade do |t|
+  create_table "pedidos", force: :cascade do |t|
     t.bigint "account_id", null: false
-    t.string "agent_name"
-    t.string "agent_phone"
-    t.date "auth_end_date"
-    t.date "auth_start_date"
-    t.integer "bathrooms"
-    t.integer "bedrooms"
-    t.integer "built_area"
-    t.string "cep"
-    t.string "city"
-    t.string "code"
-    t.string "complement"
-    t.string "condo_name"
-    t.string "country"
+    t.bigint "contact_id", null: false
     t.datetime "created_at", null: false
-    t.text "description"
-    t.boolean "exclusivity"
-    t.string "iptu_condition"
-    t.decimal "iptu_value"
-    t.decimal "latitude"
-    t.string "listing_type"
-    t.decimal "longitude"
-    t.string "neighborhood"
-    t.string "number"
-    t.string "owner_email"
-    t.string "owner_name"
-    t.string "owner_phone"
-    t.string "owner_phone_type"
-    t.integer "parking_spots"
-    t.decimal "price"
-    t.string "property_type"
-    t.string "reference_point"
-    t.integer "search_count", default: 0, null: false
-    t.string "show_address_mode"
-    t.string "state"
-    t.string "status"
-    t.string "street"
-    t.integer "suites"
-    t.string "title"
-    t.integer "total_area"
+    t.date "data_baixa"
+    t.date "data_cancelamento"
+    t.date "data_criacao", null: false
+    t.string "jueri_pedido_id", null: false
+    t.integer "quantidade", default: 0, null: false
+    t.integer "quantidade_antes_baixa"
+    t.integer "status_id", null: false
     t.datetime "updated_at", null: false
-    t.string "usage_type"
-    t.bigint "user_id"
-    t.index ["account_id", "bedrooms"], name: "idx_properties_account_bedrooms"
-    t.index ["account_id", "listing_type"], name: "idx_properties_account_listing_type"
-    t.index ["account_id", "neighborhood"], name: "idx_properties_account_neighborhood"
-    t.index ["account_id", "price"], name: "idx_properties_account_price"
-    t.index ["account_id", "status"], name: "idx_properties_account_status"
-    t.index ["account_id"], name: "index_properties_on_account_id"
-    t.index ["user_id"], name: "index_properties_on_user_id"
+    t.decimal "valor_total", precision: 12, scale: 2
+    t.index ["account_id"], name: "index_pedidos_on_account_id"
+    t.index ["contact_id", "data_criacao", "data_baixa", "status_id"], name: "idx_pedidos_ciclo_vida"
+    t.index ["contact_id"], name: "idx_pedidos_abertos", where: "(data_baixa IS NULL)"
+    t.index ["contact_id"], name: "index_pedidos_on_contact_id"
+    t.index ["jueri_pedido_id"], name: "index_pedidos_on_jueri_pedido_id", unique: true
+  end
+
+  create_table "pipeline_cards", force: :cascade do |t|
+    t.bigint "contact_id", null: false
+    t.datetime "created_at", null: false
+    t.bigint "pipeline_id", null: false
+    t.bigint "pipeline_stage_id", null: false
+    t.integer "position", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["contact_id"], name: "index_pipeline_cards_on_contact_id"
+    t.index ["pipeline_id", "contact_id"], name: "index_pipeline_cards_on_pipeline_id_and_contact_id", unique: true
+    t.index ["pipeline_id"], name: "index_pipeline_cards_on_pipeline_id"
+    t.index ["pipeline_stage_id"], name: "index_pipeline_cards_on_pipeline_stage_id"
+  end
+
+  create_table "pipeline_stages", force: :cascade do |t|
+    t.string "color", default: "#ff007f"
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.bigint "pipeline_id", null: false
+    t.integer "position", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["pipeline_id"], name: "index_pipeline_stages_on_pipeline_id"
+  end
+
+  create_table "pipeline_triggers", force: :cascade do |t|
+    t.string "action_type", null: false
+    t.boolean "active", default: true, null: false
+    t.jsonb "config", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.bigint "pipeline_stage_id", null: false
+    t.integer "position", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["pipeline_stage_id"], name: "index_pipeline_triggers_on_pipeline_stage_id"
+  end
+
+  create_table "pipelines", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.integer "position", default: 0, null: false
+    t.string "slug", null: false
+    t.boolean "system", default: false, null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "slug"], name: "index_pipelines_on_account_id_and_slug", unique: true
+    t.index ["account_id"], name: "index_pipelines_on_account_id"
   end
 
   create_table "push_subscriptions", force: :cascade do |t|
@@ -366,6 +338,30 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_11_120001) do
     t.bigint "user_id", null: false
     t.index ["endpoint"], name: "index_push_subscriptions_on_endpoint", unique: true
     t.index ["user_id"], name: "index_push_subscriptions_on_user_id"
+  end
+
+  create_table "regua_triggers", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "action_type", null: false
+    t.boolean "active", default: true, null: false
+    t.jsonb "config", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.integer "position", default: 0, null: false
+    t.string "status", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "status"], name: "index_regua_triggers_on_account_id_and_status"
+    t.index ["account_id"], name: "index_regua_triggers_on_account_id"
+  end
+
+  create_table "reseller_phones", force: :cascade do |t|
+    t.bigint "contact_id", null: false
+    t.datetime "created_at", null: false
+    t.string "label"
+    t.string "phone", null: false
+    t.datetime "updated_at", null: false
+    t.index ["contact_id", "phone"], name: "index_reseller_phones_on_contact_id_and_phone", unique: true
+    t.index ["contact_id"], name: "index_reseller_phones_on_contact_id"
+    t.index ["phone"], name: "index_reseller_phones_on_phone"
   end
 
   create_table "round_robin_groups", force: :cascade do |t|
@@ -385,6 +381,148 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_11_120001) do
     t.datetime "updated_at", null: false
     t.index ["conversation_id"], name: "index_scheduled_messages_on_conversation_id"
     t.index ["status", "send_at"], name: "idx_scheduled_messages_status_send_at"
+  end
+
+  create_table "solid_cable_messages", force: :cascade do |t|
+    t.binary "channel", null: false
+    t.bigint "channel_hash", null: false
+    t.datetime "created_at", null: false
+    t.binary "payload", null: false
+    t.index ["channel"], name: "index_solid_cable_messages_on_channel"
+    t.index ["channel_hash"], name: "index_solid_cable_messages_on_channel_hash"
+    t.index ["created_at"], name: "index_solid_cable_messages_on_created_at"
+  end
+
+  create_table "solid_cache_entries", force: :cascade do |t|
+    t.integer "byte_size", null: false
+    t.datetime "created_at", null: false
+    t.binary "key", null: false
+    t.bigint "key_hash", null: false
+    t.binary "value", null: false
+    t.index ["byte_size"], name: "index_solid_cache_entries_on_byte_size"
+    t.index ["key_hash", "byte_size"], name: "index_solid_cache_entries_on_key_hash_and_byte_size"
+    t.index ["key_hash"], name: "index_solid_cache_entries_on_key_hash", unique: true
+  end
+
+  create_table "solid_queue_blocked_executions", force: :cascade do |t|
+    t.string "concurrency_key", null: false
+    t.datetime "created_at", null: false
+    t.datetime "expires_at", null: false
+    t.bigint "job_id", null: false
+    t.integer "priority", default: 0, null: false
+    t.string "queue_name", null: false
+    t.index ["concurrency_key", "priority", "job_id"], name: "index_solid_queue_blocked_executions_for_release"
+    t.index ["expires_at", "concurrency_key"], name: "index_solid_queue_blocked_executions_for_maintenance"
+    t.index ["job_id"], name: "index_solid_queue_blocked_executions_on_job_id", unique: true
+  end
+
+  create_table "solid_queue_claimed_executions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "job_id", null: false
+    t.bigint "process_id"
+    t.index ["job_id"], name: "index_solid_queue_claimed_executions_on_job_id", unique: true
+    t.index ["process_id", "job_id"], name: "index_solid_queue_claimed_executions_on_process_id_and_job_id"
+  end
+
+  create_table "solid_queue_failed_executions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.text "error"
+    t.bigint "job_id", null: false
+    t.index ["job_id"], name: "index_solid_queue_failed_executions_on_job_id", unique: true
+  end
+
+  create_table "solid_queue_jobs", force: :cascade do |t|
+    t.string "active_job_id"
+    t.text "arguments"
+    t.string "class_name", null: false
+    t.string "concurrency_key"
+    t.datetime "created_at", null: false
+    t.datetime "finished_at"
+    t.integer "priority", default: 0, null: false
+    t.string "queue_name", null: false
+    t.datetime "scheduled_at"
+    t.datetime "updated_at", null: false
+    t.index ["active_job_id"], name: "index_solid_queue_jobs_on_active_job_id"
+    t.index ["class_name"], name: "index_solid_queue_jobs_on_class_name"
+    t.index ["finished_at"], name: "index_solid_queue_jobs_on_finished_at"
+    t.index ["queue_name", "finished_at"], name: "index_solid_queue_jobs_for_filtering"
+    t.index ["scheduled_at", "finished_at"], name: "index_solid_queue_jobs_for_alerting"
+  end
+
+  create_table "solid_queue_pauses", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "queue_name", null: false
+    t.index ["queue_name"], name: "index_solid_queue_pauses_on_queue_name", unique: true
+  end
+
+  create_table "solid_queue_processes", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "hostname"
+    t.string "kind", null: false
+    t.datetime "last_heartbeat_at", null: false
+    t.text "metadata"
+    t.string "name", null: false
+    t.integer "pid", null: false
+    t.bigint "supervisor_id"
+    t.index ["last_heartbeat_at"], name: "index_solid_queue_processes_on_last_heartbeat_at"
+    t.index ["name", "supervisor_id"], name: "index_solid_queue_processes_on_name_and_supervisor_id", unique: true
+    t.index ["supervisor_id"], name: "index_solid_queue_processes_on_supervisor_id"
+  end
+
+  create_table "solid_queue_ready_executions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "job_id", null: false
+    t.integer "priority", default: 0, null: false
+    t.string "queue_name", null: false
+    t.index ["job_id"], name: "index_solid_queue_ready_executions_on_job_id", unique: true
+    t.index ["priority", "job_id"], name: "index_solid_queue_poll_all"
+    t.index ["queue_name", "priority", "job_id"], name: "index_solid_queue_poll_by_queue"
+  end
+
+  create_table "solid_queue_recurring_executions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "job_id", null: false
+    t.datetime "run_at", null: false
+    t.string "task_key", null: false
+    t.index ["job_id"], name: "index_solid_queue_recurring_executions_on_job_id", unique: true
+    t.index ["task_key", "run_at"], name: "index_solid_queue_recurring_executions_on_task_key_and_run_at", unique: true
+  end
+
+  create_table "solid_queue_recurring_tasks", force: :cascade do |t|
+    t.text "arguments"
+    t.string "class_name"
+    t.string "command", limit: 2048
+    t.datetime "created_at", null: false
+    t.text "description"
+    t.string "key", null: false
+    t.integer "priority", default: 0
+    t.string "queue_name"
+    t.string "schedule", null: false
+    t.boolean "static", default: true, null: false
+    t.datetime "updated_at", null: false
+    t.index ["key"], name: "index_solid_queue_recurring_tasks_on_key", unique: true
+    t.index ["static"], name: "index_solid_queue_recurring_tasks_on_static"
+  end
+
+  create_table "solid_queue_scheduled_executions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "job_id", null: false
+    t.integer "priority", default: 0, null: false
+    t.string "queue_name", null: false
+    t.datetime "scheduled_at", null: false
+    t.index ["job_id"], name: "index_solid_queue_scheduled_executions_on_job_id", unique: true
+    t.index ["scheduled_at", "priority", "job_id"], name: "index_solid_queue_dispatch_all"
+  end
+
+  create_table "solid_queue_semaphores", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "expires_at", null: false
+    t.string "key", null: false
+    t.datetime "updated_at", null: false
+    t.integer "value", default: 1, null: false
+    t.index ["expires_at"], name: "index_solid_queue_semaphores_on_expires_at"
+    t.index ["key", "value"], name: "index_solid_queue_semaphores_on_key_and_value"
+    t.index ["key"], name: "index_solid_queue_semaphores_on_key", unique: true
   end
 
   create_table "support_ticket_messages", force: :cascade do |t|
@@ -414,6 +552,29 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_11_120001) do
     t.datetime "updated_at", null: false
     t.index ["account_id", "name"], name: "index_tags_on_account_id_and_name", unique: true
     t.index ["account_id"], name: "index_tags_on_account_id"
+  end
+
+  create_table "tarefas", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.datetime "concluida_em"
+    t.bigint "concluida_por_id"
+    t.bigint "contact_id", null: false
+    t.datetime "created_at", null: false
+    t.text "descricao"
+    t.string "prioridade", default: "normal", null: false
+    t.string "status", default: "pendente", null: false
+    t.string "tipo", null: false
+    t.string "titulo", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id"
+    t.datetime "vencimento_em"
+    t.index ["account_id", "status"], name: "index_tarefas_on_account_id_and_status"
+    t.index ["account_id"], name: "index_tarefas_on_account_id"
+    t.index ["concluida_por_id"], name: "index_tarefas_on_concluida_por_id"
+    t.index ["contact_id", "tipo"], name: "idx_tarefas_pendente_unica_por_tipo", unique: true, where: "((status)::text = 'pendente'::text)"
+    t.index ["contact_id"], name: "index_tarefas_on_contact_id"
+    t.index ["user_id", "status"], name: "index_tarefas_on_user_id_and_status"
+    t.index ["user_id"], name: "index_tarefas_on_user_id"
   end
 
   create_table "users", force: :cascade do |t|
@@ -447,12 +608,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_11_120001) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
-  add_foreign_key "appointments", "accounts"
-  add_foreign_key "appointments", "condominia"
-  add_foreign_key "appointments", "contacts"
-  add_foreign_key "appointments", "properties"
-  add_foreign_key "appointments", "users"
-  add_foreign_key "condominia", "accounts"
   add_foreign_key "contacts", "accounts"
   add_foreign_key "contacts", "users"
   add_foreign_key "conversation_tags", "conversations"
@@ -465,20 +620,41 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_11_120001) do
   add_foreign_key "inbox_members", "users"
   add_foreign_key "inboxes", "accounts"
   add_foreign_key "inboxes", "round_robin_groups"
+  add_foreign_key "lifecycle_events", "accounts"
+  add_foreign_key "lifecycle_events", "contacts"
+  add_foreign_key "lifecycle_events", "pedidos"
   add_foreign_key "messages", "accounts"
   add_foreign_key "messages", "conversations"
   add_foreign_key "notes", "accounts"
   add_foreign_key "notes", "contacts"
   add_foreign_key "notes", "users"
   add_foreign_key "notifications", "accounts"
-  add_foreign_key "properties", "accounts"
-  add_foreign_key "properties", "users"
+  add_foreign_key "pedidos", "accounts"
+  add_foreign_key "pedidos", "contacts"
+  add_foreign_key "pipeline_cards", "contacts"
+  add_foreign_key "pipeline_cards", "pipeline_stages"
+  add_foreign_key "pipeline_cards", "pipelines"
+  add_foreign_key "pipeline_stages", "pipelines"
+  add_foreign_key "pipeline_triggers", "pipeline_stages"
+  add_foreign_key "pipelines", "accounts"
   add_foreign_key "push_subscriptions", "users"
+  add_foreign_key "regua_triggers", "accounts"
+  add_foreign_key "reseller_phones", "contacts"
   add_foreign_key "round_robin_groups", "accounts"
   add_foreign_key "scheduled_messages", "conversations"
+  add_foreign_key "solid_queue_blocked_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "solid_queue_claimed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "solid_queue_failed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "solid_queue_ready_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "solid_queue_recurring_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "solid_queue_scheduled_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "support_ticket_messages", "support_tickets"
   add_foreign_key "support_ticket_messages", "users"
   add_foreign_key "support_tickets", "accounts"
   add_foreign_key "tags", "accounts"
+  add_foreign_key "tarefas", "accounts"
+  add_foreign_key "tarefas", "contacts"
+  add_foreign_key "tarefas", "users"
+  add_foreign_key "tarefas", "users", column: "concluida_por_id"
   add_foreign_key "users", "round_robin_groups"
 end

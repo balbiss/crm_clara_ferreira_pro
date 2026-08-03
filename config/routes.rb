@@ -6,18 +6,6 @@ Rails.application.routes.draw do
     get :export
     get :performance
   end
-  resources :properties do
-    member do
-      post :trigger_match
-    end
-  end
-  resources :condominiums
-  resources :appointments do
-    collection do
-      get :report
-      get :export
-    end
-  end
   resources :agents do
     member do
       patch :block
@@ -29,6 +17,16 @@ Rails.application.routes.draw do
     end
   end
   resources :round_robin_groups, only: %i[index create update destroy]
+  resources :pipelines, only: %i[index create update destroy] do
+    resources :pipeline_stages, only: %i[create]
+    resources :pipeline_cards, only: %i[index create]
+  end
+  resources :pipeline_stages, only: %i[update destroy] do
+    resources :pipeline_triggers, only: %i[create]
+  end
+  resources :pipeline_triggers, only: %i[update destroy]
+  resources :pipeline_cards, only: %i[index update destroy]
+  resources :regua_triggers, only: %i[index create update destroy]
   resources :contacts do
     member do
       post :merge
@@ -36,6 +34,12 @@ Rails.application.routes.draw do
       patch :block
       patch :unblock
     end
+    collection do
+      get :ativas
+    end
+  end
+  resources :tarefas, only: [:index] do
+    member { patch :complete }
   end
   resources :tags
   get 'dashboard', to: 'dashboard#index'
@@ -92,13 +96,11 @@ Rails.application.routes.draw do
   namespace :webhooks do
     post 'baileys',              to: 'baileys#create'
     post 'stripe',               to: 'stripe#create'
-    post 'canal_pro/:token',     to: 'canal_pro#create', defaults: { source_portal: 'canal_pro' }
-    post 'zap/:token',           to: 'canal_pro#create', defaults: { source_portal: 'zap' }
-    post 'viva_real/:token',     to: 'canal_pro#create', defaults: { source_portal: 'viva_real' }
     get  'instagram',            to: 'instagram#verify'
     post 'instagram',            to: 'instagram#create'
     get  'facebook_leads',       to: 'facebook_leads#verify'
     post 'facebook_leads',       to: 'facebook_leads#create'
+    post 'jueri/:token',         to: 'jueri#create'
   end
 
   namespace :admin do
