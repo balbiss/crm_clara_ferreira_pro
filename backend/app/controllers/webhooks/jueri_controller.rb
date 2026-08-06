@@ -19,7 +19,10 @@ module Webhooks
       return head :not_found unless account
 
       evento = params[:evento] || params[:event] || params.dig(:data, :evento)
-      Rails.logger.info("[Webhooks::Jueri] account=#{account.id} evento=#{evento.inspect}")
+      # Payload completo no log (não em coluna própria — mesmo padrão dos
+      # outros webhooks, ver Webhooks::BaileysController) pra investigar
+      # mudança de formato da API sem precisar confiar nos campos aqui.
+      Rails.logger.info("[Webhooks::Jueri] account=#{account.id} evento=#{evento.inspect} payload=#{params.except(:controller, :action, :token).to_unsafe_h.to_json}")
 
       debounce_key = "jueri_webhook_sync_#{account.id}"
       unless Rails.cache.read(debounce_key)

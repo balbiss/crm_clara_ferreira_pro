@@ -73,6 +73,9 @@ Rails.application.routes.draw do
     put :update_password
   end
 
+  get 'jueri/debug',     to: 'jueri#debug'
+  get 'jueri/debug/:id', to: 'jueri#debug_show'
+
   resources :inboxes do
     resources :members, controller: 'inbox_members', only: [:index, :create, :destroy]
     member do
