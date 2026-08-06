@@ -115,7 +115,14 @@ class JueriSyncService
       items.each do |pedido|
         rid = pedido['fk_revendedor_id']
         next if rid.blank?
-        pedidos_por_revendedor[rid] << pedido
+        # Chave sempre string — o Jueri devolve fk_revendedor_id como Integer
+        # no JSON, mas id_jueri (Contact) e ids_ativos_agora (.map(&:to_s))
+        # são strings. Sem normalizar aqui, o lookup em pedidos_por_revendedor
+        # no Passo 2 (linha ~87) batia com o Hash.new autovivificador e
+        # devolvia [] silenciosamente pra revendedora recém-criada — pedidos
+        # nunca eram persistidos e pecas_abertas_atual/dias com maleta ficavam
+        # zerados pra sempre (bug real encontrado testando com dados reais).
+        pedidos_por_revendedor[rid.to_s] << pedido
       end
 
       break if response['next_page_url'].blank?
@@ -160,7 +167,6 @@ class JueriSyncService
       contact.status = 'revendedor_ativo'
       contact.cycle_started_at = inicio_ciclo(pedidos_raw)
       contact.save!
-      RoundRobinAssignmentService.assign_to_contact(contact)
       persistir_pedidos(contact, pedidos_raw, resultado)
       persistir_telefones(contact, revendedor)
       recalcular_snapshot(contact)
@@ -185,7 +191,6 @@ class JueriSyncService
       contact.status = 'revendedor_ativo'
       contact.cycle_started_at = inicio_ciclo(pedidos_raw)
       contact.save!
-      RoundRobinAssignmentService.assign_to_contact(contact) # rede de segurança: reativada sem responsável
       criar_evento(contact, 'reativacao') if elegivel_marco_reativacao
       resultado[:reativados] += 1
     else

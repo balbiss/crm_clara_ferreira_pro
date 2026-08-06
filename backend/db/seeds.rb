@@ -14,6 +14,10 @@ User.find_or_create_by!(email: 'admin@claraferreira.example.com') do |u|
   u.last_name = 'Ferreira'
   # Dona da Clara Ferreira: acesso total só na própria conta (briefing seção 30).
   u.role = :diretoria
+  # 'department' (default da coluna é 'corretor') é usado pelo rodízio de leads
+  # (RoundRobinAssignmentService/ai_assistant_service) pra decidir quem recebe
+  # revendedora nova — a dona da empresa não deve entrar nessa fila de vendas.
+  u.department = 'suporte'
 end
 
 User.find_or_create_by!(email: 'vendedora@claraferreira.example.com') do |u|
