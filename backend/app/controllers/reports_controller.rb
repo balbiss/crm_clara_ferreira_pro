@@ -2,7 +2,7 @@ class ReportsController < ApplicationController
   before_action :authenticate_user!
   # overview e by_tag: todos os usuários (consultor vê o funil geral da conta).
   # by_agent, performance e export: dados da equipe inteira — restrito a quem
-  # enxerga a carteira toda (gerente/diretoria/empresa/admin, briefing seção 30:
+  # enxerga a carteira toda (gerente/diretoria, briefing seção 30:
   # "Gerente: acompanha indicadores; acessa relatórios de equipe").
   before_action :require_full_portfolio!, only: %i[ by_agent performance export ]
 
@@ -33,10 +33,9 @@ class ReportsController < ApplicationController
 
   def by_agent
     period     = parse_period
-    # Antes filtrava só role atendente/admin (nomenclatura antiga da VisitaIA) —
-    # com os 4 perfis novos, quem de fato atende carteira é 'consultor' (e os
-    # papéis herdados atendente/empresa/admin, pra contas antigas/mistas).
-    agents     = account.users.where(role: %w[atendente consultor empresa admin]).to_a
+    # Só consultor tem carteira pessoal medida por agente (gerente/diretoria/
+    # financeiro não são donos de carteira, só enxergam a geral).
+    agents     = account.users.where(role: 'consultor').to_a
     agent_ids  = agents.map(&:id)
     date_range = period.first.to_date..period.last.to_date
 

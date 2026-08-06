@@ -166,25 +166,17 @@ const loadUser = () => {
 }
 
 // Carteira inteira (Painel Gerencial) — gerente também entra aqui.
-const isAdminOrEmpresa = computed(() => {
-  return ['admin', 'empresa', 'gerente', 'diretoria'].includes(currentUser.value.role) || !!currentUser.value.permissions?.admin
-})
+const isFullPortfolio = computed(() => isFullPortfolioRole(currentUser.value))
 
 // Configurações críticas do sistema (briefing seção 30) — gerente NÃO entra
-// aqui, só diretoria/empresa/admin. Usado pra Agentes/Inboxes/Tags/Conta.
-const isCriticalConfig = computed(() => {
-  return ['admin', 'empresa', 'diretoria'].includes(currentUser.value.role) || !!currentUser.value.permissions?.admin
-})
+// aqui, só diretoria. Usado pra Agentes/Inboxes/Tags/Conta.
+const isCriticalConfig = computed(() => isCriticalConfigRole(currentUser.value))
 
 const isFinanceiro = computed(() => currentUser.value.role === 'financeiro')
 
 // Badge de perfil na sidebar — deixa visível na hora qual nível de RBAC está
 // ativo na sessão, evita chamado de suporte por botão/tela "sumida" que na
 // verdade é trava de permissão (ex: consultor sem ver Configurações).
-const ROLE_LABELS = {
-  consultor: 'Consultor', gerente: 'Gerente', diretoria: 'Diretoria', financeiro: 'Financeiro',
-  atendente: 'Atendente', empresa: 'Dono da conta', admin: 'Admin'
-}
 const roleLabel = computed(() => ROLE_LABELS[currentUser.value.role] || currentUser.value.role)
 
 const userInitials = () => {
@@ -200,6 +192,7 @@ const userDisplayName = () => {
 }
 
 import { brand } from '../config/brand'
+import { ROLE_LABELS, isFullPortfolio as isFullPortfolioRole, isCriticalConfig as isCriticalConfigRole } from '../config/roles'
 import { usePushNotifications } from '../composables/usePushNotifications'
 import { useInstallPrompt } from '../composables/useInstallPrompt'
 
@@ -543,12 +536,12 @@ const saveReorder = async () => {
           <span>Tarefas</span>
         </router-link>
 
-        <router-link v-if="isAdminOrEmpresa" to="/gerencial" class="nav-item">
+        <router-link v-if="isFullPortfolio" to="/gerencial" class="nav-item">
           <BarChart2 class="icon" />
           <span>Gerencial</span>
         </router-link>
 
-        <router-link v-if="isAdminOrEmpresa" to="/relatorios" class="nav-item">
+        <router-link v-if="isFullPortfolio" to="/relatorios" class="nav-item">
           <TrendingUp class="icon" />
           <span>Relatórios</span>
         </router-link>
@@ -575,7 +568,7 @@ const saveReorder = async () => {
             </div>
             <div class="pipelines-header-actions">
               <button
-                v-if="isAdminOrEmpresa"
+                v-if="isFullPortfolio"
                 class="icon-btn-inline"
                 title="Mais opções"
                 @click.stop="isPipelinesMenuOpen = !isPipelinesMenuOpen"
@@ -1523,7 +1516,6 @@ const saveReorder = async () => {
 
       &.role-gerente, &.role-diretoria { background: rgba(212, 155, 167, 0.15); color: var(--primary-hover); }
       &.role-financeiro { background: #dcfce7; color: #166534; }
-      &.role-admin, &.role-empresa { background: #e0e7ff; color: #3730a3; }
     }
   }
 }

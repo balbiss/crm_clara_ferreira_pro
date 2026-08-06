@@ -3,7 +3,7 @@ class ApplicationController < ActionController::API
 
   # Três níveis de autorização usados pelos controllers filhos (briefing seção 30):
   #
-  # 1. owner?            → configurações críticas do sistema (empresa/admin/diretoria).
+  # 1. owner?            → configurações críticas do sistema (só diretoria).
   #                        Gerente NÃO entra aqui — ele acompanha a operação, mas não
   #                        mexe em config (agentes, inboxes, tags, cobrança, conta).
   # 2. full_portfolio?   → enxerga a carteira INTEIRA (todas as revendedoras, de todos
@@ -32,14 +32,14 @@ class ApplicationController < ActionController::API
   end
 
   def owner?
-    current_user&.empresa? || current_user&.admin? || current_user&.diretoria? || current_user&.has_permission?('admin')
+    current_user&.diretoria?
   end
 
   def full_portfolio?
-    current_user&.owner_level? || current_user&.has_permission?('admin')
+    current_user&.owner_level?
   end
 
   def finance?
-    current_user&.finance_access? || current_user&.has_permission?('admin')
+    current_user&.finance_access?
   end
 end

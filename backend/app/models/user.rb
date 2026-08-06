@@ -20,18 +20,15 @@ class User < ApplicationRecord
          :recoverable, :rememberable, :validatable,
          :jwt_authenticatable, jwt_revocation_strategy: self
 
-  # Perfis herdados da VisitaIA (atendente/empresa/admin) + os 4 do briefing da Clara
-  # Ferreira (consultor/gerente/diretoria/financeiro, seção 30). Adição aditiva só no
-  # model — os checks de autorização espalhados pelos controllers (`role == 'admin' ||
-  # role == 'empresa'`) ainda não foram atualizados pra reconhecer os novos, use
-  # `owner_level?`/`finance_access?` abaixo em código NOVO em vez de comparar role direto.
+  # Os 4 perfis do briefing da Clara Ferreira (seção 30). Os herdados do fork da
+  # VisitaIA (atendente/empresa/admin) foram removidos — ver migration
+  # RemapLegacyUserRoles pro remapeamento dos valores antigos.
   enum :role, {
-    atendente: 0, empresa: 1, admin: 2,
-    consultor: 3, gerente: 4, diretoria: 5, financeiro: 6
+    consultor: 0, gerente: 1, diretoria: 2, financeiro: 3
   }
 
-  OWNER_LEVEL_ROLES = %w[empresa admin gerente diretoria].freeze
-  FINANCE_ROLES = %w[financeiro diretoria admin empresa].freeze
+  OWNER_LEVEL_ROLES = %w[gerente diretoria].freeze
+  FINANCE_ROLES = %w[financeiro diretoria].freeze
 
   def active_for_authentication?
     super && status == 'active'
@@ -47,10 +44,10 @@ class User < ApplicationRecord
   end
 
   def owner_level?
-    OWNER_LEVEL_ROLES.include?(role) || has_permission?('admin')
+    OWNER_LEVEL_ROLES.include?(role)
   end
 
   def finance_access?
-    FINANCE_ROLES.include?(role) || has_permission?('admin')
+    FINANCE_ROLES.include?(role)
   end
 end

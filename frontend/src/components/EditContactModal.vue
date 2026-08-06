@@ -229,6 +229,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { useConversationsStore } from '../store/conversations'
+import { isFullPortfolio as isFullPortfolioRole } from '../config/roles'
 import Swal from 'sweetalert2'
 
 const props = defineProps({
@@ -244,7 +245,7 @@ const store = useConversationsStore()
 // reatribuir. O backend (ContactsController#contact_params) já ignora esse
 // campo se quem enviar não for full_portfolio, isso aqui é só a UI.
 const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
-const isFullPortfolio = computed(() => ['empresa', 'admin', 'gerente', 'diretoria'].includes(currentUser.role))
+const isFullPortfolio = computed(() => isFullPortfolioRole(currentUser))
 
 onMounted(() => {
   if (isFullPortfolio.value && !store.agents.length) store.fetchAgents()

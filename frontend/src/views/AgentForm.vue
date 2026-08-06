@@ -29,7 +29,6 @@ const form = ref({
   round_robin_group_id: null,
   status: 'active',
   permissions: {
-    admin: false,
     view_all_contacts: true,
     export_data: false,
     delete_data: false
@@ -51,7 +50,6 @@ const fetchAgent = async (id) => {
       round_robin_group_id: data.round_robin_group_id || null,
       status: data.status || 'active',
       permissions: data.permissions || {
-        admin: false,
         view_all_contacts: false,
         export_data: false,
         delete_data: false
@@ -204,26 +202,11 @@ const saveAgent = async () => {
         <h3>Permissões de Acesso</h3>
         <p class="subtitle">Defina o que esta consultora poderá ver ou fazer no sistema.</p>
 
-        <div class="permission-item admin-highlight">
-          <label class="switch-container">
-            <div class="toggle-switch">
-              <input type="checkbox" v-model="form.permissions.admin">
-              <span class="slider"></span>
-            </div>
-            <div class="perm-text">
-              <strong>Acesso Administrativo Total</strong>
-              <span>Dá acesso a todas as abas, incluindo Agentes e Configurações.</span>
-            </div>
-          </label>
-        </div>
-
-        <hr class="divider" />
-
-        <div class="permission-list" :class="{'disabled-list': form.permissions.admin}">
+        <div class="permission-list">
           <div class="permission-item">
             <label class="switch-container">
               <div class="toggle-switch">
-                <input type="checkbox" v-model="form.permissions.view_all_contacts" :disabled="form.permissions.admin">
+                <input type="checkbox" v-model="form.permissions.view_all_contacts">
                 <span class="slider"></span>
               </div>
               <div class="perm-text">
@@ -236,7 +219,7 @@ const saveAgent = async () => {
           <div class="permission-item">
             <label class="switch-container">
               <div class="toggle-switch">
-                <input type="checkbox" v-model="form.permissions.export_data" :disabled="form.permissions.admin">
+                <input type="checkbox" v-model="form.permissions.export_data">
                 <span class="slider"></span>
               </div>
               <div class="perm-text">
@@ -249,7 +232,7 @@ const saveAgent = async () => {
           <div class="permission-item text-danger-hover">
             <label class="switch-container">
               <div class="toggle-switch">
-                <input type="checkbox" v-model="form.permissions.delete_data" :disabled="form.permissions.admin">
+                <input type="checkbox" v-model="form.permissions.delete_data">
                 <span class="slider"></span>
               </div>
               <div class="perm-text">

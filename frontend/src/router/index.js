@@ -1,14 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { FULL_PORTFOLIO_ROLES, CRITICAL_CONFIG_ROLES } from '../config/roles'
 
-// Três níveis de acesso (briefing seção 30) — espelham os do backend
-// (ApplicationController#owner?/full_portfolio?/finance?):
-// - FULL_PORTFOLIO_ROLES: enxerga a carteira inteira (Painel Gerencial).
-// - CRITICAL_CONFIG_ROLES: configurações críticas do sistema. Gerente NÃO
-//   entra aqui — ele opera a carteira, não mexe em config.
-// - FINANCE_BLOCKED_ROUTES: telas operacionais (Carteira/Tarefas) que o
-//   Financeiro não deve ver — ele vê Inativas/Conversas/Cobrança.
-const FULL_PORTFOLIO_ROLES = ['empresa', 'admin', 'gerente', 'diretoria']
-const CRITICAL_CONFIG_ROLES = ['empresa', 'admin', 'diretoria']
+// FINANCE_BLOCKED_ROUTES: telas operacionais (Carteira/Tarefas) que o
+// Financeiro não deve ver — ele vê Inativas/Conversas/Cobrança.
 const FINANCE_BLOCKED_ROUTES = ['revendedoras_ativas', 'tarefas']
 
 const router = createRouter({
@@ -22,11 +16,6 @@ const router = createRouter({
       path: '/login',
       name: 'login',
       component: () => import('../views/Login.vue')
-    },
-    {
-      path: '/register',
-      name: 'register',
-      component: () => import('../views/Register.vue')
     },
     {
       path: '/forgot-password',
@@ -217,36 +206,6 @@ const router = createRouter({
           component: () => import('../views/Manual.vue')
         }
       ]
-    },
-    {
-      path: '/admin',
-      component: () => import('../views/admin/AdminLayout.vue'),
-      children: [
-        {
-          path: '',
-          redirect: '/admin/dashboard'
-        },
-        {
-          path: 'dashboard',
-          name: 'admin_dashboard',
-          component: () => import('../views/admin/AdminDashboard.vue')
-        },
-        {
-          path: 'empresas',
-          name: 'admin_empresas',
-          component: () => import('../views/admin/AdminCompanies.vue')
-        },
-        {
-          path: 'integracoes',
-          name: 'admin_integracoes',
-          component: () => import('../views/admin/AdminIntegrations.vue')
-        },
-        {
-          path: 'suporte',
-          name: 'admin_suporte',
-          component: () => import('../views/admin/AdminSupport.vue')
-        }
-      ]
     }
   ]
 })
@@ -259,7 +218,7 @@ router.beforeEach((to, _from, next) => {
   } catch (e) {}
 
   // Rota pública: não precisa de autenticação
-  const publicRoutes = ['login', 'register', 'forgot-password', 'reset-password']
+  const publicRoutes = ['login', 'forgot-password', 'reset-password']
   if (publicRoutes.includes(to.name)) {
     return next()
   }
@@ -269,19 +228,14 @@ router.beforeEach((to, _from, next) => {
     return next({ name: 'login' })
   }
 
-  // Área /admin: apenas usuários com role 'admin'
-  if (to.path.startsWith('/admin') && (!user || user.role !== 'admin')) {
+  // Painel Gerencial: gerente/diretoria (carteira inteira)
+  if (to.meta?.requiresFullPortfolio && user && !FULL_PORTFOLIO_ROLES.includes(user.role)) {
     return next({ name: 'dashboard' })
   }
 
-  // Painel Gerencial: gerente/diretoria/empresa/admin (carteira inteira)
-  if (to.meta?.requiresFullPortfolio && user && !FULL_PORTFOLIO_ROLES.includes(user.role) && !user.permissions?.admin) {
-    return next({ name: 'dashboard' })
-  }
-
-  // Configurações críticas do sistema: só diretoria/empresa/admin — gerente
+  // Configurações críticas do sistema: só diretoria — gerente
   // acompanha a operação, mas não mexe em config (briefing seção 30).
-  if (to.meta?.requiresCriticalConfig && user && !CRITICAL_CONFIG_ROLES.includes(user.role) && !user.permissions?.admin) {
+  if (to.meta?.requiresCriticalConfig && user && !CRITICAL_CONFIG_ROLES.includes(user.role)) {
     return next({ name: 'dashboard' })
   }
 
@@ -289,11 +243,6 @@ router.beforeEach((to, _from, next) => {
   // ele trabalha em Inativas/Conversas/Cobrança (briefing seção 30).
   if (user?.role === 'financeiro' && FINANCE_BLOCKED_ROUTES.includes(to.name)) {
     return next({ name: 'revendedoras_inativas' })
-  }
-
-  // Rotas com requiresOwner: empresa, admin, ou agente com permissao administrativa total
-  if (to.meta?.requiresOwner && user && !OWNER_ROLES.includes(user.role) && !user.permissions?.admin) {
-    return next({ name: 'dashboard' })
   }
 
   next()

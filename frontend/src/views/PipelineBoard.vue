@@ -6,6 +6,7 @@ import api from '../api'
 import Swal from 'sweetalert2'
 import { usePipelinesStore } from '../store/pipelines'
 import { useContactsStore } from '../store/contacts'
+import { isFullPortfolio } from '../config/roles'
 
 // Board genérico pra qualquer pipeline customizado (Varejo, Onboarding, Atacado,
 // Prospecção, ou qualquer outro criado pela empresa). O Consignado NÃO passa por aqui
@@ -17,7 +18,7 @@ const contactsStore = useContactsStore()
 
 const isOwner = computed(() => {
   const user = JSON.parse(localStorage.getItem('user') || '{}')
-  return ['empresa', 'admin', 'gerente', 'diretoria'].includes(user.role)
+  return isFullPortfolio(user)
 })
 
 const pipeline = computed(() => pipelinesStore.findBySlug(route.params.slug))

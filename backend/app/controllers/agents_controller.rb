@@ -25,7 +25,7 @@ class AgentsController < ApplicationController
   def create
     account = current_user&.account || Account.first
     @agent = account.users.build(agent_params)
-    @agent.role = :atendente # Default role
+    @agent.role = :consultor # Default role
     plain_password = agent_params[:password]
 
     if @agent.save

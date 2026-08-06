@@ -60,11 +60,7 @@ const handleLogin = async () => {
       showConfirmButton: false
     })
 
-    if (response.data && response.data.user && response.data.user.role === 'admin') {
-      window.location.href = '/admin'
-    } else {
-      window.location.href = '/dashboard'
-    }
+    window.location.href = '/dashboard'
   } catch (error) {
     console.error("Login error", error)
     Swal.fire({
@@ -151,10 +147,6 @@ const handleLogin = async () => {
             {{ isLoading ? 'Entrando...' : 'Entrar' }}
           </button>
         </form>
-
-        <div class="auth-footer">
-          <p>Ainda não tem uma conta? <router-link to="/register">Crie uma agora</router-link></p>
-        </div>
 
         <div v-if="!isInstalled && !isStandalone && canInstall" class="install-banner">
           <button class="install-btn" @click="promptInstall">

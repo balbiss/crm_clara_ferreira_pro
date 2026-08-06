@@ -12,22 +12,18 @@ User.find_or_create_by!(email: 'admin@claraferreira.example.com') do |u|
   u.password_confirmation = 'MudeEstaSenha123!'
   u.first_name = 'Clara'
   u.last_name = 'Ferreira'
-  # 'admin' aqui seria admin GLOBAL do SaaS (equipe técnica, vê todas as empresas) —
-  # a dona da Clara Ferreira precisa de 'empresa' (dono/acesso total só na própria
-  # conta). Login.vue redireciona role 'admin' pro painel /admin (SaaS Master), não
-  # pro dashboard normal — usar :admin aqui por engano manda a dona pro painel errado.
-  u.role = :empresa
+  # Dona da Clara Ferreira: acesso total só na própria conta (briefing seção 30).
+  u.role = :diretoria
 end
 
-# Vendedora (papel "atendente" no schema atual — vira "consultor" na Fase 2)
 User.find_or_create_by!(email: 'vendedora@claraferreira.example.com') do |u|
   u.account = account
   u.password = 'MudeEstaSenha123!'
   u.password_confirmation = 'MudeEstaSenha123!'
   u.first_name = 'Beatriz'
   u.last_name = 'Lima'
-  u.role = :atendente
-  u.department = 'vendedora'
+  u.role = :consultor
+  u.department = 'corretor'
 end
 
 # Pipelines customizáveis (espelham o Kommo que a empresa já usava — Varejo,

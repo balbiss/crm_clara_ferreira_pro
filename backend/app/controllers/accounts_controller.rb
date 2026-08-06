@@ -1,7 +1,7 @@
 class AccountsController < ApplicationController
   before_action :authenticate_user!
   # Configuração da conta (nome, etc.) é "configuração crítica"
-  # (briefing seção 30, exclusiva de Diretoria/empresa/admin) — antes qualquer
+  # (briefing seção 30, exclusiva de Diretoria) — antes qualquer
   # usuário autenticado (inclusive consultor) conseguia ler/alterar isso.
   before_action :require_owner!, only: %i[ show update ]
 

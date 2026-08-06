@@ -81,7 +81,7 @@ const sendMessage = async () => {
     
     messages.value.push({
       ...response.data,
-      user: { name: 'Você', role: 'empresa' } // optimistically add
+      user: { name: 'Você', role: 'user' } // optimistically add
     })
     
     // Se o ticket estava fechado, ele volta para "Aberto" (0) no backend
@@ -124,7 +124,7 @@ const closeTicket = async () => {
           id: Date.now(),
           body: "Chamado encerrado pelo usuário.",
           created_at: new Date().toISOString(),
-          user: { name: 'Você', role: 'empresa' }
+          user: { name: 'Você', role: 'user' }
         })
         scrollToBottom()
       }
@@ -209,10 +209,10 @@ onMounted(() => {
             v-for="msg in messages" 
             :key="msg.id" 
             class="msg-bubble-wrapper"
-            :class="msg.user.role === 'admin' ? 'is-admin' : 'is-user'"
+            :class="msg.user.role === 'staff' ? 'is-admin' : 'is-user'"
           >
             <div class="msg-bubble">
-              <div class="msg-author">{{ msg.user.role === 'admin' ? 'Suporte' : msg.user.name }}</div>
+              <div class="msg-author">{{ msg.user.role === 'staff' ? 'Suporte' : msg.user.name }}</div>
               <div class="msg-text">{{ msg.body }}</div>
               <div class="msg-time">{{ new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }}</div>
             </div>

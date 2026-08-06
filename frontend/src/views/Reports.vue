@@ -5,12 +5,12 @@ import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, ArcElement, Categ
 import { Download, Users, TrendingUp, Tag, RefreshCw, FileText, BarChart2, Clock } from 'lucide-vue-next'
 import api from '../api'
 import Swal from 'sweetalert2'
+import { isFullPortfolio } from '../config/roles'
 
 const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
 // Relatórios de equipe (agents/tags/performance/export) exigem carteira inteira
-// no backend (ApplicationController#full_portfolio?) — gerente/diretoria também
-// entram aqui, não só empresa/admin.
-const isOwner     = computed(() => ['empresa', 'admin', 'gerente', 'diretoria'].includes(currentUser.role))
+// no backend (ApplicationController#full_portfolio?) — gerente/diretoria.
+const isOwner     = computed(() => isFullPortfolio(currentUser))
 
 ChartJS.register(Title, Tooltip, Legend, BarElement, ArcElement, CategoryScale, LinearScale)
 

@@ -98,35 +98,14 @@ Rails.application.routes.draw do
     post 'jueri/:token',         to: 'jueri#create'
   end
 
-  namespace :admin do
-    get 'dashboard', to: 'dashboard#index'
-    get 'settings', to: 'settings#index'
-    post 'settings', to: 'settings#create'
-    resources :accounts, only: [:index, :create, :update, :destroy] do
-      member do
-        put :block
-      end
-    end
-    
-    resources :support_tickets, only: [:index, :show] do
-      member do
-        post :reply
-        put :close
-      end
-    end
-  end
-
-  post 'register', to: 'registrations#create'
-
   get  'push_subscriptions/vapid_public_key', to: 'push_subscriptions#vapid_public_key'
   post 'push_subscriptions',                  to: 'push_subscriptions#create'
   delete 'push_subscriptions/unsubscribe',    to: 'push_subscriptions#unsubscribe'
 
-  post 'billing/checkout', to: 'billing#checkout'
-  post 'billing/portal', to: 'billing#portal'
-
-  devise_for :users, controllers: {
-    registrations: 'users/registrations',
+  # Sem self-signup público: deploy dedicado só da Clara, não uma SaaS
+  # multi-tenant onde qualquer um cria uma "empresa" nova (ver commit que
+  # removeu RegistrationsController/Users::RegistrationsController/console admin).
+  devise_for :users, skip: [:registrations], controllers: {
     sessions: 'users/sessions',
     passwords: 'users/passwords'
   }

@@ -261,7 +261,7 @@ const toggleRoundRobin = async (agent) => {
             </td>
             <td class="font-medium">
               {{ agent.first_name }} {{ agent.last_name }}
-              <div v-if="agent.role === 'empresa' || agent.role === 'admin'" class="badge-admin inline">
+              <div v-if="agent.role === 'diretoria'" class="badge-admin inline">
                 <ShieldAlert class="icon-xs" /> Dono
               </div>
             </td>

@@ -6,6 +6,7 @@ import api from '../api'
 import { useContactsStore } from '../store/contacts'
 import { useConversationsStore } from '../store/conversations'
 import { ACTIVE_STATUS_LABELS, statusLabel } from '../constants/regua'
+import { isFullPortfolio as isFullPortfolioRole } from '../config/roles'
 
 // Tela "Minhas Revendedoras Ativas" (briefing seção 28.1) — visão de carteira/lista,
 // não kanban (briefing seção 9 pede explicitamente pra não copiar o modelo de etapas
@@ -16,7 +17,7 @@ const contactsStore = useContactsStore()
 const convStore = useConversationsStore()
 
 const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
-const isFullPortfolio = computed(() => ['empresa', 'admin', 'gerente', 'diretoria'].includes(currentUser.role))
+const isFullPortfolio = computed(() => isFullPortfolioRole(currentUser))
 
 const isLoading = ref(true)
 const searchQuery = ref('')

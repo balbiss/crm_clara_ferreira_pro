@@ -39,7 +39,7 @@ const sendMessage = async () => {
     
     messages.value.push({
       ...response.data,
-      user: { name: 'Você', role: 'empresa' } // optimistically add
+      user: { name: 'Você', role: 'user' } // optimistically add
     })
     
     // Update ticket status to open if it was resolved
@@ -89,11 +89,11 @@ onMounted(() => {
           v-for="msg in messages" 
           :key="msg.id" 
           class="message"
-          :class="msg.user.role === 'admin' ? 'message-admin' : 'message-user'"
+          :class="msg.user.role === 'staff' ? 'message-admin' : 'message-user'"
         >
           <div class="message-bubble">
             <div class="message-author">
-              {{ msg.user.role === 'admin' ? 'SaaS Support' : msg.user.name }}
+              {{ msg.user.role === 'staff' ? 'SaaS Support' : msg.user.name }}
             </div>
             <div class="message-body">{{ msg.body }}</div>
             <div class="message-time">{{ new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }}</div>
