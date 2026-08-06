@@ -40,4 +40,16 @@ class JueriController < ApplicationController
     JueriSyncJob.perform_later(current_user.account.id)
     render json: { message: 'Sincronização disparada. Acompanhe pelo log do worker ou confira /contacts em alguns instantes.' }, status: :accepted
   end
+
+  # GET /jueri/debug_schema — diagnóstico pontual: confirma se a coluna
+  # contacts.user_id tem algum DEFAULT gravado direto no Postgres (não
+  # apareceria no schema.rb se alguém alterou via SQL fora de uma migration).
+  def debug_schema
+    col = Contact.columns_hash['user_id']
+    render json: {
+      contacts_user_id_default: col&.default,
+      contacts_user_id_sql_type: col&.sql_type,
+      novo_contact_user_id_em_memoria: Contact.new.user_id
+    }
+  end
 end

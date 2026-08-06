@@ -77,6 +77,7 @@ Rails.application.routes.draw do
   get  'jueri/debug',     to: 'jueri#debug'
   get  'jueri/debug/:id', to: 'jueri#debug_show'
   post 'jueri/sync-now',  to: 'jueri#sync_now'
+  get  'jueri/debug_schema', to: 'jueri#debug_schema'
 
   resources :inboxes do
     resources :members, controller: 'inbox_members', only: [:index, :create, :destroy]
