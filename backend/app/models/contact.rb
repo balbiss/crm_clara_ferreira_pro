@@ -43,6 +43,10 @@ class Contact < ApplicationRecord
   after_save :persistir_telefones_adicionais_na_tabela
   after_save :broadcast_contact_update, if: -> { saved_changes.keys.any? { |k| BROADCAST_FIELDS.include?(k) } }
   after_save :run_regua_triggers, if: -> { saved_change_to_status? && status.present? }
+  # DIAGNÓSTICO TEMPORÁRIO — remover depois de achar quem seta user_id sem
+  # passar por nenhum controller/serviço já auditado (regua_trigger, pipeline
+  # trigger, round robin e JueriSyncService todos descartados).
+  after_save :log_user_id_assignment_source, if: -> { saved_change_to_user_id? && user_id.present? }
 
   def channel_identifier
     jid.presence || instagram_id.presence || phone
@@ -115,5 +119,10 @@ class Contact < ApplicationRecord
 
   def run_regua_triggers
     ReguaTriggerRunnerService.new(self).call
+  end
+
+  def log_user_id_assignment_source
+    caller_lines = caller.reject { |l| l.include?('gems/') }.first(8)
+    Rails.logger.warn("[DIAG user_id] contact=#{id} source=#{source.inspect} novo_user_id=#{user_id} caller=\n#{caller_lines.join("\n")}")
   end
 end
