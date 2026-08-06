@@ -73,8 +73,9 @@ Rails.application.routes.draw do
     put :update_password
   end
 
-  get 'jueri/debug',     to: 'jueri#debug'
-  get 'jueri/debug/:id', to: 'jueri#debug_show'
+  get  'jueri/debug',     to: 'jueri#debug'
+  get  'jueri/debug/:id', to: 'jueri#debug_show'
+  post 'jueri/sync-now',  to: 'jueri#sync_now'
 
   resources :inboxes do
     resources :members, controller: 'inbox_members', only: [:index, :create, :destroy]

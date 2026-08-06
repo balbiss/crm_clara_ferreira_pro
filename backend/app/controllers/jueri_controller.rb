@@ -26,4 +26,18 @@ class JueriController < ApplicationController
   rescue JueriApiService::ApiError => e
     render json: { error: 'jueri_api_error', message: e.message }, status: :bad_gateway
   end
+
+  # POST /jueri/sync-now — dispara a sincronização já (mesmo caminho usado pelo
+  # webhook: account_id presente = disparo pontual, não mexe no loop recorrente
+  # de 30min). Assíncrono de propósito: o histórico completo de pedidos pode ter
+  # milhares de registros e não cabe no timeout de uma request HTTP. Resultado
+  # sai no log do worker ("[JueriSyncJob] account=... criados=... erros=...").
+  def sync_now
+    unless JueriApiService.configured?
+      return render json: { error: 'not_configured', message: 'JUERI_API_TOKEN/JUERI_CLIENTE_SISTEMA não configurados.' }, status: :unprocessable_entity
+    end
+
+    JueriSyncJob.perform_later(current_user.account.id)
+    render json: { message: 'Sincronização disparada. Acompanhe pelo log do worker ou confira /contacts em alguns instantes.' }, status: :accepted
+  end
 end
