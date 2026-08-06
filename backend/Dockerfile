@@ -46,6 +46,10 @@ RUN bundle install && \
 # Copy application code
 COPY . .
 
+# Git on Windows doesn't track the executable bit, so bin/* scripts can land
+# in the image as non-executable — restore it explicitly.
+RUN chmod +x bin/*
+
 # Precompile bootsnap code for faster boot times.
 # -j 1 disable parallel compilation to avoid a QEMU bug: https://github.com/rails/bootsnap/issues/495
 RUN bundle exec bootsnap precompile -j 1 app/ lib/
