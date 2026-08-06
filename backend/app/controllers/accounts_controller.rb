@@ -13,7 +13,10 @@ class AccountsController < ApplicationController
       subscription_status: account.subscription_status || 'pending',
       trial_ends_at:       account.trial_ends_at,
       plan_name:           'Plano Premium',
-      facebook_page_name:  account.facebook_page_name
+      facebook_page_name:  account.facebook_page_name,
+      # URL a cadastrar no painel do Jueri (Configurações > Webhooks) — token
+      # único por conta, gerado automaticamente (Account#generate_jueri_webhook_token).
+      jueri_webhook_url:   "#{ENV.fetch('BACKEND_URL', request.base_url)}/webhooks/jueri/#{account.jueri_webhook_token}"
     }
   end
 

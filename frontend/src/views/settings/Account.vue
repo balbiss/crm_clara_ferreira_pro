@@ -57,6 +57,19 @@
       </div>
 
       <div class="settings-column">
+        <!-- Seção de Integração com o Jueri -->
+        <div class="settings-card">
+          <h2 class="section-title">Integração ERP Jueri</h2>
+          <p class="section-description">Cole essa URL em Jueri → Configurações → API → Webhooks, pra receber eventos de pedido/venda em tempo real (o CRM sincroniza a carteira automaticamente quando isso dispara).</p>
+          <div class="form-group">
+            <label>URL do Webhook</label>
+            <div class="webhook-url-row">
+              <input type="text" :value="jueriWebhookUrl" class="form-control" readonly />
+              <button class="btn btn-secondary" @click="copyWebhookUrl">{{ copied ? 'Copiado!' : 'Copiar' }}</button>
+            </div>
+          </div>
+        </div>
+
         <!-- Seção de Meta Ads (Lead Ads) -->
         <div class="settings-card">
           <h2 class="section-title">Meta Ads (Geração de Cadastros)</h2>
@@ -98,6 +111,8 @@ const passwordForm = ref({
 
 const facebookPageName = ref('')
 const loadingFacebookLeads = ref(false)
+const jueriWebhookUrl = ref('')
+const copied = ref(false)
 
 const fetchAccountData = async () => {
   try {
@@ -105,8 +120,19 @@ const fetchAccountData = async () => {
     accountName.value = response.data.account_name
     userEmail.value = response.data.email
     facebookPageName.value = response.data.facebook_page_name || ''
+    jueriWebhookUrl.value = response.data.jueri_webhook_url || ''
   } catch (error) {
     console.error('Erro ao buscar dados da conta:', error)
+  }
+}
+
+const copyWebhookUrl = async () => {
+  try {
+    await navigator.clipboard.writeText(jueriWebhookUrl.value)
+    copied.value = true
+    setTimeout(() => { copied.value = false }, 2000)
+  } catch (error) {
+    console.error('Erro ao copiar:', error)
   }
 }
 
@@ -347,6 +373,14 @@ const updateSettings = async () => {
         cursor: not-allowed;
       }
     }
+  }
+
+  .webhook-url-row {
+    display: flex;
+    gap: 0.5rem;
+
+    .form-control { flex: 1; font-family: monospace; font-size: 0.78rem; }
+    .btn { flex-shrink: 0; }
   }
 
   .status-active, .status-inactive {
