@@ -2,7 +2,7 @@
 import { onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  Users, Flame, ThermometerSun, Snowflake, Calendar, CalendarCheck,
+  Users, Flame, Calendar, CalendarCheck,
   CalendarDays, MessageCircle, UserCheck, TrendingUp, BarChart2,
   CheckCircle, ChevronRight, Handshake, Phone, ArrowRight, Inbox
 } from 'lucide-vue-next'
@@ -17,7 +17,7 @@ ChartJS.register(Title, Tooltip, Legend, ArcElement, CategoryScale)
 const router = useRouter()
 const store = useDashboardStore()
 const conversationsStore = useConversationsStore()
-const { kpis, leadsBySourceData, isLoading, isOwner, todayLeads } = storeToRefs(store)
+const { kpis, isLoading, isOwner, todayLeads } = storeToRefs(store)
 
 const openConversation = (conversationId) => {
   conversationsStore.setActiveConversation(conversationId)
@@ -72,6 +72,33 @@ const funnelItems = computed(() => {
     { label: 'Agendado', value: k.agendado          || 0, color: '#10b981', icon: CheckCircle }
   ]
 })
+
+// Substitui a antiga "Leads por Origem" (fonte/canal) — pra revenda consignada
+// a origem é sempre Jueri, quem importa é em que etapa da régua a carteira está.
+const statusDistributionData = computed(() => {
+  const k = kpis.value?.kanban || {}
+  const entries = [
+    ['Ativa',       k.revendedor_ativo],
+    ['3º Dia',      k.terceiro_dia],
+    ['10º Dia',     k.decimo_dia],
+    ['20º Dia',     k.vigesimo_dia],
+    ['Agendado',    k.agendado],
+    ['Reagendar',   k.reagendar],
+    ['Atrasada',    k.atrasada]
+  ].filter(([, v]) => v > 0)
+
+  if (entries.length === 0) {
+    return { labels: ['Sem dados'], datasets: [{ data: [1], backgroundColor: ['#e5e7eb'] }] }
+  }
+
+  return {
+    labels: entries.map(([l]) => l),
+    datasets: [{
+      data: entries.map(([, v]) => v),
+      backgroundColor: ['#6366f1', '#f59e0b', '#eab308', '#d49ba7', '#10b981', '#3b82f6', '#ef4444']
+    }]
+  }
+})
 </script>
 
 <template>
@@ -104,15 +131,15 @@ const funnelItems = computed(() => {
 
     <template v-else>
 
-      <!-- Leads Atribuídos Hoje -->
+      <!-- Revendedoras Atribuídas Hoje -->
       <div class="section-label">
-        {{ isOwner ? 'Leads Chegaram Hoje' : 'Leads Atribuídos a Você Hoje' }}
+        {{ isOwner ? 'Conversas Chegaram Hoje' : 'Revendedoras Atribuídas a Você' }}
         <span class="today-count">{{ todayLeads.length }}</span>
       </div>
 
       <div v-if="todayLeads.length === 0" class="today-empty">
         <Inbox class="today-empty-ic" />
-        <p>{{ isOwner ? 'Nenhuma conversa nova chegou hoje ainda.' : 'Nenhum lead foi atribuído a você hoje ainda.' }}</p>
+        <p>{{ isOwner ? 'Nenhuma conversa nova chegou hoje ainda.' : 'Nenhuma revendedora foi atribuída a você hoje ainda.' }}</p>
       </div>
 
       <div v-else class="today-leads-grid">
@@ -146,55 +173,94 @@ const funnelItems = computed(() => {
         </div>
       </div>
 
-      <!-- Row 1: Temperatura dos Leads -->
-      <div class="section-label mt-section">Termômetro de Leads</div>
+      <!-- Row 1: Carteira Operacional -->
+      <div class="section-label mt-section">Carteira Operacional</div>
       <div class="grid-4">
         <div class="kpi-card accent-blue">
           <div class="kpi-left">
             <div class="kpi-icon blue"><Users /></div>
             <div>
-              <div class="kpi-val">{{ kpis.total_contacts }}</div>
-              <div class="kpi-lbl">Total de Contatos</div>
+              <div class="kpi-val">{{ kpis.carteira.ativas_total }}</div>
+              <div class="kpi-lbl">Revendedoras Ativas</div>
             </div>
           </div>
-          <div class="kpi-bar-mini">
-            <span class="dot red"></span><span class="mini-n">{{ kpis.temperature.quente }}</span>
-            <span class="dot amber"></span><span class="mini-n">{{ kpis.temperature.morno }}</span>
-            <span class="dot teal"></span><span class="mini-n">{{ kpis.temperature.frio }}</span>
+        </div>
+
+        <div class="kpi-card accent-amber">
+          <div class="kpi-left">
+            <div class="kpi-icon amber"><Handshake /></div>
+            <div>
+              <div class="kpi-val">{{ kpis.carteira.com_maleta }}</div>
+              <div class="kpi-lbl">Com Maleta (&gt;25 peças)</div>
+            </div>
           </div>
+        </div>
+
+        <div class="kpi-card accent-green">
+          <div class="kpi-left">
+            <div class="kpi-icon green"><CalendarDays /></div>
+            <div>
+              <div class="kpi-val">{{ kpis.carteira.agendadas }}</div>
+              <div class="kpi-lbl">Próximas do Acerto</div>
+            </div>
+          </div>
+          <div class="kpi-sub">agendadas</div>
         </div>
 
         <div class="kpi-card accent-red">
           <div class="kpi-left">
             <div class="kpi-icon red"><Flame /></div>
             <div>
-              <div class="kpi-val">{{ kpis.temperature.quente }}</div>
-              <div class="kpi-lbl">Leads Quentes</div>
+              <div class="kpi-val">{{ kpis.carteira.atrasadas }}</div>
+              <div class="kpi-lbl">Atrasadas</div>
             </div>
           </div>
-          <div class="kpi-badge hot">Alta prioridade</div>
+          <div class="kpi-badge hot">&gt; 35 dias</div>
+        </div>
+      </div>
+
+      <!-- Row 1.5: Tarefas do Dia (régua) -->
+      <div class="section-label mt-section">Tarefas do Dia</div>
+      <div class="grid-4">
+        <div class="kpi-card accent-amber">
+          <div class="kpi-left">
+            <div class="kpi-icon amber"><Calendar /></div>
+            <div>
+              <div class="kpi-val">{{ kpis.tarefas_do_dia.terceiro_dia }}</div>
+              <div class="kpi-lbl">3º Dia</div>
+            </div>
+          </div>
         </div>
 
         <div class="kpi-card accent-amber">
           <div class="kpi-left">
-            <div class="kpi-icon amber"><ThermometerSun /></div>
+            <div class="kpi-icon amber"><Calendar /></div>
             <div>
-              <div class="kpi-val">{{ kpis.temperature.morno }}</div>
-              <div class="kpi-lbl">Leads Mornos</div>
+              <div class="kpi-val">{{ kpis.tarefas_do_dia.decimo_dia }}</div>
+              <div class="kpi-lbl">10º Dia</div>
             </div>
           </div>
-          <div class="kpi-badge warm">Nutrir</div>
         </div>
 
-        <div class="kpi-card accent-teal">
+        <div class="kpi-card accent-indigo">
           <div class="kpi-left">
-            <div class="kpi-icon teal"><Snowflake /></div>
+            <div class="kpi-icon indigo"><Handshake /></div>
             <div>
-              <div class="kpi-val">{{ kpis.temperature.frio }}</div>
-              <div class="kpi-lbl">Leads Frios</div>
+              <div class="kpi-val">{{ kpis.tarefas_do_dia.vigesimo_dia }}</div>
+              <div class="kpi-lbl">20º Dia</div>
             </div>
           </div>
-          <div class="kpi-badge cold">Reconquistar</div>
+        </div>
+
+        <div class="kpi-card accent-red">
+          <div class="kpi-left">
+            <div class="kpi-icon red"><CalendarCheck /></div>
+            <div>
+              <div class="kpi-val">{{ kpis.tarefas_do_dia.reagendar }}</div>
+              <div class="kpi-lbl">Reagendamentos</div>
+            </div>
+          </div>
+          <div class="kpi-badge hot">pendentes</div>
         </div>
       </div>
 
@@ -278,13 +344,13 @@ const funnelItems = computed(() => {
           </div>
         </div>
 
-        <!-- Doughnut Origem -->
+        <!-- Doughnut Status -->
         <div class="panel">
           <div class="panel-head">
-            <TrendingUp class="ic" /> Leads por Origem
+            <TrendingUp class="ic" /> Distribuição por Status
           </div>
-          <div class="chart-wrap" v-if="leadsBySourceData.labels[0] !== 'Sem dados'">
-            <Doughnut :data="leadsBySourceData" :options="chartOptions" />
+          <div class="chart-wrap" v-if="statusDistributionData.labels[0] !== 'Sem dados'">
+            <Doughnut :data="statusDistributionData" :options="chartOptions" />
           </div>
           <div class="no-data" v-else>
             <BarChart2 class="no-data-ic" />

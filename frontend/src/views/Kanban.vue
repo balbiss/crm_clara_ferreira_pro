@@ -37,7 +37,7 @@ const columns = ref([
     id: 'agendado',
     name: 'AGENDADO',
     checklist: null,
-    note: 'Lembrar de incluir a Data de Agendamento no Lead ao movê-lo para esta etapa. Depois de feito o acerto, mover o Lead para Revendedor Ativo e incluir a Data do Último Acerto.',
+    note: 'Lembrar de incluir a Data de Agendamento na Revendedora ao movê-la para esta etapa. Depois de feito o acerto, mover a Revendedora para Revendedor Ativo e incluir a Data do Último Acerto.',
     cards: []
   }
 ])
@@ -211,9 +211,9 @@ const handleCreateContact = async () => {
         <input v-model="searchQuery" @input="distributeContacts(contactsStore.contacts)" type="text" placeholder="Pesquisar e filtrar" />
       </div>
       <div class="header-right">
-        <span class="board-total">{{ totalLeads }} leads: {{ brl(totalValor) }}</span>
+        <span class="board-total">{{ totalLeads }} revendedoras: {{ brl(totalValor) }}</span>
         <button class="btn-secondary" @click="$router.push('/funil/automatize')"><Zap class="icon-sm" /> Automatize</button>
-        <button class="btn-primary" @click="openCreateModal('revendedor_ativo')"><Plus class="icon-sm" /> Novo Lead</button>
+        <button class="btn-primary" @click="openCreateModal('revendedor_ativo')"><Plus class="icon-sm" /> Nova Revendedora</button>
       </div>
     </div>
 
@@ -287,7 +287,7 @@ const handleCreateContact = async () => {
     <div v-if="showModal" class="modal-backdrop" @click.self="showModal = false">
       <div class="modal-card">
         <div class="modal-header">
-          <h3>Adicionar Lead ao Pipeline</h3>
+          <h3>Adicionar Revendedora ao Pipeline</h3>
           <button class="close-btn" @click="showModal = false"><X class="icon-sm" /></button>
         </div>
         <form @submit.prevent="handleCreateContact" class="modal-form">

@@ -85,12 +85,14 @@ const router = createRouter({
         {
           path: 'pipelines/todos-leads',
           name: 'pipeline_todos_leads',
-          component: () => import('../views/TodosLeadsView.vue')
+          component: () => import('../views/TodosLeadsView.vue'),
+          meta: { requiresFullPortfolio: true }
         },
         {
           path: 'pipelines/:slug',
           name: 'pipeline_board',
-          component: () => import('../views/PipelineBoard.vue')
+          component: () => import('../views/PipelineBoard.vue'),
+          meta: { requiresFullPortfolio: true }
         },
         {
           path: 'pipelines/:slug/automatize',
@@ -108,25 +110,25 @@ const router = createRouter({
           path: 'segmentos',
           name: 'segmentos',
           component: () => import('../views/ComingSoon.vue'),
-          meta: { title: 'Segmentos', description: 'Segmentação de carteira — ainda não disponível.' }
+          meta: { title: 'Segmentos', description: 'Segmentação de carteira — ainda não disponível.', requiresCriticalConfig: true }
         },
         {
           path: 'listas',
           name: 'listas',
           component: () => import('../views/ComingSoon.vue'),
-          meta: { title: 'Listas', description: 'Listas salvas e filtros personalizados — ainda não disponível.' }
+          meta: { title: 'Listas', description: 'Listas salvas e filtros personalizados — ainda não disponível.', requiresFullPortfolio: true }
         },
         {
           path: 'agente-ia',
           name: 'agente_ia',
           component: () => import('../views/ComingSoon.vue'),
-          meta: { title: 'Agente de IA', description: 'Configuração do assistente de IA — ainda não disponível.' }
+          meta: { title: 'Agente de IA', description: 'Configuração do assistente de IA — ainda não disponível.', requiresCriticalConfig: true }
         },
         {
           path: 'automacoes',
           name: 'automacoes',
           component: () => import('../views/ComingSoon.vue'),
-          meta: { title: 'Automações', description: 'Regras automáticas de tarefas e mensagens — ainda não disponível.' }
+          meta: { title: 'Automações', description: 'Regras automáticas de tarefas e mensagens — ainda não disponível.', requiresCriticalConfig: true }
         },
         // Rotas exclusivas do dono (empresa/admin)
         {

@@ -36,6 +36,7 @@ Rails.application.routes.draw do
     end
     collection do
       get :ativas
+      patch :bulk_assign
     end
   end
   resources :tarefas, only: [:index, :create, :update, :destroy] do

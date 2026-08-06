@@ -89,8 +89,47 @@ const responsavelNome = (contact) => agentsById.value[contact.user_id] || null
 
 const responsavelOptions = computed(() => [
   { value: 'all', label: 'Todos os responsáveis' },
+  { value: 'none', label: 'Sem responsável' },
   ...(convStore.agents || []).map(a => ({ value: a.id, label: `${a.first_name || ''} ${a.last_name || ''}`.trim() }))
 ])
+
+// Seleção em lote pra atribuir várias revendedoras de uma vez (gerente/diretoria) —
+// sem isso, atribuir a carteira sincronizada do Jueri (que entra sem responsável,
+// briefing seção 22) exigiria abrir modal por modal, uma a uma.
+const selectedIds = ref(new Set())
+const isBulkAssigning = ref(false)
+const bulkAssignTarget = ref('')
+
+const toggleSelected = (id) => {
+  const next = new Set(selectedIds.value)
+  next.has(id) ? next.delete(id) : next.add(id)
+  selectedIds.value = next
+}
+const clearSelection = () => { selectedIds.value = new Set() }
+const allVisibleSelected = computed(() =>
+  filteredContacts.value.length > 0 && filteredContacts.value.every(c => selectedIds.value.has(c.id))
+)
+const toggleSelectAllVisible = () => {
+  selectedIds.value = allVisibleSelected.value ? new Set() : new Set(filteredContacts.value.map(c => c.id))
+}
+
+const applyBulkAssign = async () => {
+  if (!selectedIds.value.size || !bulkAssignTarget.value) return
+  isBulkAssigning.value = true
+  try {
+    await api.patch('/contacts/bulk_assign', {
+      contact_ids: [...selectedIds.value],
+      user_id: bulkAssignTarget.value === 'null' ? null : bulkAssignTarget.value
+    })
+    await contactsStore.fetchContacts()
+    clearSelection()
+    bulkAssignTarget.value = ''
+  } catch (e) {
+    console.error('Erro ao atribuir em lote:', e)
+  } finally {
+    isBulkAssigning.value = false
+  }
+}
 
 // Próxima tarefa pendente por revendedora (Motor de Tarefas real, não mais
 // derivado) — um GET só, indexado por contact_id.
@@ -121,7 +160,9 @@ const filteredContacts = computed(() => {
     list = list.filter(c => (c.status || 'revendedor_ativo') === activeStageFilter.value)
   }
 
-  if (isFullPortfolio.value && responsavelFilter.value !== 'all') {
+  if (isFullPortfolio.value && responsavelFilter.value === 'none') {
+    list = list.filter(c => !c.user_id)
+  } else if (isFullPortfolio.value && responsavelFilter.value !== 'all') {
     list = list.filter(c => c.user_id === responsavelFilter.value)
   }
 
@@ -138,7 +179,9 @@ const filteredContacts = computed(() => {
 
 const filteredSnapshot = computed(() => {
   let list = snapshot.value
-  if (isFullPortfolio.value && responsavelFilter.value !== 'all') {
+  if (isFullPortfolio.value && responsavelFilter.value === 'none') {
+    list = list.filter(c => !c.user_id)
+  } else if (isFullPortfolio.value && responsavelFilter.value !== 'all') {
     list = list.filter(c => c.user_id === responsavelFilter.value)
   }
   if (searchQuery.value.trim()) {
@@ -200,6 +243,19 @@ onMounted(async () => {
       </div>
     </div>
 
+    <div v-if="isFullPortfolio && selectedIds.size > 0 && !isTimeTravel" class="bulk-bar">
+      <span>{{ selectedIds.size }} selecionada{{ selectedIds.size === 1 ? '' : 's' }}</span>
+      <select v-model="bulkAssignTarget" class="responsavel-select">
+        <option value="" disabled>Atribuir para...</option>
+        <option value="null">Sem responsável</option>
+        <option v-for="a in convStore.agents" :key="a.id" :value="a.id">{{ `${a.first_name || ''} ${a.last_name || ''}`.trim() }}</option>
+      </select>
+      <button class="btn-primary-sm" :disabled="!bulkAssignTarget || isBulkAssigning" @click="applyBulkAssign">
+        {{ isBulkAssigning ? 'Aplicando...' : 'Aplicar' }}
+      </button>
+      <button class="btn-text" @click="clearSelection">Cancelar</button>
+    </div>
+
     <p v-if="isTimeTravel" class="time-travel-note">
       Mostrando o snapshot reconstruído de <strong>{{ formatDate(timeTravelDate) }}</strong> — etapa da régua e tarefas não se aplicam a datas passadas, só o volume de peças em aberto naquele momento.
     </p>
@@ -242,6 +298,7 @@ onMounted(async () => {
       <table v-if="!isLoading && filteredContacts.length > 0" class="revendedoras-table">
         <thead>
           <tr>
+            <th v-if="isFullPortfolio" class="cell-check"><input type="checkbox" :checked="allVisibleSelected" @click.stop="toggleSelectAllVisible" /></th>
             <th>Revendedora</th>
             <th>Etapa</th>
             <th>Dias com maleta</th>
@@ -253,6 +310,9 @@ onMounted(async () => {
         </thead>
         <tbody>
           <tr v-for="c in filteredContacts" :key="c.id" @click="openContact(c)" :class="{ 'row-atrasada': isAtrasada(c) }">
+            <td v-if="isFullPortfolio" class="cell-check" @click.stop>
+              <input type="checkbox" :checked="selectedIds.has(c.id)" @change="toggleSelected(c.id)" />
+            </td>
             <td class="cell-name">
               <div class="row-avatar">{{ (c.name || c.first_name || '?').charAt(0).toUpperCase() }}</div>
               <span>{{ c.name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Sem nome' }}</span>
@@ -343,6 +403,45 @@ onMounted(async () => {
   background: var(--bg-secondary);
   color: var(--text-main);
   font-size: 0.82rem;
+}
+
+.bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--primary, #d49ba7);
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+  color: var(--text-main);
+}
+
+.btn-primary-sm {
+  background: var(--primary, #d49ba7);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.btn-text {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+  &:hover { color: var(--text-main); }
+}
+
+.cell-check {
+  width: 2rem;
+  text-align: center;
 }
 
 .time-travel-box {

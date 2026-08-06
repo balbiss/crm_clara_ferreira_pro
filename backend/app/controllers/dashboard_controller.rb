@@ -32,7 +32,27 @@ class DashboardController < ApplicationController
       terceiro_dia:     status_counts['terceiro_dia']     || 0,
       decimo_dia:       status_counts['decimo_dia']       || 0,
       vigesimo_dia:     status_counts['vigesimo_dia']     || 0,
-      agendado:         status_counts['agendado']         || 0
+      agendado:         status_counts['agendado']         || 0,
+      reagendar:        status_counts['reagendar']        || 0,
+      atrasada:         status_counts['atrasada']         || 0
+    }
+
+    # Resumo da carteira operacional (substitui o "Termômetro de Leads" herdado
+    # da VisitaIA — não faz sentido pra revendedora consignada, briefing seção 28.5).
+    carteira = {
+      ativas_total: kanban.values.sum,
+      com_maleta:   contacts_scope.where('pecas_abertas_atual > 0').count,
+      agendadas:    kanban[:agendado],
+      atrasadas:    kanban[:atrasada]
+    }
+
+    tarefas_scope = is_owner ? account.tarefas : account.tarefas.where(user_id: uid)
+    tarefas_pendentes_por_tipo = tarefas_scope.pendentes.group(:tipo).count
+    tarefas_do_dia = {
+      terceiro_dia: tarefas_pendentes_por_tipo['terceiro_dia'] || 0,
+      decimo_dia:   tarefas_pendentes_por_tipo['decimo_dia']   || 0,
+      vigesimo_dia: tarefas_pendentes_por_tipo['vigesimo_dia'] || 0,
+      reagendar:    status_counts['reagendar'] || 0
     }
 
     pretensao_venda = %w[venda Venda VENDA].sum { |i| intention_counts[i] || 0 }
@@ -80,7 +100,9 @@ class DashboardController < ApplicationController
         pretensao_venda: pretensao_venda,
         temperature:     { quente: quente, morno: morno, frio: frio },
         kanban:          kanban,
-        conversations:   { open: conv_open, resolved: conv_resolved, today: conv_today, with_human: with_human }
+        conversations:   { open: conv_open, resolved: conv_resolved, today: conv_today, with_human: with_human },
+        carteira:        carteira,
+        tarefas_do_dia:  tarefas_do_dia
       },
       leads_by_source:      leads_by_source,
       today_assigned_leads: today_assigned_leads

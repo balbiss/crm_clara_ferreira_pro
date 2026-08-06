@@ -1,6 +1,6 @@
 class ContactsController < ApplicationController
   before_action :set_contact, only: %i[ show update destroy merge add_note block unblock ]
-  before_action :require_full_portfolio!, only: %i[ destroy merge ]
+  before_action :require_full_portfolio!, only: %i[ destroy merge bulk_assign ]
 
   # GET /contacts
   def index
@@ -112,6 +112,25 @@ class ContactsController < ApplicationController
       end
     end
     render json: { message: 'Contato bloqueado com sucesso', status: 'blocked' }
+  end
+
+  # PATCH /contacts/bulk_assign — atribui (ou remove) o responsável de várias
+  # revendedoras de uma vez, pra não precisar abrir modal por modal na tela
+  # de triagem "Sem Responsável" (briefing seção 22: gerente reatribui carteira).
+  def bulk_assign
+    contact_ids = Array(params[:contact_ids])
+    user_id = params[:user_id].presence
+
+    if contact_ids.empty?
+      return render json: { error: 'Selecione ao menos uma revendedora.' }, status: :unprocessable_entity
+    end
+
+    if user_id.present? && !current_user.account.users.exists?(id: user_id)
+      return render json: { error: 'Consultor não encontrado nesta conta.' }, status: :unprocessable_entity
+    end
+
+    updated = current_user.account.contacts.where(id: contact_ids).update_all(user_id: user_id)
+    render json: { updated: updated }
   end
 
   def unblock

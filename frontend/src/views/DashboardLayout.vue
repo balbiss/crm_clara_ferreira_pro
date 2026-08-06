@@ -393,7 +393,7 @@ const handleSnoozeExpired = (e) => {
     position:        'top-end',
     icon:            'info',
     title:           '⏰ Conversa reativada!',
-    html:            `<strong>${contact_name || 'Lead'}</strong><br><small style="color:#6b7280">O tempo de adiamento expirou — conversa reaberta.</small>`,
+    html:            `<strong>${contact_name || 'Revendedora'}</strong><br><small style="color:#6b7280">O tempo de adiamento expirou — conversa reaberta.</small>`,
     showConfirmButton: true,
     confirmButtonText: 'Ver conversa',
     confirmButtonColor: '#d49ba7',
@@ -583,14 +583,16 @@ const saveReorder = async () => {
           </div>
           <div class="settings-menu" v-show="isPipelinesOpen">
             <router-link to="/funil" class="nav-item sub-item" exact-active-class="active"><Badge class="icon-sm" /> Consignado</router-link>
-            <router-link
-              v-for="p in pipelinesStore.pipelines"
-              :key="p.id"
-              :to="`/pipelines/${p.slug}`"
-              class="nav-item sub-item"
-              exact-active-class="active"
-            ><Hash class="icon-sm" /> {{ p.name }}</router-link>
-            <router-link to="/pipelines/todos-leads" class="nav-item sub-item" exact-active-class="active"><ListChecks class="icon-sm" /> Todos os leads</router-link>
+            <template v-if="isFullPortfolio">
+              <router-link
+                v-for="p in pipelinesStore.pipelines"
+                :key="p.id"
+                :to="`/pipelines/${p.slug}`"
+                class="nav-item sub-item"
+                exact-active-class="active"
+              ><Hash class="icon-sm" /> {{ p.name }}</router-link>
+              <router-link to="/pipelines/todos-leads" class="nav-item sub-item" exact-active-class="active"><ListChecks class="icon-sm" /> Todos os leads</router-link>
+            </template>
           </div>
         </div>
 
@@ -622,22 +624,22 @@ const saveReorder = async () => {
           <span>Calendário</span>
         </router-link>
 
-        <router-link to="/segmentos" class="nav-item">
+        <router-link v-if="isCriticalConfig" to="/segmentos" class="nav-item">
           <Badge class="icon" />
           <span>Segmentos</span>
         </router-link>
 
-        <router-link to="/listas" class="nav-item">
+        <router-link v-if="isFullPortfolio" to="/listas" class="nav-item">
           <List class="icon" />
           <span>Listas</span>
         </router-link>
 
-        <router-link to="/agente-ia" class="nav-item">
+        <router-link v-if="isCriticalConfig" to="/agente-ia" class="nav-item">
           <Bot class="icon" />
           <span>Agente de IA</span>
         </router-link>
 
-        <router-link to="/automacoes" class="nav-item">
+        <router-link v-if="isCriticalConfig" to="/automacoes" class="nav-item">
           <Zap class="icon" />
           <span>Automações</span>
         </router-link>
