@@ -160,6 +160,7 @@ class JueriSyncService
       contact.status = 'revendedor_ativo'
       contact.cycle_started_at = inicio_ciclo(pedidos_raw)
       contact.save!
+      RoundRobinAssignmentService.assign_to_contact(contact)
       persistir_pedidos(contact, pedidos_raw, resultado)
       persistir_telefones(contact, revendedor)
       recalcular_snapshot(contact)
@@ -184,6 +185,7 @@ class JueriSyncService
       contact.status = 'revendedor_ativo'
       contact.cycle_started_at = inicio_ciclo(pedidos_raw)
       contact.save!
+      RoundRobinAssignmentService.assign_to_contact(contact) # rede de segurança: reativada sem responsável
       criar_evento(contact, 'reativacao') if elegivel_marco_reativacao
       resultado[:reativados] += 1
     else

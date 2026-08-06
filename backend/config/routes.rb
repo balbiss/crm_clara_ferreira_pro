@@ -38,7 +38,7 @@ Rails.application.routes.draw do
       get :ativas
     end
   end
-  resources :tarefas, only: [:index] do
+  resources :tarefas, only: [:index, :create, :update, :destroy] do
     member { patch :complete }
   end
   resources :tags

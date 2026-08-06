@@ -9,7 +9,10 @@ class Tarefa < ApplicationRecord
   belongs_to :user, optional: true
   belongs_to :concluida_por, class_name: 'User', optional: true
 
-  TIPOS = %w[terceiro_dia decimo_dia vigesimo_dia atrasada].freeze
+  # 'manual' é a única criável diretamente via API (TarefasController#create,
+  # gerente/diretoria) — as outras são geradas automaticamente pelo
+  # ReguaAutoAdvanceJob na transição de status.
+  TIPOS = %w[terceiro_dia decimo_dia vigesimo_dia atrasada manual].freeze
   STATUSES = %w[pendente concluida ignorada].freeze
   PRIORIDADES = %w[normal alta urgente].freeze
 
@@ -38,6 +41,7 @@ class Tarefa < ApplicationRecord
     }
   }.freeze
 
+  validates :titulo, presence: true
   validates :tipo, inclusion: { in: TIPOS }
   validates :status, inclusion: { in: STATUSES }
   validates :prioridade, inclusion: { in: PRIORIDADES }
