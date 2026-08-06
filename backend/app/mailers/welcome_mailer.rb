@@ -9,8 +9,8 @@ class WelcomeMailer < ApplicationMailer
   def company_welcome(user, account)
     @user      = user
     @account   = account
-    @login_url = "#{ENV.fetch('FRONTEND_URL', 'https://crmchat.visitaia.com.br')}/login"
-    @app_name  = ENV.fetch('APP_NAME', 'VisitaIA CRM')
+    @login_url = "#{ENV.fetch('FRONTEND_URL', 'https://crm.clarajoias.com.br')}/login"
+    @app_name  = ENV.fetch('APP_NAME', 'Clara Ferreira CRM')
 
     mail(
       to:      user.email,
@@ -22,8 +22,8 @@ class WelcomeMailer < ApplicationMailer
     @user           = user
     @plain_password = plain_password
     @dept_label     = DEPT_LABELS[user.department] || 'Corretor(a)'
-    @login_url      = "#{ENV.fetch('FRONTEND_URL', 'https://crmchat.visitaia.com.br')}/login"
-    @app_name       = ENV.fetch('APP_NAME', 'VisitaIA CRM')
+    @login_url      = "#{ENV.fetch('FRONTEND_URL', 'https://crm.clarajoias.com.br')}/login"
+    @app_name       = ENV.fetch('APP_NAME', 'Clara Ferreira CRM')
 
     mail(
       to:      user.email,

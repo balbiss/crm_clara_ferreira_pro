@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import {
   MessageCircle, Users, UserCheck, UserX, ListChecks, LayoutGrid, Kanban,
-  TrendingUp, Badge, Settings, CreditCard, BrainCircuit, Bell,
+  TrendingUp, Badge, Settings, BrainCircuit, Bell,
   BookOpen, ChevronRight, Search, Bot, Zap, Shield, ArrowRightLeft
 } from 'lucide-vue-next'
 
@@ -22,7 +22,6 @@ const sections = [
   { id: 'relatorios',     label: 'Relatórios',              icon: TrendingUp },
   { id: 'agentes',        label: 'Agentes',                 icon: Badge },
   { id: 'configuracoes',  label: 'Configurações',           icon: Settings },
-  { id: 'cobranca',       label: 'Cobrança (Asaas)',        icon: CreditCard },
   { id: 'ia',             label: 'Inteligência Artificial', icon: BrainCircuit },
   { id: 'notificacoes',   label: 'Notificações Push',       icon: Bell },
   { id: 'permissoes',     label: 'Permissões',              icon: Shield },
@@ -257,7 +256,7 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
                 <tr><td>Nome</td><td>Nome completo da revendedora</td></tr>
                 <tr><td>Telefone / WhatsApp</td><td>Número principal de contato</td></tr>
                 <tr><td>E-mail</td><td>E-mail para envios</td></tr>
-                <tr><td>CPF/CNPJ</td><td>Necessário para gerar cobranças via Asaas</td></tr>
+                <tr><td>CPF/CNPJ</td><td>Sincronizado automaticamente do Jueri</td></tr>
                 <tr><td>Temperatura</td><td>Quente / Morno / Frio — indica nível de engajamento</td></tr>
                 <tr><td>Status</td><td>Etapa da régua: ativa, 3º/10º/20º dia, agendado, atrasada</td></tr>
                 <tr><td>Origem</td><td>WhatsApp, Indicação, Jueri (sincronização) etc.</td></tr>
@@ -469,49 +468,6 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
 
         <div class="divider" />
 
-        <!-- ══════════════════════════════════════ COBRANÇA -->
-        <section id="cobranca">
-          <h1>Cobrança via Asaas (PIX e Boleto)</h1>
-          <p class="lead">Gere cobranças diretamente pelo painel de conversas e envie automaticamente para o cliente pelo WhatsApp.</p>
-
-          <h2>Configuração inicial (apenas dono)</h2>
-          <ol>
-            <li>Acesse <strong>Configurações → Cobrança (Asaas)</strong></li>
-            <li>Cole a sua <strong>API Key do Asaas</strong> (encontrada em: Asaas → Configurações → Integrações → API)</li>
-            <li>Selecione o ambiente: <strong>Sandbox</strong> para testes ou <strong>Produção</strong> para uso real</li>
-            <li>Clique em <strong>Salvar</strong> e depois <strong>Testar conexão</strong> para confirmar</li>
-          </ol>
-
-          <h2>Gerando uma cobrança</h2>
-          <ol>
-            <li>Abra uma conversa com o cliente</li>
-            <li>Clique no botão verde <strong>Cobrança</strong> no painel de ações</li>
-            <li>Se o cliente não tiver CPF cadastrado, o sistema solicitará antes de continuar</li>
-            <li>Escolha o tipo: <strong>PIX</strong> ou <strong>Boleto</strong></li>
-            <li>Informe: valor, data de vencimento e descrição (opcional)</li>
-            <li>Clique em <strong>Gerar</strong></li>
-          </ol>
-
-          <h2>Como é enviado</h2>
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>Tipo</th><th>O que é enviado no WhatsApp</th></tr></thead>
-              <tbody>
-                <tr><td>PIX</td><td>Imagem do QR Code + código Copia e Cola como texto</td></tr>
-                <tr><td>Boleto</td><td>Arquivo PDF do boleto como documento</td></tr>
-              </tbody>
-            </table>
-          </div>
-
-          <h2>Quem pode gerar cobranças</h2>
-          <p>Financeiro, Suporte, Manutenção, Dono e Admin. <strong>Consultoras não têm acesso</strong> à função de cobrança.</p>
-
-          <h2>Sandbox (ambiente de testes)</h2>
-          <p>Use a chave de Sandbox para testar o fluxo sem movimentação financeira real. Obtenha a chave em <a href="https://sandbox.asaas.com" target="_blank">sandbox.asaas.com</a> (conta gratuita).</p>
-        </section>
-
-        <div class="divider" />
-
         <!-- ══════════════════════════════════════ IA -->
         <section id="ia">
           <h1>Inteligência Artificial</h1>
@@ -620,7 +576,6 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
           <ul>
             <li>Criar, editar e bloquear agentes</li>
             <li>Configurar canais WhatsApp (inboxes)</li>
-            <li>Configurar a chave de API do Asaas</li>
             <li>Gerenciar etiquetas</li>
             <li>Ver relatórios de toda a equipe</li>
             <li>Visualizar todos os leads e conversas</li>

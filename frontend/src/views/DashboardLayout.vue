@@ -34,7 +34,6 @@ import {
   CalendarDays,
   Badge,
   TrendingUp,
-  CreditCard,
   BookOpen,
   Menu,
   X,
@@ -172,7 +171,7 @@ const isAdminOrEmpresa = computed(() => {
 })
 
 // Configurações críticas do sistema (briefing seção 30) — gerente NÃO entra
-// aqui, só diretoria/empresa/admin. Usado pra Agentes/Inboxes/Tags/Asaas/Conta.
+// aqui, só diretoria/empresa/admin. Usado pra Agentes/Inboxes/Tags/Conta.
 const isCriticalConfig = computed(() => {
   return ['admin', 'empresa', 'diretoria'].includes(currentUser.value.role) || !!currentUser.value.permissions?.admin
 })
@@ -662,7 +661,6 @@ const saveReorder = async () => {
             <router-link to="/settings/account" class="nav-item sub-item" active-class="active"><Briefcase class="icon-sm" /> Conta</router-link>
             <router-link to="/settings/inboxes" class="nav-item sub-item"><Inbox class="icon-sm" /> Caixas de Entrada</router-link>
             <router-link to="/settings/tags" class="nav-item sub-item" active-class="active"><Tag class="icon-sm" /> Etiquetas</router-link>
-            <router-link to="/settings/asaas" class="nav-item sub-item" active-class="active"><CreditCard class="icon-sm" /> Cobrança (Asaas)</router-link>
             <router-link to="/agentes" class="nav-item sub-item" active-class="active"><Badge class="icon-sm" /> Agentes</router-link>
           </div>
         </div>
@@ -732,14 +730,14 @@ const saveReorder = async () => {
         <span class="mobile-brand">{{ accountName() }}</span>
       </div>
       <div v-if="showIosInstallBanner" class="ios-install-banner">
-        <span>📲 Adicione o VisitaIA à Tela de Início pra receber notificações e usar em tela cheia.</span>
+        <span>Adicione o {{ brand.name }} à Tela de Início pra receber notificações e usar em tela cheia.</span>
         <button class="ios-install-banner-close" @click="dismissIosBanner">
           <X class="icon-sm" />
         </button>
       </div>
 
       <div v-if="showAndroidInstallBanner" class="ios-install-banner">
-        <span>📲 Instale o VisitaIA no seu celular pra acesso rápido e notificações.</span>
+        <span>Instale o {{ brand.name }} no seu celular pra acesso rápido e notificações.</span>
         <button class="install-cta-btn" @click="promptInstall">Instalar</button>
         <button class="ios-install-banner-close" @click="dismissAndroidBanner">
           <X class="icon-sm" />

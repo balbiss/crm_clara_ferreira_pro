@@ -34,8 +34,7 @@ import {
   Sparkles,
   Loader2,
   BotOff,
-  Bot,
-  CreditCard
+  Bot
 } from '@lucide/vue'
 
 import api from '../api'
@@ -49,7 +48,6 @@ import EditContactModal from '../components/EditContactModal.vue'
 import MergeContactModal from '../components/MergeContactModal.vue'
 import DeleteContactModal from '../components/DeleteContactModal.vue'
 import ScheduleMessageModal from '../components/ScheduleMessageModal.vue'
-import ChargeModal from '../components/ChargeModal.vue'
 import TransferModal from '../components/TransferModal.vue'
 
 const store = useConversationsStore()
@@ -377,14 +375,8 @@ const formatMessageTime = (isoString) => {
 const isEditModalOpen = ref(false)
 const isMergeModalOpen = ref(false)
 const isDeleteModalOpen = ref(false)
-const isChargeModalOpen = ref(false)
 
 const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
-const canGenerateCharge = computed(() => {
-  const dept = currentUser.department || 'corretor'
-  const role = currentUser.role || 'atendente'
-  return dept !== 'corretor' || role === 'empresa' || role === 'admin'
-})
 const isFilterPopoverOpen = ref(false)
 const isSortPopoverOpen = ref(false)
 
@@ -876,7 +868,6 @@ onUnmounted(() => {
             <div v-if="isDetailsMenuOpen" class="details-menu" @click.stop>
               <button class="details-menu-item" @click="openEditModal(); isDetailsMenuOpen = false"><Edit2 class="icon-xs" /> Editar contato</button>
               <button class="details-menu-item" @click="openMergeModal(); isDetailsMenuOpen = false"><GitMerge class="icon-xs" /> Mesclar contato</button>
-              <button v-if="canGenerateCharge" class="details-menu-item" @click="isChargeModalOpen = true; isDetailsMenuOpen = false"><CreditCard class="icon-xs" /> Gerar cobrança</button>
               <button class="details-menu-item danger" @click="openDeleteModal(); isDetailsMenuOpen = false"><Trash2 class="icon-xs" /> Apagar contato</button>
             </div>
           </div>
@@ -935,7 +926,6 @@ onUnmounted(() => {
           <button class="action-btn" title="Focar Mensagem" @click="focusMessageInput"><MessageCircle class="icon-sm" /></button>
           <button class="action-btn" title="Editar Contato" @click="openEditModal"><Edit2 class="icon-sm" /></button>
           <button class="action-btn" title="Mesclar Contato" @click="openMergeModal"><GitMerge class="icon-sm" /></button>
-          <button v-if="canGenerateCharge" class="action-btn charge" title="Gerar Cobrança" @click="isChargeModalOpen = true"><CreditCard class="icon-sm" /></button>
           <button class="action-btn danger" title="Apagar Contato" @click="openDeleteModal"><Trash2 class="icon-sm" /></button>
         </div>
       </div>
@@ -1098,16 +1088,6 @@ onUnmounted(() => {
         <div class="fin-card">
           <span class="fin-label">Em aberto</span>
           <span class="fin-value" :class="{ warn: totalEmAberto > 0 }">{{ brl(totalEmAberto) }}</span>
-        </div>
-      </div>
-
-      <div class="accordion-card">
-        <div class="card-header"><h3>Cobrança</h3></div>
-        <div class="card-body" style="padding-top: 0.5rem; display: flex; flex-direction: column; gap: 0.6rem;">
-          <button v-if="canGenerateCharge" class="btn-text-blue" @click="isChargeModalOpen = true">
-            <CreditCard class="icon-xs" style="margin-right: 0.3rem;" /> Gerar cobrança
-          </button>
-          <p v-else class="empty-text">Sem permissão para gerar cobrança.</p>
         </div>
       </div>
 
@@ -1280,7 +1260,6 @@ onUnmounted(() => {
     <EditContactModal :isOpen="isEditModalOpen" :contact="store.activeConversation?.contact" @close="isEditModalOpen = false" />
     <MergeContactModal :isOpen="isMergeModalOpen" :contact="store.activeConversation?.contact" @close="isMergeModalOpen = false" />
     <DeleteContactModal :isOpen="isDeleteModalOpen" :contact="store.activeConversation?.contact" @close="isDeleteModalOpen = false" @deleted="handleContactDeleted" />
-    <ChargeModal v-if="store.activeConversation?.contact" :show="isChargeModalOpen" :contact="store.activeConversation.contact" @close="isChargeModalOpen = false" />
     <TransferModal v-if="showTransferModal" :agents="store.agents" :currentAssigneeId="store.activeConversation?.assignee_id" @close="showTransferModal = false" @confirm="handleTransfer" />
     
     <ScheduleMessageModal 

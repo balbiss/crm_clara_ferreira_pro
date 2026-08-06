@@ -10,13 +10,11 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_03_000007) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_06_030534) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
   create_table "accounts", force: :cascade do |t|
-    t.string "asaas_api_key"
-    t.boolean "asaas_sandbox", default: false, null: false
     t.datetime "created_at", null: false
     t.string "facebook_page_access_token"
     t.string "facebook_page_id"
@@ -66,7 +64,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_03_000007) do
     t.bigint "account_id", null: false
     t.string "address_complement"
     t.string "address_number"
-    t.string "asaas_customer_id"
     t.string "avatar_url"
     t.text "bio"
     t.date "birth_date"
@@ -112,7 +109,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_03_000007) do
     t.index ["account_id", "status"], name: "index_contacts_on_account_id_and_status"
     t.index ["account_id", "temperature"], name: "idx_contacts_account_temperature"
     t.index ["account_id"], name: "index_contacts_on_account_id"
-    t.index ["asaas_customer_id"], name: "index_contacts_on_asaas_customer_id"
     t.index ["instagram_id"], name: "index_contacts_on_instagram_id"
     t.index ["jid"], name: "index_contacts_on_jid"
     t.index ["pecas_abertas_atual"], name: "index_contacts_on_pecas_abertas_atual"

@@ -52,7 +52,7 @@ Rails.application.configure do
 
   # Allow cross-origin WebSocket from the frontend domain
   config.action_cable.allowed_request_origins = [
-    ENV.fetch("FRONTEND_URL", "https://crmchat.visitaia.com.br"),
+    ENV.fetch("FRONTEND_URL", "https://crm.clarajoias.com.br"),
     /https?:\/\/localhost(:\d+)?/
   ]
 
@@ -60,14 +60,14 @@ Rails.application.configure do
   config.action_mailer.delivery_method        = :smtp
   config.action_mailer.raise_delivery_errors  = true
   config.action_mailer.default_url_options    = {
-    host:     ENV.fetch('BACKEND_URL', 'https://api.visitaia.com.br').sub(/^https?:\/\//, ''),
+    host:     ENV.fetch('BACKEND_URL', 'https://crm-api.clarajoias.com.br').sub(/^https?:\/\//, ''),
     protocol: 'https'
   }
   config.action_mailer.smtp_settings = {
     address:              'smtp.hostinger.com',
     port:                 587,
-    domain:               ENV.fetch('SMTP_DOMAIN', 'visitaia.com.br'),
-    user_name:            ENV.fetch('SMTP_USER',   'suporte@visitaia.com.br'),
+    domain:               ENV.fetch('SMTP_DOMAIN', 'clarajoias.com.br'),
+    user_name:            ENV.fetch('SMTP_USER',   'suporte@clarajoias.com.br'),
     password:             ENV.fetch('SMTP_PASSWORD', ''),
     authentication:       :plain,
     enable_starttls_auto: true

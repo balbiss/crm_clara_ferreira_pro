@@ -2,15 +2,15 @@ pt-BR:
   devise:
     mailer:
       reset_password_instructions:
-        subject: "Redefinição de senha — VisitaIA CRM"
+        subject: "Redefinição de senha — Clara Ferreira CRM"
       confirmation_instructions:
-        subject: "Confirmação de conta — VisitaIA CRM"
+        subject: "Confirmação de conta — Clara Ferreira CRM"
       unlock_instructions:
-        subject: "Desbloqueio de conta — VisitaIA CRM"
+        subject: "Desbloqueio de conta — Clara Ferreira CRM"
       email_changed:
-        subject: "E-mail alterado — VisitaIA CRM"
+        subject: "E-mail alterado — Clara Ferreira CRM"
       password_change:
-        subject: "Senha alterada — VisitaIA CRM"
+        subject: "Senha alterada — Clara Ferreira CRM"
     sessions:
       signed_in: "Login realizado com sucesso."
       signed_out: "Sessão encerrada com sucesso."

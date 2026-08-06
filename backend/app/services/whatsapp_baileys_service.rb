@@ -212,7 +212,7 @@ class WhatsappBaileysService
     end
   end
 
-  # Sends raw binary data as a document (e.g. boleto PDF from Asaas)
+  # Sends raw binary data as a document (e.g. a PDF)
   def send_raw_document(jid, filename:, mimetype:, data:, caption: nil)
     jid = normalize_jid(jid)
 
@@ -237,7 +237,7 @@ class WhatsappBaileysService
     false
   end
 
-  # Sends raw binary data as an image (e.g. PIX QR code from Asaas)
+  # Sends raw binary data as an image
   def send_raw_image(jid, data:, caption: nil)
     jid = normalize_jid(jid)
 

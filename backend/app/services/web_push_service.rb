@@ -1,6 +1,6 @@
 class WebPushService
   VAPID = {
-    subject:     "mailto:#{ENV.fetch('SMTP_USER', 'suporte@visitaia.com.br')}",
+    subject:     "mailto:#{ENV.fetch('SMTP_USER', 'suporte@clarajoias.com.br')}",
     public_key:  ENV.fetch('VAPID_PUBLIC_KEY',  ''),
     private_key: ENV.fetch('VAPID_PRIVATE_KEY', '')
   }.freeze
