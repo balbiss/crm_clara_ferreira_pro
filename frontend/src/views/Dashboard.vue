@@ -1,16 +1,17 @@
 <script setup>
-import { onMounted, computed } from 'vue'
+import { onMounted, computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  Users, Flame, Calendar, CalendarCheck,
-  CalendarDays, MessageCircle, UserCheck, TrendingUp, BarChart2,
-  CheckCircle, ChevronRight, Handshake, Phone, ArrowRight, Inbox
+  Users, Handshake, CalendarDays, Flame, RefreshCw,
+  MessageCircle, UserCheck, CalendarCheck, TrendingUp, BarChart2,
+  ChevronRight, ArrowRight, CheckCircle2, Circle, ClipboardList
 } from 'lucide-vue-next'
 import { Doughnut } from 'vue-chartjs'
 import { Chart as ChartJS, Title, Tooltip, Legend, ArcElement, CategoryScale } from 'chart.js'
 import { useDashboardStore } from '../store/dashboard'
 import { useConversationsStore } from '../store/conversations'
 import { storeToRefs } from 'pinia'
+import api from '../api'
 
 ChartJS.register(Title, Tooltip, Legend, ArcElement, CategoryScale)
 
@@ -24,37 +25,63 @@ const openConversation = (conversationId) => {
   router.push('/conversas')
 }
 
-const tempColor = (t) => {
-  if (!t) return { bg: '#f1f5f9', text: '#64748b', label: 'Sem temp.' }
-  const l = t.toLowerCase()
-  if (l === 'quente') return { bg: '#fef2f2', text: '#dc2626', label: 'Quente' }
-  if (l === 'morno')  return { bg: '#fffbeb', text: '#d97706', label: 'Morno'  }
-  return                     { bg: '#eff6ff', text: '#1d4ed8', label: 'Frio'   }
+const dashTitle = computed(() => isOwner.value ? 'Dashboard' : 'Meu Painel')
+
+// ── Tarefas do Dia (checklist real, não contador) ──────────────────────────
+const TAREFA_TIPO_LABELS = {
+  terceiro_dia: '3º Dia',
+  decimo_dia:   '10º Dia',
+  vigesimo_dia: '20º Dia',
+  atrasada:     'Atrasada',
+  manual:       'Manual'
 }
 
-const kanbanLabel = (s) => {
-  const map = {
-    revendedor_ativo: 'Ativa', terceiro_dia: '3º Dia', decimo_dia: '10º Dia',
-    vigesimo_dia: '20º Dia', agendado: 'Agendado'
-  }
-  return map[s] || s || '—'
-}
+const tarefasPendentes = ref([])
+const isLoadingTarefas = ref(true)
+const completingId = ref(null)
 
-onMounted(() => store.fetchDashboard())
-
-const dashTitle    = computed(() => isOwner.value ? 'Dashboard' : 'Meu Painel')
-const dashSubtitle = computed(() => isOwner.value
-  ? 'Visão estratégica da carteira de revendedoras em tempo real.'
-  : 'Seus leads e atendimentos atribuídos a você.')
-
-const chartOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  cutout: '72%',
-  plugins: {
-    legend: { position: 'bottom', labels: { font: { family: "'Inter', sans-serif", size: 12 }, padding: 16, usePointStyle: true } }
+const fetchTarefasPendentes = async () => {
+  isLoadingTarefas.value = true
+  try {
+    const { data } = await api.get('/tarefas', { params: { status: 'pendente' } })
+    tarefasPendentes.value = data
+  } catch (e) {
+    console.error('Erro ao buscar tarefas do dia:', e)
+  } finally {
+    isLoadingTarefas.value = false
   }
 }
+
+const completeTarefa = async (tarefa) => {
+  completingId.value = tarefa.id
+  try {
+    await api.patch(`/tarefas/${tarefa.id}/complete`)
+    tarefasPendentes.value = tarefasPendentes.value.filter(t => t.id !== tarefa.id)
+  } catch (e) {
+    console.error('Erro ao concluir tarefa:', e)
+  } finally {
+    completingId.value = null
+  }
+}
+
+const openTarefaContact = (tarefa) => {
+  if (tarefa.contact?.id) router.push(`/contatos/${tarefa.contact.id}`)
+}
+
+onMounted(() => {
+  store.fetchDashboard()
+  fetchTarefasPendentes()
+})
+
+const refreshAll = () => {
+  store.fetchDashboard()
+  fetchTarefasPendentes()
+}
+
+// ── Régua (funil) + Distribuição por status — paleta monocromática vinho,
+// só o alerta crítico (Atrasada) sai do tom institucional.
+const WINE_SHADES = ['#2b0016', '#5c1a35', '#8a3355', '#b45a78', '#d49ba7']
+const ALERT_COLOR = '#a24a3a'
 
 const funnelTotal = computed(() => {
   const k = kpis.value?.kanban
@@ -65,26 +92,33 @@ const funnelTotal = computed(() => {
 const funnelItems = computed(() => {
   const k = kpis.value?.kanban || {}
   return [
-    { label: 'Ativa',    value: k.revendedor_ativo || 0, color: '#6366f1', icon: Users },
-    { label: '3º Dia',   value: k.terceiro_dia      || 0, color: '#f59e0b', icon: Calendar },
-    { label: '10º Dia',  value: k.decimo_dia        || 0, color: '#eab308', icon: Calendar },
-    { label: '20º Dia',  value: k.vigesimo_dia      || 0, color: '#d49ba7', icon: Handshake },
-    { label: 'Agendado', value: k.agendado          || 0, color: '#10b981', icon: CheckCircle }
+    { label: 'Ativa',    value: k.revendedor_ativo || 0, color: WINE_SHADES[0] },
+    { label: '3º Dia',   value: k.terceiro_dia      || 0, color: WINE_SHADES[1] },
+    { label: '10º Dia',  value: k.decimo_dia        || 0, color: WINE_SHADES[2] },
+    { label: '20º Dia',  value: k.vigesimo_dia      || 0, color: WINE_SHADES[3] },
+    { label: 'Agendado', value: k.agendado          || 0, color: WINE_SHADES[4] }
   ]
 })
 
-// Substitui a antiga "Leads por Origem" (fonte/canal) — pra revenda consignada
-// a origem é sempre Jueri, quem importa é em que etapa da régua a carteira está.
+const chartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  cutout: '72%',
+  plugins: {
+    legend: { position: 'bottom', labels: { font: { family: "'Inter', sans-serif", size: 12 }, padding: 16, usePointStyle: true } }
+  }
+}
+
 const statusDistributionData = computed(() => {
   const k = kpis.value?.kanban || {}
   const entries = [
-    ['Ativa',       k.revendedor_ativo],
-    ['3º Dia',      k.terceiro_dia],
-    ['10º Dia',     k.decimo_dia],
-    ['20º Dia',     k.vigesimo_dia],
-    ['Agendado',    k.agendado],
-    ['Reagendar',   k.reagendar],
-    ['Atrasada',    k.atrasada]
+    ['Ativa',     k.revendedor_ativo, WINE_SHADES[0]],
+    ['3º Dia',    k.terceiro_dia,     WINE_SHADES[1]],
+    ['10º Dia',   k.decimo_dia,       WINE_SHADES[2]],
+    ['20º Dia',   k.vigesimo_dia,     WINE_SHADES[3]],
+    ['Agendado',  k.agendado,         WINE_SHADES[4]],
+    ['Reagendar', k.reagendar,        '#94a3b8'],
+    ['Atrasada',  k.atrasada,         ALERT_COLOR]
   ].filter(([, v]) => v > 0)
 
   if (entries.length === 0) {
@@ -93,10 +127,7 @@ const statusDistributionData = computed(() => {
 
   return {
     labels: entries.map(([l]) => l),
-    datasets: [{
-      data: entries.map(([, v]) => v),
-      backgroundColor: ['#6366f1', '#f59e0b', '#eab308', '#d49ba7', '#10b981', '#3b82f6', '#ef4444']
-    }]
+    datasets: [{ data: entries.map(([, v]) => v), backgroundColor: entries.map(([, , c]) => c) }]
   }
 })
 </script>
@@ -105,218 +136,142 @@ const statusDistributionData = computed(() => {
   <div class="db">
     <!-- Header -->
     <div class="db-header">
-      <div>
-        <h1>{{ dashTitle }}</h1>
-        <p>{{ dashSubtitle }}</p>
-      </div>
-      <div class="header-actions">
-        <button class="btn-outline" @click="store.fetchDashboard()">
-          <TrendingUp class="ic" /> Atualizar
-        </button>
-      </div>
+      <h1>{{ dashTitle }}</h1>
+      <button class="btn-outline" @click="refreshAll">
+        <RefreshCw class="ic" /> Atualizar
+      </button>
     </div>
 
-    <!-- Skeleton -->
     <div v-if="isLoading" class="skeleton-wrap">
+      <div class="skel-bar"></div>
       <div class="skel-row">
-        <div class="skel-card" v-for="i in 4" :key="i"></div>
-      </div>
-      <div class="skel-row mt">
         <div class="skel-wide"></div>
-        <div class="skel-half-col">
-          <div class="skel-sm" v-for="i in 3" :key="i"></div>
-        </div>
+        <div class="skel-narrow"></div>
       </div>
     </div>
 
     <template v-else>
 
-      <!-- Revendedoras Atribuídas Hoje -->
-      <div class="section-label">
-        {{ isOwner ? 'Conversas Chegaram Hoje' : 'Revendedoras Atribuídas a Você' }}
-        <span class="today-count">{{ todayLeads.length }}</span>
-      </div>
-
-      <div v-if="todayLeads.length === 0" class="today-empty">
-        <Inbox class="today-empty-ic" />
-        <p>{{ isOwner ? 'Nenhuma conversa nova chegou hoje ainda.' : 'Nenhuma revendedora foi atribuída a você hoje ainda.' }}</p>
-      </div>
-
-      <div v-else class="today-leads-grid">
-        <div
-          v-for="lead in todayLeads"
+      <!-- Revendedoras atribuídas hoje — compacto, uma linha por item -->
+      <div v-if="todayLeads.length > 0" class="today-strip">
+        <span class="today-strip-label">{{ isOwner ? 'Chegaram hoje' : 'Atribuídas a você hoje' }}</span>
+        <button
+          v-for="lead in todayLeads.slice(0, 6)"
           :key="lead.conversation_id"
-          class="today-lead-card"
+          class="today-chip"
           @click="openConversation(lead.conversation_id)"
         >
-          <div class="tlc-avatar">
-            {{ (lead.contact_name || '?')[0].toUpperCase() }}
+          {{ lead.contact_name }}
+        </button>
+        <span v-if="todayLeads.length > 6" class="today-chip-more">+{{ todayLeads.length - 6 }}</span>
+      </div>
+
+      <!-- Barra unificada da carteira -->
+      <div class="metrics-bar">
+        <div class="metric">
+          <Users class="metric-ic" />
+          <div>
+            <div class="metric-val">{{ kpis.carteira.ativas_total }}</div>
+            <div class="metric-lbl">Revendedoras Ativas</div>
           </div>
-          <div class="tlc-body">
-            <div class="tlc-top">
-              <span class="tlc-name">{{ lead.contact_name }}</span>
-              <span class="tlc-badge" :style="{ background: tempColor(lead.temperature).bg, color: tempColor(lead.temperature).text }">
-                {{ tempColor(lead.temperature).label }}
-              </span>
-            </div>
-            <div class="tlc-phone" v-if="lead.contact_phone">
-              <Phone class="tlc-icon" /> {{ lead.contact_phone }}
-            </div>
-            <div class="tlc-intention" v-if="lead.intention">{{ lead.intention }}</div>
-            <div class="tlc-footer">
-              <span class="tlc-stage">{{ kanbanLabel(lead.kanban_status) }}</span>
-              <span class="tlc-agent" v-if="lead.assigned_to">→ {{ lead.assigned_to }}</span>
-              <span class="tlc-time">{{ new Date(lead.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }}</span>
-            </div>
+        </div>
+        <div class="metric-sep"></div>
+        <div class="metric">
+          <Handshake class="metric-ic" />
+          <div>
+            <div class="metric-val">{{ kpis.carteira.com_maleta }}</div>
+            <div class="metric-lbl">Com Maleta (&gt;25 peças)</div>
           </div>
-          <ArrowRight class="tlc-arrow" />
+        </div>
+        <div class="metric-sep"></div>
+        <div class="metric">
+          <CalendarDays class="metric-ic" />
+          <div>
+            <div class="metric-val">{{ kpis.carteira.agendadas }}</div>
+            <div class="metric-lbl">Agendadas</div>
+          </div>
+        </div>
+        <div class="metric-sep"></div>
+        <div class="metric" :class="{ alert: kpis.carteira.atrasadas > 0 }">
+          <Flame class="metric-ic" />
+          <div>
+            <div class="metric-val">{{ kpis.carteira.atrasadas }}</div>
+            <div class="metric-lbl">Atrasadas</div>
+          </div>
         </div>
       </div>
 
-      <!-- Row 1: Carteira Operacional -->
-      <div class="section-label mt-section">Carteira Operacional</div>
-      <div class="grid-4">
-        <div class="kpi-card accent-blue">
-          <div class="kpi-left">
-            <div class="kpi-icon blue"><Users /></div>
-            <div>
-              <div class="kpi-val">{{ kpis.carteira.ativas_total }}</div>
-              <div class="kpi-lbl">Revendedoras Ativas</div>
+      <!-- Corpo: 60% Tarefas do Dia / 40% Central de Atendimento -->
+      <div class="main-grid">
+
+        <!-- Esquerda: checklist de tarefas -->
+        <div class="panel tasks-panel">
+          <div class="panel-head">
+            <ClipboardList class="ic" /> Tarefas do Dia
+            <span class="panel-count">{{ tarefasPendentes.length }}</span>
+          </div>
+
+          <router-link v-if="kpis.tarefas_do_dia.reagendar > 0" to="/carteira" class="reagendar-banner">
+            {{ kpis.tarefas_do_dia.reagendar }} revendedora{{ kpis.tarefas_do_dia.reagendar === 1 ? '' : 's' }} aguardando reagendamento
+            <ChevronRight class="ic-xs" />
+          </router-link>
+
+          <div class="task-list" v-if="!isLoadingTarefas && tarefasPendentes.length > 0">
+            <div v-for="t in tarefasPendentes" :key="t.id" class="task-row">
+              <button class="task-check" :disabled="completingId === t.id" @click="completeTarefa(t)" title="Concluir">
+                <CheckCircle2 v-if="completingId === t.id" class="ic-sm spin" />
+                <Circle v-else class="ic-sm" />
+              </button>
+              <div class="task-body" @click="openTarefaContact(t)">
+                <div class="task-top">
+                  <span class="task-name">{{ t.contact?.name || t.contact?.phone || 'Sem nome' }}</span>
+                  <span class="task-tag">{{ TAREFA_TIPO_LABELS[t.tipo] || t.tipo }}</span>
+                </div>
+                <div class="task-title">{{ t.titulo }}</div>
+              </div>
             </div>
+          </div>
+
+          <div v-else-if="isLoadingTarefas" class="panel-empty"><p>Carregando tarefas...</p></div>
+          <div v-else class="panel-empty">
+            <CheckCircle2 class="panel-empty-ic" />
+            <p>Nenhuma tarefa pendente — carteira em dia.</p>
           </div>
         </div>
 
-        <div class="kpi-card accent-amber">
-          <div class="kpi-left">
-            <div class="kpi-icon amber"><Handshake /></div>
-            <div>
-              <div class="kpi-val">{{ kpis.carteira.com_maleta }}</div>
-              <div class="kpi-lbl">Com Maleta (&gt;25 peças)</div>
+        <!-- Direita: central de atendimento -->
+        <div class="panel attendance-panel">
+          <div class="panel-head">
+            <MessageCircle class="ic" /> Central de Atendimento
+          </div>
+          <div class="attendance-list">
+            <div class="attendance-row">
+              <MessageCircle class="ic-sm" />
+              <span class="attendance-lbl">Conversas Abertas</span>
+              <span class="attendance-val">{{ kpis.conversations.open }}</span>
+            </div>
+            <div class="attendance-row">
+              <UserCheck class="ic-sm" />
+              <span class="attendance-lbl">Com Atendente Humano</span>
+              <span class="attendance-val">{{ kpis.conversations.with_human }}</span>
+            </div>
+            <div class="attendance-row">
+              <CalendarCheck class="ic-sm" />
+              <span class="attendance-lbl">Conversas Resolvidas</span>
+              <span class="attendance-val">{{ kpis.conversations.resolved }}</span>
+            </div>
+            <div class="attendance-row highlight">
+              <Handshake class="ic-sm" />
+              <span class="attendance-lbl">Acertos da Semana</span>
+              <span class="attendance-val">{{ kpis.conversations.acertos_semana }}</span>
             </div>
           </div>
-        </div>
-
-        <div class="kpi-card accent-green">
-          <div class="kpi-left">
-            <div class="kpi-icon green"><CalendarDays /></div>
-            <div>
-              <div class="kpi-val">{{ kpis.carteira.agendadas }}</div>
-              <div class="kpi-lbl">Próximas do Acerto</div>
-            </div>
-          </div>
-          <div class="kpi-sub">agendadas</div>
-        </div>
-
-        <div class="kpi-card accent-red">
-          <div class="kpi-left">
-            <div class="kpi-icon red"><Flame /></div>
-            <div>
-              <div class="kpi-val">{{ kpis.carteira.atrasadas }}</div>
-              <div class="kpi-lbl">Atrasadas</div>
-            </div>
-          </div>
-          <div class="kpi-badge hot">&gt; 35 dias</div>
         </div>
       </div>
 
-      <!-- Row 1.5: Tarefas do Dia (régua) -->
-      <div class="section-label mt-section">Tarefas do Dia</div>
-      <div class="grid-4">
-        <div class="kpi-card accent-amber">
-          <div class="kpi-left">
-            <div class="kpi-icon amber"><Calendar /></div>
-            <div>
-              <div class="kpi-val">{{ kpis.tarefas_do_dia.terceiro_dia }}</div>
-              <div class="kpi-lbl">3º Dia</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="kpi-card accent-amber">
-          <div class="kpi-left">
-            <div class="kpi-icon amber"><Calendar /></div>
-            <div>
-              <div class="kpi-val">{{ kpis.tarefas_do_dia.decimo_dia }}</div>
-              <div class="kpi-lbl">10º Dia</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="kpi-card accent-indigo">
-          <div class="kpi-left">
-            <div class="kpi-icon indigo"><Handshake /></div>
-            <div>
-              <div class="kpi-val">{{ kpis.tarefas_do_dia.vigesimo_dia }}</div>
-              <div class="kpi-lbl">20º Dia</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="kpi-card accent-red">
-          <div class="kpi-left">
-            <div class="kpi-icon red"><CalendarCheck /></div>
-            <div>
-              <div class="kpi-val">{{ kpis.tarefas_do_dia.reagendar }}</div>
-              <div class="kpi-lbl">Reagendamentos</div>
-            </div>
-          </div>
-          <div class="kpi-badge hot">pendentes</div>
-        </div>
-      </div>
-
-      <!-- Row 2: Conversas -->
-      <div class="section-label mt-section">Atendimento</div>
-      <div class="grid-4">
-        <div class="kpi-card accent-purple">
-          <div class="kpi-left">
-            <div class="kpi-icon purple"><MessageCircle /></div>
-            <div>
-              <div class="kpi-val">{{ kpis.conversations.open }}</div>
-              <div class="kpi-lbl">Conversas Abertas</div>
-            </div>
-          </div>
-          <div class="kpi-sub">{{ kpis.conversations.today }} novas hoje</div>
-        </div>
-
-        <div class="kpi-card accent-violet">
-          <div class="kpi-left">
-            <div class="kpi-icon violet"><UserCheck /></div>
-            <div>
-              <div class="kpi-val">{{ kpis.conversations.with_human }}</div>
-              <div class="kpi-lbl">Com Atendente Humano</div>
-            </div>
-          </div>
-          <div class="kpi-badge human">Em andamento</div>
-        </div>
-
-        <div class="kpi-card accent-green">
-          <div class="kpi-left">
-            <div class="kpi-icon green"><CalendarDays /></div>
-            <div>
-              <div class="kpi-val">{{ kpis.kanban.agendado }}</div>
-              <div class="kpi-lbl">Acertos Agendados</div>
-            </div>
-          </div>
-          <div class="kpi-sub">na régua ativa</div>
-        </div>
-
-        <div class="kpi-card accent-indigo">
-          <div class="kpi-left">
-            <div class="kpi-icon indigo"><CalendarCheck /></div>
-            <div>
-              <div class="kpi-val">{{ kpis.conversations.resolved }}</div>
-              <div class="kpi-lbl">Conversas Resolvidas</div>
-            </div>
-          </div>
-          <div class="kpi-badge done">Concluídas</div>
-        </div>
-      </div>
-
-      <!-- Row 3: Funil + Gráfico -->
-      <div class="section-label mt-section">Régua de Relacionamento & Origem dos Leads</div>
+      <!-- Régua + Distribuição -->
+      <div class="section-label mt-section">Régua de Relacionamento &amp; Distribuição por Status</div>
       <div class="grid-2-3">
-
-        <!-- Funil -->
         <div class="panel">
           <div class="panel-head">
             <BarChart2 class="ic" /> Régua de Relacionamento
@@ -324,7 +279,6 @@ const statusDistributionData = computed(() => {
           <div class="funnel-list">
             <div v-for="item in funnelItems" :key="item.label" class="funnel-item">
               <div class="funnel-meta">
-                <component :is="item.icon" class="funnel-ic" :style="{ color: item.color }" />
                 <span class="funnel-label">{{ item.label }}</span>
                 <span class="funnel-val" :style="{ color: item.color }">{{ item.value }}</span>
               </div>
@@ -336,7 +290,6 @@ const statusDistributionData = computed(() => {
               </div>
             </div>
           </div>
-
           <div class="funnel-footer">
             <button class="btn-link" @click="router.push('/funil')">
               Ver funil completo <ChevronRight class="ic-xs" />
@@ -344,7 +297,6 @@ const statusDistributionData = computed(() => {
           </div>
         </div>
 
-        <!-- Doughnut Status -->
         <div class="panel">
           <div class="panel-head">
             <TrendingUp class="ic" /> Distribuição por Status
@@ -354,10 +306,9 @@ const statusDistributionData = computed(() => {
           </div>
           <div class="no-data" v-else>
             <BarChart2 class="no-data-ic" />
-            <p>Nenhuma origem cadastrada ainda</p>
+            <p>Nenhum dado ainda</p>
           </div>
         </div>
-
       </div>
     </template>
   </div>
@@ -365,6 +316,12 @@ const statusDistributionData = computed(() => {
 
 <style lang="scss" scoped>
 .db {
+  --wine: #2b0016;
+  --wine-soft: rgba(43, 0, 22, 0.06);
+  --wine-soft-2: rgba(43, 0, 22, 0.1);
+  --alert: #a24a3a;
+  --alert-bg: #fbeeea;
+
   padding: 2rem 2.5rem;
   background: var(--bg-primary, #f8f9fb);
   min-height: 100%;
@@ -375,140 +332,108 @@ const statusDistributionData = computed(() => {
 .db-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 1.75rem;
+  align-items: center;
+  margin-bottom: 1.5rem;
 
   h1 {
     font-size: 1.45rem;
     font-weight: 700;
     color: var(--text-main, #0f172a);
-    margin: 0 0 0.2rem;
+    margin: 0;
   }
-  p { font-size: 0.875rem; color: var(--text-muted, #64748b); margin: 0; }
 }
 
 .btn-outline {
   display: inline-flex; align-items: center; gap: 0.4rem;
   border: 1px solid var(--border-color, #e2e8f0);
   background: var(--bg-secondary, #fff);
-  color: var(--text-main, #334155);
+  color: var(--wine);
   padding: 0.45rem 1rem; border-radius: 8px;
-  font-size: 0.82rem; font-weight: 500; cursor: pointer;
+  font-size: 0.82rem; font-weight: 600; cursor: pointer;
   transition: all 0.15s;
-  &:hover { background: var(--bg-primary, #f1f5f9); }
+  &:hover { background: var(--wine-soft); }
   .ic { width: 14px; height: 14px; }
 }
 
-/* Labels de seção */
-.section-label {
+/* Today strip */
+.today-strip {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+.today-strip-label {
   font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.08em; color: var(--text-muted, #94a3b8);
-  margin-bottom: 0.75rem;
-  &.mt-section { margin-top: 1.75rem; }
+  letter-spacing: 0.06em; color: var(--text-muted, #94a3b8); margin-right: 0.25rem;
 }
-.mt-section { margin-top: 1.75rem; }
-
-/* Grids */
-.grid-4 {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
+.today-chip {
+  background: var(--wine-soft);
+  color: var(--wine);
+  border: none;
+  border-radius: 20px;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  &:hover { background: var(--wine-soft-2); }
+}
+.today-chip-more {
+  font-size: 0.75rem; color: var(--text-muted, #94a3b8); padding: 0.3rem 0.4rem;
 }
 
-.grid-2-3 {
-  display: grid;
-  grid-template-columns: 1fr 1.2fr;
-  gap: 1rem;
-}
-
-/* KPI Card */
-.kpi-card {
-  background: var(--bg-secondary, #fff);
-  border-radius: 14px;
-  padding: 1.1rem 1.2rem;
-  border: 1px solid var(--border-color, #e8edf2);
+/* Barra unificada da carteira */
+.metrics-bar {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  background: linear-gradient(135deg, rgba(212, 155, 167, 0.1), rgba(43, 0, 22, 0.04));
+  border: 1px solid rgba(43, 0, 22, 0.12);
+  border-radius: 14px;
+  padding: 1.1rem 1.5rem;
+  margin-bottom: 1.5rem;
+  gap: 1.5rem;
+}
+
+.metric {
+  display: flex;
+  align-items: center;
   gap: 0.75rem;
-  position: relative;
-  overflow: hidden;
-  transition: transform 0.15s, box-shadow 0.15s;
-  box-shadow: 0 1px 2px rgba(43,0,22,0.06), 0 6px 16px rgba(43,0,22,0.09);
+  flex: 1;
+  min-width: 0;
 
-  &:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.08); }
-
-  &::before {
-    content: '';
-    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  &.alert {
+    .metric-ic { color: var(--alert); }
+    .metric-val { color: var(--alert); }
   }
-  &.accent-blue::before   { background: linear-gradient(90deg, #d49ba7, #60a5fa); }
-  &.accent-red::before    { background: linear-gradient(90deg, #ef4444, #f87171); }
-  &.accent-amber::before  { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
-  &.accent-teal::before   { background: linear-gradient(90deg, #0d9488, #2dd4bf); }
-  &.accent-purple::before { background: linear-gradient(90deg, #7c3aed, #a78bfa); }
-  &.accent-violet::before { background: linear-gradient(90deg, #8b5cf6, #c4b5fd); }
-  &.accent-green::before  { background: linear-gradient(90deg, #10b981, #34d399); }
-  &.accent-indigo::before { background: linear-gradient(90deg, #d49ba7, #818cf8); }
 }
 
-.kpi-left {
-  display: flex; align-items: center; gap: 0.9rem;
+.metric-sep {
+  width: 1px;
+  height: 32px;
+  background: rgba(43, 0, 22, 0.12);
+  flex-shrink: 0;
 }
 
-.kpi-icon {
-  width: 40px; height: 40px; border-radius: 10px;
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-  svg { width: 20px; height: 20px; }
-
-  &.blue   { background: #eff6ff; color: #1d4ed8; }
-  &.red    { background: #fef2f2; color: #dc2626; }
-  &.amber  { background: #fffbeb; color: #d97706; }
-  &.teal   { background: #f0fdfa; color: #0f766e; }
-  &.purple { background: #f5f3ff; color: #7c3aed; }
-  &.violet { background: #f5f3ff; color: #7c3aed; }
-  &.green  { background: #ecfdf5; color: #059669; }
-  &.indigo { background: #eef2ff; color: #d49ba7; }
+.metric-ic {
+  width: 22px; height: 22px; color: var(--wine); flex-shrink: 0;
 }
 
-.kpi-val {
-  font-size: 1.8rem; font-weight: 800;
-  color: var(--text-main, #0f172a); line-height: 1; letter-spacing: -0.02em;
+.metric-val {
+  font-size: 1.5rem; font-weight: 800; color: var(--wine); line-height: 1.1;
 }
 
-.kpi-lbl {
+.metric-lbl {
   font-size: 0.72rem; font-weight: 600; color: var(--text-muted, #64748b);
-  text-transform: uppercase; letter-spacing: 0.04em; margin-top: 0.2rem;
+  text-transform: uppercase; letter-spacing: 0.03em; margin-top: 0.15rem;
 }
 
-.kpi-sub {
-  font-size: 0.75rem; color: var(--text-muted, #94a3b8);
+/* Corpo 60/40 */
+.main-grid {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 1.25rem;
+  margin-bottom: 1.75rem;
+  align-items: start;
 }
 
-.kpi-bar-mini {
-  display: flex; align-items: center; gap: 0.3rem; font-size: 0.75rem;
-  color: var(--text-muted, #94a3b8);
-  .dot {
-    width: 8px; height: 8px; border-radius: 50%;
-    &.red   { background: #ef4444; }
-    &.amber { background: #f59e0b; }
-    &.teal  { background: #0d9488; }
-  }
-  .mini-n { min-width: 1rem; font-weight: 600; color: var(--text-main, #334155); }
-}
-
-.kpi-badge {
-  display: inline-flex; align-items: center;
-  padding: 0.2rem 0.6rem; border-radius: 20px;
-  font-size: 0.68rem; font-weight: 700; width: fit-content;
-
-  &.hot   { background: #fef2f2; color: #dc2626; }
-  &.warm  { background: #fffbeb; color: #d97706; }
-  &.cold  { background: #f0fdfa; color: #0f766e; }
-  &.human { background: #f5f3ff; color: #7c3aed; }
-  &.done  { background: #ecfdf5; color: #059669; }
-}
-
-/* Panels */
 .panel {
   background: var(--bg-secondary, #fff);
   border-radius: 14px;
@@ -521,9 +446,122 @@ const statusDistributionData = computed(() => {
 .panel-head {
   display: flex; align-items: center; gap: 0.5rem;
   padding: 1rem 1.25rem; border-bottom: 1px solid var(--border-color, #f1f5f9);
-  font-size: 0.88rem; font-weight: 600; color: var(--text-main, #1e293b);
-  background: var(--bg-primary, #fafafa);
-  .ic { width: 16px; height: 16px; color: #6366f1; }
+  font-size: 0.88rem; font-weight: 700; color: var(--wine);
+  background: var(--wine-soft);
+  .ic { width: 16px; height: 16px; }
+}
+
+.panel-count {
+  margin-left: auto;
+  background: var(--wine);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.1rem 0.5rem;
+  border-radius: 20px;
+}
+
+.reagendar-banner {
+  display: flex; align-items: center; gap: 0.4rem;
+  background: var(--alert-bg);
+  color: var(--alert);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.6rem 1.25rem;
+  text-decoration: none;
+  border-bottom: 1px solid var(--border-color, #f1f5f9);
+  .ic-xs { width: 13px; height: 13px; margin-left: auto; }
+}
+
+.task-list {
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.task-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--border-color, #f4f4f5);
+  &:last-child { border-bottom: none; }
+}
+
+.task-check {
+  background: none; border: none; cursor: pointer; padding: 0.1rem;
+  color: var(--text-muted, #94a3b8);
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+  &:hover { color: var(--wine); }
+  .ic-sm { width: 18px; height: 18px; }
+  .spin { color: var(--wine); animation: pulse 1s infinite; }
+}
+
+.task-body {
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.task-top {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+}
+
+.task-name {
+  font-size: 0.85rem; font-weight: 600; color: var(--text-main, #1e293b);
+}
+
+.task-tag {
+  font-size: 0.66rem; font-weight: 700; text-transform: uppercase;
+  background: var(--bg-tertiary, #f1f5f9); color: var(--text-muted, #64748b);
+  padding: 0.1rem 0.45rem; border-radius: 4px; letter-spacing: 0.03em;
+}
+
+.task-title {
+  font-size: 0.78rem; color: var(--text-muted, #64748b); margin-top: 0.15rem;
+}
+
+.panel-empty {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 0.5rem;
+  color: var(--text-muted, #94a3b8); padding: 2.5rem 1rem;
+  .panel-empty-ic { width: 32px; height: 32px; opacity: 0.4; color: var(--wine); }
+  p { font-size: 0.82rem; margin: 0; }
+}
+
+/* Central de Atendimento */
+.attendance-list {
+  padding: 0.5rem 1.25rem;
+  display: flex; flex-direction: column;
+}
+
+.attendance-row {
+  display: flex; align-items: center; gap: 0.6rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--border-color, #f4f4f5);
+  &:last-child { border-bottom: none; }
+
+  .ic-sm { width: 17px; height: 17px; color: var(--wine); flex-shrink: 0; }
+  .attendance-lbl { font-size: 0.82rem; color: var(--text-muted, #64748b); flex: 1; }
+  .attendance-val { font-size: 1.05rem; font-weight: 800; color: var(--text-main, #1e293b); }
+
+  &.highlight {
+    .ic-sm, .attendance-val { color: var(--wine); }
+  }
+}
+
+/* Labels de seção */
+.section-label {
+  font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--text-muted, #94a3b8);
+  margin-bottom: 0.75rem;
+  &.mt-section { margin-top: 1.75rem; }
+}
+
+.grid-2-3 {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 1rem;
 }
 
 /* Funil */
@@ -537,7 +575,6 @@ const statusDistributionData = computed(() => {
 
 .funnel-meta {
   display: flex; align-items: center; gap: 0.5rem;
-  .funnel-ic { width: 15px; height: 15px; flex-shrink: 0; }
   .funnel-label { flex: 1; font-size: 0.82rem; color: var(--text-muted, #64748b); font-weight: 500; }
   .funnel-val { font-size: 0.9rem; font-weight: 700; }
 }
@@ -559,7 +596,7 @@ const statusDistributionData = computed(() => {
 .btn-link {
   display: inline-flex; align-items: center; gap: 0.25rem;
   background: none; border: none; cursor: pointer;
-  font-size: 0.78rem; font-weight: 600; color: #6366f1;
+  font-size: 0.78rem; font-weight: 600; color: var(--wine);
   padding: 0; transition: gap 0.15s;
   &:hover { gap: 0.5rem; }
   .ic-xs { width: 13px; height: 13px; }
@@ -581,208 +618,27 @@ const statusDistributionData = computed(() => {
 }
 
 /* Skeleton */
-.skeleton-wrap { display: flex; flex-direction: column; gap: 1.5rem; }
-
-.skel-row {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;
-  animation: pulse 1.4s infinite;
-  &.mt { grid-template-columns: 1fr 1fr; }
-}
-
-.skel-card {
-  height: 100px; background: var(--bg-secondary, #e5e7eb);
-  border-radius: 14px;
-}
-.skel-wide { height: 240px; background: var(--bg-secondary, #e5e7eb); border-radius: 14px; }
-.skel-half-col { display: flex; flex-direction: column; gap: 0.75rem; }
-.skel-sm { height: 70px; background: var(--bg-secondary, #e5e7eb); border-radius: 14px; }
+.skeleton-wrap { display: flex; flex-direction: column; gap: 1rem; }
+.skel-bar { height: 80px; background: var(--bg-secondary, #e5e7eb); border-radius: 14px; animation: pulse 1.4s infinite; }
+.skel-row { display: grid; grid-template-columns: 3fr 2fr; gap: 1.25rem; animation: pulse 1.4s infinite; }
+.skel-wide { height: 320px; background: var(--bg-secondary, #e5e7eb); border-radius: 14px; }
+.skel-narrow { height: 320px; background: var(--bg-secondary, #e5e7eb); border-radius: 14px; }
 
 @keyframes pulse {
   0%, 100% { opacity: 0.5; }
   50% { opacity: 1; }
 }
 
-/* Today's leads */
-.section-label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-
-  .today-count {
-    background: #6366f1;
-    color: #fff;
-    font-size: 0.65rem;
-    font-weight: 700;
-    padding: 0.1rem 0.45rem;
-    border-radius: 20px;
-    letter-spacing: 0;
-  }
-}
-
-.today-empty {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  background: var(--bg-secondary, #fff);
-  border: 1px dashed var(--border-color, #e2e8f0);
-  border-radius: 12px;
-  padding: 1.1rem 1.5rem;
-  color: var(--text-muted, #94a3b8);
-  font-size: 0.82rem;
-
-  .today-empty-ic { width: 22px; height: 22px; opacity: 0.4; flex-shrink: 0; }
-  p { margin: 0; }
-}
-
-.today-leads-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
-  gap: 0.75rem;
-}
-
-.today-lead-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.85rem;
-  background: var(--bg-secondary, #fff);
-  border: 1px solid var(--border-color, #e8edf2);
-  border-radius: 12px;
-  padding: 0.9rem 1rem;
-  cursor: pointer;
-  transition: all 0.15s;
-  position: relative;
-  box-shadow: 0 1px 2px rgba(43,0,22,0.06), 0 6px 16px rgba(43,0,22,0.09);
-
-  &:hover {
-    border-color: #6366f1;
-    box-shadow: 0 4px 16px rgba(212, 155, 167,0.12);
-    transform: translateY(-1px);
-
-    .tlc-arrow { opacity: 1; transform: translateX(2px); }
-  }
-}
-
-.tlc-avatar {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
-  color: #fff;
-  font-size: 0.95rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.tlc-body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-}
-
-.tlc-top {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.tlc-name {
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: var(--text-main, #1e293b);
-}
-
-.tlc-badge {
-  font-size: 0.65rem;
-  font-weight: 700;
-  padding: 0.15rem 0.5rem;
-  border-radius: 20px;
-}
-
-.tlc-phone {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  font-size: 0.75rem;
-  color: var(--text-muted, #64748b);
-
-  .tlc-icon { width: 12px; height: 12px; flex-shrink: 0; }
-}
-
-.tlc-intention {
-  font-size: 0.75rem;
-  color: var(--text-muted, #64748b);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tlc-footer {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 0.1rem;
-}
-
-.tlc-stage {
-  font-size: 0.68rem;
-  font-weight: 600;
-  background: var(--bg-primary, #f1f5f9);
-  color: #6366f1;
-  padding: 0.15rem 0.5rem;
-  border-radius: 4px;
-}
-
-.tlc-agent {
-  font-size: 0.68rem;
-  color: #10b981;
-  font-weight: 500;
-}
-
-.tlc-time {
-  font-size: 0.68rem;
-  color: var(--text-muted, #94a3b8);
-  margin-left: auto;
-}
-
-.tlc-arrow {
-  width: 16px;
-  height: 16px;
-  color: #6366f1;
-  opacity: 0;
-  transition: all 0.15s;
-  flex-shrink: 0;
-  margin-top: 0.2rem;
-}
-
 /* Responsive */
 @media (max-width: 1100px) {
-  .grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .main-grid { grid-template-columns: 1fr; }
   .grid-2-3 { grid-template-columns: 1fr; }
-  .today-leads-grid { grid-template-columns: 1fr; }
+  .metrics-bar { flex-wrap: wrap; }
+  .metric-sep { display: none; }
 }
 
 @media (max-width: 768px) {
-  .page-container, .dashboard-container {
-    padding: 1rem;
-  }
-
-  .grid-4 { grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
-  .grid-2-3 { grid-template-columns: 1fr; }
-  .today-leads-grid { grid-template-columns: 1fr; }
-
-  .stat-card {
-    padding: 1rem;
-    .stat-value { font-size: 1.5rem; }
-  }
-}
-
-@media (max-width: 480px) {
-  .grid-4 { grid-template-columns: 1fr; }
+  .db { padding: 1rem; }
+  .metrics-bar { flex-direction: column; align-items: stretch; gap: 0.75rem; }
 }
 </style>

@@ -67,6 +67,11 @@ class DashboardController < ApplicationController
     with_human = com_atendente_tag ? conv_scope.joins(:conversation_tags)
       .where(conversation_tags: { tag_id: com_atendente_tag.id }).count : 0
 
+    # Acertos da semana (Central de Atendimento) — pedidos baixados (data_baixa)
+    # dentro da carteira visível, não é dado de conversa mas fica no mesmo painel.
+    week_range = today.beginning_of_week..today.end_of_week
+    acertos_semana = Pedido.where(contact_id: contacts_scope.select(:id), data_baixa: week_range).count
+
     leads_by_source = contacts_scope.where.not(source: [nil, '']).group(:source).count
 
     # Leads atribuídos hoje — conversas novas atribuídas a este usuário (ou a qualquer um, se dono)
@@ -100,7 +105,7 @@ class DashboardController < ApplicationController
         pretensao_venda: pretensao_venda,
         temperature:     { quente: quente, morno: morno, frio: frio },
         kanban:          kanban,
-        conversations:   { open: conv_open, resolved: conv_resolved, today: conv_today, with_human: with_human },
+        conversations:   { open: conv_open, resolved: conv_resolved, today: conv_today, with_human: with_human, acertos_semana: acertos_semana },
         carteira:        carteira,
         tarefas_do_dia:  tarefas_do_dia
       },
