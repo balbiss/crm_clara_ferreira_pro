@@ -40,7 +40,6 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
-  Mail,
   Bot,
   Zap,
   List,
@@ -565,7 +564,6 @@ const saveReorder = async () => {
           </div>
           <div class="settings-menu" v-show="isConversasOpen">
             <router-link to="/conversas" class="nav-item sub-item" exact-active-class="active"><MessageCircle class="icon-sm" /> Inbox de chat</router-link>
-            <router-link to="/email" class="nav-item sub-item" exact-active-class="active"><Mail class="icon-sm" /> Inbox de e-mail</router-link>
             <router-link to="/conversas/participantes" class="nav-item sub-item" exact-active-class="active"><Users class="icon-sm" /> Chats da equipe</router-link>
           </div>
         </div>

@@ -94,12 +94,6 @@ const router = createRouter({
           component: () => import('../views/ContactDetails.vue')
         },
         {
-          path: 'email',
-          name: 'inbox_email',
-          component: () => import('../views/ComingSoon.vue'),
-          meta: { title: 'Inbox de e-mail', description: 'Atendimento por e-mail integrado ao CRM — ainda não disponível.' }
-        },
-        {
           path: 'pipelines/todos-leads',
           name: 'pipeline_todos_leads',
           component: () => import('../views/TodosLeadsView.vue')
