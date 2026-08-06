@@ -19,12 +19,22 @@ const DEPARTMENTS = [
   { value: 'manutencao',  label: 'Manutenção',  desc: 'Reparos e serviços técnicos' },
 ]
 
+// Perfil de acesso (RBAC, briefing seção 30) — diferente de department (que só
+// controla o rodízio de WhatsApp). Controla o que a pessoa vê/pode fazer no CRM.
+const ROLES = [
+  { value: 'consultor',  label: 'Consultor',  desc: 'Só a própria carteira. Não vê configurações nem outras carteiras.' },
+  { value: 'gerente',    label: 'Gerente',    desc: 'Vê a carteira inteira, reatribui responsáveis. Não mexe em configurações.' },
+  { value: 'financeiro', label: 'Financeiro', desc: 'Vê inadimplência/cobrança e a carteira inteira pra cruzar consultores.' },
+  { value: 'diretoria',  label: 'Diretoria',  desc: 'Acesso total, inclusive configurações críticas do sistema.' },
+]
+
 const form = ref({
   first_name: '',
   last_name: '',
   email: '',
   phone: '',
   password: '',
+  role: 'consultor',
   department: 'corretor',
   round_robin_group_id: null,
   status: 'active',
@@ -46,6 +56,7 @@ const fetchAgent = async (id) => {
       email: data.email || '',
       phone: data.phone || '',
       password: '',
+      role: data.role || 'consultor',
       department: data.department || 'corretor',
       round_robin_group_id: data.round_robin_group_id || null,
       status: data.status || 'active',
@@ -162,7 +173,26 @@ const saveAgent = async () => {
         </div>
 
         <div class="input-group">
-          <label>Departamento</label>
+          <label>Perfil de Acesso</label>
+          <div class="dept-options">
+            <label
+              v-for="r in ROLES"
+              :key="r.value"
+              class="dept-option"
+              :class="{ active: form.role === r.value }"
+            >
+              <input type="radio" :value="r.value" v-model="form.role" />
+              <span class="dept-dot" :class="'dept-' + r.value"></span>
+              <span class="dept-info">
+                <strong>{{ r.label }}</strong>
+                <small>{{ r.desc }}</small>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label>Departamento <span class="text-muted text-xs">(rodízio de WhatsApp)</span></label>
           <div class="dept-options">
             <label
               v-for="dept in DEPARTMENTS"
@@ -449,6 +479,9 @@ const saveAgent = async () => {
   &.dept-suporte    { background: #10b981; }
   &.dept-financeiro { background: #f59e0b; }
   &.dept-manutencao { background: #f97316; }
+  &.dept-consultor  { background: #d49ba7; }
+  &.dept-gerente    { background: #6366f1; }
+  &.dept-diretoria  { background: #2b0016; }
 }
 .dept-info {
   display: flex; flex-direction: column; gap: 0.1rem;

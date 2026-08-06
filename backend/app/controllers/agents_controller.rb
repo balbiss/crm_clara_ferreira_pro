@@ -24,8 +24,8 @@ class AgentsController < ApplicationController
   # POST /agents
   def create
     account = current_user&.account || Account.first
-    @agent = account.users.build(agent_params)
-    @agent.role = :consultor # Default role
+    @agent = account.users.build(agent_params.except(:role))
+    @agent.role = agent_params[:role].presence || :consultor
     plain_password = agent_params[:password]
 
     if @agent.save
@@ -34,6 +34,8 @@ class AgentsController < ApplicationController
     else
       render json: @agent.errors, status: :unprocessable_entity
     end
+  rescue ArgumentError
+    render json: { error: "Perfil inválido. Use: #{User.roles.keys.join(', ')}." }, status: :unprocessable_entity
   end
 
   # PATCH/PUT /agents/1
@@ -41,12 +43,15 @@ class AgentsController < ApplicationController
     prms = agent_params
     # If password is blank, don't update it
     prms.delete(:password) if prms[:password].blank?
+    prms.delete(:role) if prms[:role].blank?
 
     if @agent.update(prms)
       render json: @agent.as_json(except: [:encrypted_password, :jti])
     else
       render json: @agent.errors, status: :unprocessable_entity
     end
+  rescue ArgumentError
+    render json: { error: "Perfil inválido. Use: #{User.roles.keys.join(', ')}." }, status: :unprocessable_entity
   end
 
   # PATCH /agents/1/block
@@ -106,6 +111,6 @@ class AgentsController < ApplicationController
     end
 
     def agent_params
-      params.require(:agent).permit(:first_name, :last_name, :email, :phone, :password, :status, :department, :round_robin_group_id, permissions: {})
+      params.require(:agent).permit(:first_name, :last_name, :email, :phone, :password, :status, :department, :role, :round_robin_group_id, permissions: {})
     end
 end
