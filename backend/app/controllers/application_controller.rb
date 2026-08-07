@@ -42,4 +42,21 @@ class ApplicationController < ActionController::API
   def finance?
     current_user&.finance_access?
   end
+
+  # Escopo de leitura por perfil (briefing seção 22/30) — movido de
+  # ContactsController pra cá pra ser reaproveitado por qualquer controller
+  # aninhado em /contacts/:contact_id/* (ex: ContactTagsController) sem
+  # duplicar a regra de isolamento de carteira:
+  # - full_portfolio (gerente/diretoria) e finance (financeiro) veem a
+  #   carteira inteira — financeiro precisa disso pra Inativas/cobrança
+  #   cruzarem consultores.
+  # - Consultor só vê a própria carteira (contact.user_id == self).
+  def visible_contacts_scope
+    base = current_user.account.contacts
+    if full_portfolio? || finance? || current_user.permissions&.dig('view_all_contacts')
+      base
+    else
+      base.where(user_id: current_user.id)
+    end
+  end
 end

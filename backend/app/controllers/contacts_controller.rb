@@ -47,7 +47,7 @@ class ContactsController < ApplicationController
 
   # GET /contacts/1
   def show
-    @contact = Contact.includes(conversations: :messages, notes: :user, reseller_phones: {}).find(@contact.id)
+    @contact = Contact.includes(conversations: :messages, notes: :user, reseller_phones: {}, tags: {}).find(@contact.id)
     render json: @contact.as_json(include: {
       conversations: {
         include: :messages
@@ -55,7 +55,8 @@ class ContactsController < ApplicationController
       notes: {
         include: :user
       },
-      reseller_phones: {}
+      reseller_phones: {},
+      tags: {}
     })
   end
 
@@ -158,19 +159,8 @@ class ContactsController < ApplicationController
   end
 
   private
-    # Escopo de leitura por perfil (briefing seção 22/30):
-    # - full_portfolio (gerente/diretoria/admin/empresa) e finance (financeiro) veem
-    #   a carteira inteira — financeiro precisa disso pra Inativas/cobrança cruzarem
-    #   consultores.
-    # - Consultor/atendente só veem a própria carteira (contact.user_id == self).
-    def visible_contacts_scope
-      base = current_user.account.contacts
-      if full_portfolio? || finance? || current_user.permissions&.dig('view_all_contacts')
-        base
-      else
-        base.where(user_id: current_user.id)
-      end
-    end
+    # visible_contacts_scope agora mora em ApplicationController (reaproveitado
+    # por ContactTagsController) — ver comentário lá.
 
     # Use callbacks to share common setup or constraints between actions.
     # CRÍTICO: antes buscava em `current_user.account.contacts` sem filtrar por

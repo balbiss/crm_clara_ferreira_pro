@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_07_020000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_07_030000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -58,6 +58,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_07_020000) do
     t.bigint "blob_id", null: false
     t.string "variation_digest", null: false
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+  end
+
+  create_table "contact_tags", force: :cascade do |t|
+    t.bigint "contact_id", null: false
+    t.bigint "tag_id", null: false
+    t.index ["contact_id", "tag_id"], name: "index_contact_tags_on_contact_and_tag", unique: true
+    t.index ["contact_id"], name: "index_contact_tags_on_contact_id"
+    t.index ["tag_id"], name: "index_contact_tags_on_tag_id"
   end
 
   create_table "contacts", force: :cascade do |t|
@@ -607,6 +615,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_07_020000) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "contact_tags", "contacts"
+  add_foreign_key "contact_tags", "tags"
   add_foreign_key "contacts", "accounts"
   add_foreign_key "contacts", "users"
   add_foreign_key "conversation_tags", "conversations"

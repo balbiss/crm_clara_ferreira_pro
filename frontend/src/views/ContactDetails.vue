@@ -248,6 +248,38 @@ const saveNote = async () => {
   }
 }
 
+// Etiquetas da revendedora (Contact) — separado de conversation_tags (que
+// etiqueta uma conversa específica): muita revendedora sincronizada do Jueri
+// nunca trocou mensagem, não teria onde pendurar tag se fosse por conversa.
+const isTagInputOpen = ref(false)
+const newTagName = ref('')
+
+const addTag = async () => {
+  const name = newTagName.value.trim()
+  if (!name || !contact.value) return
+  try {
+    const { data } = await api.post(`/contacts/${contact.value.id}/tags`, { name })
+    if (!contact.value.tags) contact.value.tags = []
+    if (!contact.value.tags.some(t => t.id === data.id)) contact.value.tags.push(data)
+    newTagName.value = ''
+    isTagInputOpen.value = false
+  } catch (error) {
+    console.error('Erro ao adicionar etiqueta:', error)
+    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Erro ao adicionar etiqueta.', showConfirmButton: false, timer: 3000 })
+  }
+}
+
+const removeTag = async (tagId) => {
+  if (!contact.value) return
+  try {
+    await api.delete(`/contacts/${contact.value.id}/tags/${tagId}`)
+    contact.value.tags = (contact.value.tags || []).filter(t => t.id !== tagId)
+  } catch (error) {
+    console.error('Erro ao remover etiqueta:', error)
+    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Erro ao remover etiqueta.', showConfirmButton: false, timer: 3000 })
+  }
+}
+
 </script>
 
 <template>
@@ -278,7 +310,24 @@ const saveNote = async () => {
             <div class="meta-item"><AtSign class="icon-xs" /> {{ contact.email || 'Sem e-mail' }}</div>
             <div class="meta-item"><Activity class="icon-xs" /> Criado há pouco • Última atividade há pouco</div>
           </div>
-          <button class="btn-tag"><Plus class="icon-xs" /> etiqueta</button>
+          <div class="tags-row">
+            <span v-for="tag in contact.tags" :key="tag.id" class="tag-chip" :style="{ background: tag.color }">
+              {{ tag.name }}
+              <button class="tag-remove" @click="removeTag(tag.id)" title="Remover etiqueta">×</button>
+            </span>
+            <div class="tag-add-inline" v-if="isTagInputOpen">
+              <input
+                v-model="newTagName"
+                @keyup.enter="addTag"
+                @keyup.esc="isTagInputOpen = false"
+                placeholder="Nova etiqueta..."
+                class="tag-input"
+                autofocus
+              />
+              <button class="btn-add-tag" @click="addTag" :disabled="!newTagName.trim()">OK</button>
+            </div>
+            <button class="btn-tag" v-else @click="isTagInputOpen = true"><Plus class="icon-xs" /> etiqueta</button>
+          </div>
         </div>
 
         <div class="form-section">
@@ -592,8 +641,74 @@ const saveNote = async () => {
     border-radius: 16px;
     font-size: 0.75rem;
     cursor: pointer;
-    
+
     &:hover { border-color: #9ca3af; }
+  }
+
+  .tags-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.35rem 0.2rem 0.6rem;
+    border-radius: 16px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #ffffff;
+  }
+
+  .tag-remove {
+    background: rgba(255, 255, 255, 0.25);
+    border: none;
+    color: #ffffff;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    line-height: 1;
+    cursor: pointer;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover { background: rgba(255, 255, 255, 0.4); }
+  }
+
+  .tag-add-inline {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .tag-input {
+    padding: 0.3rem 0.6rem;
+    border: 1px solid #d1d5db;
+    border-radius: 16px;
+    font-size: 0.75rem;
+    outline: none;
+    width: 140px;
+
+    &:focus { border-color: #ba5e72; }
+  }
+
+  .btn-add-tag {
+    background: #ba5e72;
+    color: white;
+    border: none;
+    padding: 0.3rem 0.65rem;
+    border-radius: 16px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    &:disabled { opacity: 0.5; cursor: not-allowed; }
+    &:hover:not(:disabled) { opacity: 0.9; }
   }
 }
 

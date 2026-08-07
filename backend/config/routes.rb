@@ -38,6 +38,7 @@ Rails.application.routes.draw do
       get :ativas
       patch :bulk_assign
     end
+    resources :tags, only: [:index, :create, :destroy], controller: 'contact_tags'
   end
   resources :tarefas, only: [:index, :create, :update, :destroy] do
     member { patch :complete }

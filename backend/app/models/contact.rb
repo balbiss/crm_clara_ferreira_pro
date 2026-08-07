@@ -8,6 +8,8 @@ class Contact < ApplicationRecord
   has_many :reseller_phones, dependent: :destroy
   has_many :lifecycle_events, dependent: :destroy
   has_many :tarefas, dependent: :destroy
+  has_many :contact_tags, dependent: :destroy
+  has_many :tags, through: :contact_tags
 
   BROADCAST_FIELDS = %w[name first_name last_name phone temperature status source intention user_id avatar_url].freeze
 
