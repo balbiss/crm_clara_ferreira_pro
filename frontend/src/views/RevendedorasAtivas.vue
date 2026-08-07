@@ -8,7 +8,7 @@ import { useContactsStore } from '../store/contacts'
 import { useConversationsStore } from '../store/conversations'
 import { ACTIVE_STATUS_LABELS, statusLabel } from '../constants/regua'
 import { isFullPortfolio as isFullPortfolioRole } from '../config/roles'
-import { nivelInfo } from '../constants/nivel'
+import { nivelInfo, nivelLimpo, NIVEL_META } from '../constants/nivel'
 
 // Tela "Minhas Revendedoras Ativas" (briefing seção 28.1) — visão de carteira/lista,
 // não kanban (briefing seção 9 pede explicitamente pra não copiar o modelo de etapas
@@ -25,6 +25,21 @@ const isLoading = ref(true)
 const searchQuery = ref('')
 const activeStageFilter = ref('all')
 const responsavelFilter = ref('all')
+const nivelFilter = ref('all')
+
+// Ordem fixa (do nível mais baixo pro mais alto) pra não depender da ordem
+// de chegada dos dados — só entram no filtro os níveis que existem de
+// verdade na carteira carregada, pra não mostrar opção vazia.
+const NIVEL_ORDEM = ['Pré-consignado', 'Consignado', 'Safira', 'Rubi', 'Esmeralda', 'Diamante']
+const nivelOptions = computed(() => {
+  const presentes = new Set(activeContacts.value.map(c => nivelLimpo(c.nivel)).filter(Boolean))
+  const ordenados = NIVEL_ORDEM.filter(n => presentes.has(n))
+  const outros = [...presentes].filter(n => !NIVEL_ORDEM.includes(n))
+  return [
+    { value: 'all', label: 'Todos os níveis' },
+    ...[...ordenados, ...outros].map(n => ({ value: n, label: `${NIVEL_META[n]?.emoji || '•'} ${n}` }))
+  ]
+})
 
 // Time Travel (Engine AtivasSnapshotService) — quando uma data é escolhida,
 // a tela troca pro snapshot histórico reconstruído via GET /contacts/ativas.
@@ -177,6 +192,10 @@ const filteredContacts = computed(() => {
     list = list.filter(c => c.user_id === responsavelFilter.value)
   }
 
+  if (nivelFilter.value !== 'all') {
+    list = list.filter(c => nivelLimpo(c.nivel) === nivelFilter.value)
+  }
+
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
     list = list.filter(c =>
@@ -254,6 +273,9 @@ onMounted(async () => {
       </div>
       <select v-if="isFullPortfolio" v-model="responsavelFilter" class="responsavel-select">
         <option v-for="opt in responsavelOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+      </select>
+      <select v-if="!isTimeTravel" v-model="nivelFilter" class="responsavel-select">
+        <option v-for="opt in nivelOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
       </select>
       <div class="time-travel-box">
         <Clock class="icon-sm" />

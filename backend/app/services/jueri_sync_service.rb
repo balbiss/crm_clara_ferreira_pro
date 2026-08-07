@@ -241,11 +241,32 @@ class JueriSyncService
       next unless contact.new_record? || contact.changed?
 
       contact.save!
-      resultado[:criados] += 1 if is_new
+      if is_new
+        resultado[:criados] += 1
+        # Cliente atacado novo cai sozinho no pipeline Atacado, na 1ª etapa —
+        # pedido explícito do cliente, senão ninguém sabe que apareceu.
+        criar_card_pipeline(contact, pipeline_slug: 'atacado')
+      end
     rescue => e
       Rails.logger.error("[JueriSyncService] Falha ao sincronizar Atacado #{id}: #{e.message}")
       resultado[:erros] += 1
     end
+  end
+
+  # Cria o card no pipeline manual (Kanban tipo Kommo) só na primeira vez —
+  # se o contato já tiver card nesse pipeline, não mexe (a equipe pode já
+  # ter movido pra outra etapa, não é pra resetar o progresso dela).
+  def criar_card_pipeline(contact, pipeline_slug:, stage_name: nil)
+    pipeline = @account.pipelines.find_by(slug: pipeline_slug)
+    return unless pipeline
+
+    stage = stage_name.present? ? pipeline.pipeline_stages.find_by(name: stage_name) : pipeline.pipeline_stages.order(:position).first
+    return unless stage
+
+    return if PipelineCard.exists?(pipeline_id: pipeline.id, contact_id: contact.id)
+    PipelineCard.create!(pipeline: pipeline, contact: contact, pipeline_stage: stage)
+  rescue => e
+    Rails.logger.error("[JueriSyncService] Falha ao criar card no pipeline '#{pipeline_slug}' pro contato #{contact.id}: #{e.message}")
   end
 
   def atualizar_cadastro_existentes(cadastro_por_revendedor, contatos_existentes, resultado)
@@ -300,6 +321,12 @@ class JueriSyncService
       persistir_telefones(contact, revendedor)
       recalcular_snapshot(contact)
       criar_evento(contact, 'iniciada')
+      # 1ª vez que essa revendedora leva maleta de verdade — cai sozinha no
+      # pipeline Onboarding, na etapa "Primeira Maleta" (pedido explícito do
+      # cliente pra parar de depender de alguém lembrar de criar o card à
+      # mão). Reativação (branch abaixo) não repete isso: ela já teve a
+      # primeira maleta antes.
+      criar_card_pipeline(contact, pipeline_slug: 'onboarding', stage_name: 'Primeira Maleta')
       resultado[:criados] += 1
     elsif contact.desconsiderado? || Contact::STATUS_OVERRIDE_PERMANENTE.include?(contact.status)
       # Blacklist manual, Resgate, Negativado/Jurídico e Descadastrada são
