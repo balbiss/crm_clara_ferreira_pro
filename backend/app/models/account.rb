@@ -2,7 +2,6 @@ class Account < ApplicationRecord
   has_many :users, dependent: :destroy
   has_many :contacts, dependent: :destroy
   has_many :conversations, dependent: :destroy
-  has_many :support_tickets, dependent: :destroy
   has_many :notifications, dependent: :destroy
   has_many :tags, dependent: :destroy
   has_many :inboxes, dependent: :destroy

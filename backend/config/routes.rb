@@ -58,10 +58,6 @@ Rails.application.routes.draw do
     end
   end
 
-  resources :support_tickets, only: [:index, :show, :create] do
-    resources :support_ticket_messages, only: [:create]
-  end
-
   resources :notifications, only: [:index] do
     collection do
       put :mark_all_read

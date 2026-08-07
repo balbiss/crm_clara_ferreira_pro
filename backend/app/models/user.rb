@@ -4,8 +4,6 @@ class User < ApplicationRecord
   belongs_to :account, optional: true
   belongs_to :round_robin_group, optional: true
 
-  has_many :support_tickets
-  has_many :support_ticket_messages, dependent: :destroy
   has_many :notes, dependent: :destroy
   has_many :contacts, dependent: :nullify
   has_many :tarefas, dependent: :nullify

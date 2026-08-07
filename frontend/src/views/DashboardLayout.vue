@@ -30,7 +30,6 @@ import {
   ArrowUp,
   ArrowDown,
   Bell,
-  HelpCircle,
   CalendarDays,
   Badge,
   TrendingUp,
@@ -659,11 +658,6 @@ const saveReorder = async () => {
             <router-link to="/agentes" class="nav-item sub-item" active-class="active"><Badge class="icon-sm" /> Agentes</router-link>
           </div>
         </div>
-
-        <router-link to="/suporte" class="nav-item" active-class="active">
-          <HelpCircle class="icon" />
-          <span>Ajuda</span>
-        </router-link>
 
         <button type="button" class="nav-item nav-item-btn" @click="toggleNotifications">
           <Bell class="icon" />
