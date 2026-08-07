@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_07_030000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_07_040000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -208,6 +208,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_07_030000) do
     t.index ["instagram_page_id"], name: "index_inboxes_on_instagram_page_id"
     t.index ["phone_number"], name: "index_inboxes_on_phone_number"
     t.index ["round_robin_group_id"], name: "index_inboxes_on_round_robin_group_id"
+  end
+
+  create_table "internal_messages", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "read_at"
+    t.bigint "recipient_id", null: false
+    t.bigint "sender_id", null: false
+    t.text "text", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_internal_messages_on_account_id"
+    t.index ["recipient_id", "read_at"], name: "index_internal_messages_on_recipient_id_and_read_at"
+    t.index ["recipient_id", "sender_id"], name: "index_internal_messages_on_recipient_id_and_sender_id"
+    t.index ["sender_id", "recipient_id"], name: "index_internal_messages_on_sender_id_and_recipient_id"
   end
 
   create_table "lifecycle_events", force: :cascade do |t|
@@ -629,6 +643,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_07_030000) do
   add_foreign_key "inbox_members", "users"
   add_foreign_key "inboxes", "accounts"
   add_foreign_key "inboxes", "round_robin_groups"
+  add_foreign_key "internal_messages", "accounts"
+  add_foreign_key "internal_messages", "users", column: "recipient_id"
+  add_foreign_key "internal_messages", "users", column: "sender_id"
   add_foreign_key "lifecycle_events", "accounts"
   add_foreign_key "lifecycle_events", "contacts"
   add_foreign_key "lifecycle_events", "pedidos"

@@ -73,6 +73,11 @@ const router = createRouter({
           component: () => import('../views/Conversas.vue')
         },
         {
+          path: 'chat-equipe',
+          name: 'chat_equipe',
+          component: () => import('../views/TeamChat.vue')
+        },
+        {
           path: 'contatos',
           name: 'contatos',
           component: () => import('../views/Contacts.vue')

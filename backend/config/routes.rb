@@ -58,6 +58,10 @@ Rails.application.routes.draw do
     end
   end
 
+  resources :internal_messages, only: [:index, :create] do
+    collection { get :threads }
+  end
+
   resources :notifications, only: [:index] do
     collection do
       put :mark_all_read
