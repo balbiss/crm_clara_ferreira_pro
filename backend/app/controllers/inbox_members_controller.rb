@@ -1,6 +1,12 @@
 class InboxMembersController < ApplicationController
   before_action :authenticate_user!
   before_action :set_inbox
+  # GAP corrigido: decidir quem tem acesso a uma linha de WhatsApp é a mesma
+  # categoria de decisão que criar/conectar a caixa (InboxesController já é
+  # require_owner!) — só que aqui não tinha nenhuma trava, qualquer usuário
+  # logado conseguia se adicionar (ou adicionar/remover qualquer um) em
+  # qualquer caixa da conta.
+  before_action :require_owner!, only: %i[create destroy]
 
   def index
     # Retorna todos os usuários da conta, com uma flag indicando se pertencem à caixa
