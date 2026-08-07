@@ -70,6 +70,12 @@ class JueriSyncService
     cadastro_por_revendedor = buscar_todo_cadastro_de_revendedores
     operador_ids = cadastro_por_revendedor.select { |_, r| r['fk_tipo_revendedor_id'] == 1 }.keys
 
+    # Catálogo dos "times de vendas" (Vendas 1, Vendas 4 etc) — mesmo lote já
+    # buscado acima, zero custo extra de API. Usado pela tela de gestão de
+    # acesso (SalesTeamsController) e pra expandir a carteira visível de quem
+    # tem membership num time (ver visible_contacts_scope).
+    sincronizar_times_de_vendas(cadastro_por_revendedor, operador_ids)
+
     pedidos_por_revendedor = buscar_todo_historico_de_pedidos.except(*operador_ids)
     limiar = @account.min_pecas_ativa
     contatos_existentes = @account.contacts.where.not(id_jueri: nil).index_by(&:id_jueri)
@@ -173,6 +179,28 @@ class JueriSyncService
     end
 
     cadastro_por_revendedor
+  end
+
+  # Catalogo dos revendedor-líder (fk_tipo_revendedor_id=1) como SalesTeam, e
+  # dá acesso automático ao time pra quem já está mapeado via jueri_gerente_id
+  # (o vínculo legado 1:1 continua funcionando, só que agora também conta como
+  # membro do time — sem precisar reconfigurar na tela nova de Times de Vendas).
+  def sincronizar_times_de_vendas(cadastro_por_revendedor, operador_ids)
+    operador_ids.each do |id|
+      revendedor = cadastro_por_revendedor[id]
+      nome = revendedor['nome'].presence || "Time #{id}"
+
+      team = SalesTeam.find_or_initialize_by(account: @account, jueri_lider_id: id)
+      team.nome = nome
+      team.save! if team.new_record? || team.changed?
+
+      mapped_user = @gerente_user_map[id]
+      next unless mapped_user
+
+      SalesTeamMembership.find_or_create_by!(sales_team: team, user: mapped_user)
+    rescue => e
+      Rails.logger.error("[JueriSyncService] Falha ao sincronizar time de vendas #{id}: #{e.message}")
+    end
   end
 
   def atualizar_cadastro_existentes(cadastro_por_revendedor, contatos_existentes, resultado)

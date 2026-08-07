@@ -184,6 +184,12 @@ const router = createRouter({
           component: () => import('../views/settings/Tags.vue'),
           meta: { requiresCriticalConfig: true }
         },
+        {
+          path: 'settings/times-de-vendas',
+          name: 'SettingsSalesTeams',
+          component: () => import('../views/settings/SalesTeams.vue'),
+          meta: { requiresFullPortfolio: true }
+        },
         // Rotas abertas a todos
         {
           path: 'funil',

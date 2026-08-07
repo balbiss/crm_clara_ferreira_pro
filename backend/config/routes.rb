@@ -93,6 +93,12 @@ Rails.application.routes.draw do
     end
   end
 
+  resources :sales_teams, only: [:index] do
+    member do
+      patch :members, action: :update_members
+    end
+  end
+
   get  'instagram_oauth/authorize_url',      to: 'instagram_oauth#authorize_url'
   get  'instagram_oauth/callback',           to: 'instagram_oauth#callback'
   get  'facebook_leads_oauth/authorize_url', to: 'facebook_leads_oauth#authorize_url'

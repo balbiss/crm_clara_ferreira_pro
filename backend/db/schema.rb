@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_07_040000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_07_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -392,6 +392,26 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_07_040000) do
     t.index ["account_id"], name: "index_round_robin_groups_on_account_id"
   end
 
+  create_table "sales_team_memberships", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "sales_team_id", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["sales_team_id", "user_id"], name: "index_sales_team_memberships_uniq", unique: true
+    t.index ["sales_team_id"], name: "index_sales_team_memberships_on_sales_team_id"
+    t.index ["user_id"], name: "index_sales_team_memberships_on_user_id"
+  end
+
+  create_table "sales_teams", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.datetime "created_at", null: false
+    t.string "jueri_lider_id", null: false
+    t.string "nome", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "jueri_lider_id"], name: "index_sales_teams_on_account_and_lider_id", unique: true
+    t.index ["account_id"], name: "index_sales_teams_on_account_id"
+  end
+
   create_table "scheduled_messages", force: :cascade do |t|
     t.bigint "conversation_id", null: false
     t.datetime "created_at", null: false
@@ -667,6 +687,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_07_040000) do
   add_foreign_key "regua_triggers", "accounts"
   add_foreign_key "reseller_phones", "contacts"
   add_foreign_key "round_robin_groups", "accounts"
+  add_foreign_key "sales_team_memberships", "sales_teams"
+  add_foreign_key "sales_team_memberships", "users"
+  add_foreign_key "sales_teams", "accounts"
   add_foreign_key "scheduled_messages", "conversations"
   add_foreign_key "solid_queue_blocked_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_claimed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade

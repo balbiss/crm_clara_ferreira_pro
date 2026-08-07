@@ -11,6 +11,8 @@ class User < ApplicationRecord
   has_many :push_subscriptions, dependent: :destroy
   has_many :inbox_members, dependent: :destroy
   has_many :assigned_inboxes, through: :inbox_members, source: :inbox
+  has_many :sales_team_memberships, dependent: :destroy
+  has_many :sales_teams, through: :sales_team_memberships
   has_one_attached :avatar
 
   # Include default devise modules. Others available are:
@@ -48,6 +50,14 @@ class User < ApplicationRecord
 
   def finance_access?
     FINANCE_ROLES.include?(role)
+  end
+
+  # IDs de "revendedor líder" (times de vendas do Jueri, ex: "Vendas 4") cuja
+  # carteira inteira esse usuário pode ver — além da atribuição direta
+  # (Contact#user_id) e do mapeamento legado 1:1 (jueri_gerente_id). Usado nos
+  # visible_*_scope dos controllers pra expandir a carteira visível.
+  def accessible_jueri_lider_ids
+    sales_teams.pluck(:jueri_lider_id)
   end
 
   # Foto de perfil (cada usuário troca a própria, ver ProfileController) —

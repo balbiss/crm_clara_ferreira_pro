@@ -83,7 +83,15 @@ class TarefasController < ApplicationController
     if full_portfolio? || finance? || current_user.permissions&.dig('view_all_contacts')
       base
     else
-      base.where(user_id: current_user.id)
+      lider_ids = current_user.accessible_jueri_lider_ids
+      if lider_ids.any?
+        base.left_joins(:contact).where(
+          "tarefas.user_id = :uid OR contacts.custom_attributes ->> 'gerente_jueri_id' IN (:lider_ids)",
+          uid: current_user.id, lider_ids: lider_ids
+        )
+      else
+        base.where(user_id: current_user.id)
+      end
     end
   end
 

@@ -46,7 +46,8 @@ import {
   ListChecks,
   Plus,
   MoreVertical,
-  GripVertical
+  GripVertical,
+  Users2
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -625,6 +626,11 @@ const saveReorder = async () => {
         <router-link v-if="isFullPortfolio" to="/relatorios" class="nav-item">
           <TrendingUp class="icon" />
           <span>Relatórios</span>
+        </router-link>
+
+        <router-link v-if="isFullPortfolio" to="/settings/times-de-vendas" class="nav-item">
+          <Users2 class="icon" />
+          <span>Times de Vendas</span>
         </router-link>
 
         <div class="settings-section">
