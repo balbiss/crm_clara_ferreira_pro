@@ -23,8 +23,22 @@ class ContactsController < ApplicationController
     valores_abertos = Pedido.open_now.where(contact_id: contacts_arr.map(&:id))
                              .group(:contact_id).sum(:valor_total)
 
+    # "Tempo de Revenda" e "1º Pedido" (revendedoras-ativas-criterios.md, seção
+    # "Métricas Exibidas") — nº de MESES DISTINTOS com baixa (não é "desde o 1º
+    # pedido", uma revendedora esporádica com poucos meses de baixa não conta
+    # tempo parado no meio como revenda ativa) e a data do pedido mais antigo
+    # da história. As duas em 1 query agregada cada, sem N+1.
+    contact_ids = contacts_arr.map(&:id)
+    tempo_revenda_meses = Pedido.where(contact_id: contact_ids).where.not(data_baixa: nil)
+                                 .group(:contact_id).count("DISTINCT DATE_TRUNC('month', data_baixa)")
+    primeiro_pedido_em = Pedido.where(contact_id: contact_ids).group(:contact_id).minimum(:data_criacao)
+
     json = contacts_arr.map do |c|
-      c.as_json(include: :reseller_phones).merge('valor_aberto' => valores_abertos[c.id].to_f)
+      c.as_json(include: :reseller_phones).merge(
+        'valor_aberto' => valores_abertos[c.id].to_f,
+        'tempo_revenda_meses' => tempo_revenda_meses[c.id] || 0,
+        'primeiro_pedido_em' => primeiro_pedido_em[c.id]
+      )
     end
 
     render json: json

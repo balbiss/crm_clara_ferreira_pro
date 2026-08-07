@@ -67,6 +67,15 @@ const daysInCycle = (contact) => {
 
 const isAtrasada = (contact) => contact.status === 'atrasada' || (daysInCycle(contact) ?? 0) > 35
 
+// "Tempo de Revenda" (revendedoras-ativas-criterios.md) = nº de meses DISTINTOS
+// com baixa de pedido — não é "desde o 1º pedido" (uma revendedora que já
+// vendeu há anos mas sumiu meses no meio não deve contar como revenda contínua).
+const tempoRevendaLabel = (contact) => {
+  const meses = contact.tempo_revenda_meses
+  if (!meses) return '...'
+  return meses === 1 ? '1 mês' : `${meses} meses`
+}
+
 const brl = (v) => {
   const n = parseFloat(v)
   if (!n) return null
@@ -307,6 +316,8 @@ onMounted(async () => {
             <th>Etapa</th>
             <th>Dias com maleta</th>
             <th>Peças em aberto</th>
+            <th>Tempo de revenda</th>
+            <th>1º Pedido</th>
             <th>Próxima tarefa</th>
             <th>Alerta</th>
             <th>Responsável</th>
@@ -324,6 +335,8 @@ onMounted(async () => {
             <td><span class="stage-badge" :class="stageBadgeClass(c.status)">{{ stageLabel(c.status) }}</span></td>
             <td>{{ daysInCycle(c) !== null ? daysInCycle(c) + ' dias' : '...' }}</td>
             <td>{{ c.pecas_abertas_atual ?? '...' }}</td>
+            <td>{{ tempoRevendaLabel(c) }}</td>
+            <td>{{ formatDate(c.primeiro_pedido_em) || '...' }}</td>
             <td class="cell-tarefa">{{ proximaTarefa(c) || '—' }}</td>
             <td>
               <span v-if="isAtrasada(c)" class="alerta-badge"><AlertTriangle class="icon-xxs" /> Atrasada</span>
@@ -520,7 +533,7 @@ onMounted(async () => {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 10px;
-  overflow: hidden;
+  overflow-x: auto;
 }
 
 .revendedoras-table {
