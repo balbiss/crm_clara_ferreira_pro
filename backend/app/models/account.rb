@@ -11,6 +11,7 @@ class Account < ApplicationRecord
   has_many :pedidos, dependent: :destroy
   has_many :lifecycle_events, dependent: :destroy
   has_many :tarefas, dependent: :destroy
+  has_many :sales_teams, dependent: :destroy
 
   before_create :set_trial_period
   before_create :generate_jueri_webhook_token
