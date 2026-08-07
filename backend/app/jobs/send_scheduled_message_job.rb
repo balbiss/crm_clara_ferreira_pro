@@ -52,7 +52,7 @@ class SendScheduledMessageJob < ApplicationJob
         # Transmitir via ActionCable para a UI em tempo real
         ActionCable.server.broadcast("conversation_#{conversation.id}_messages", {
           message: message.as_json.merge(
-            attachmentUrl: message.attachment.attached? ? Rails.application.routes.url_helpers.rails_blob_url(message.attachment, host: ENV['API_HOST'] || 'http://localhost:3000') : nil,
+            attachmentUrl: message.attachment.attached? ? Rails.application.routes.url_helpers.rails_storage_proxy_url(message.attachment, host: ENV['API_HOST'] || 'http://localhost:3000') : nil,
             attachmentType: message.attachment.attached? ? message.attachment.content_type : nil
           ),
           type: 'new_message'

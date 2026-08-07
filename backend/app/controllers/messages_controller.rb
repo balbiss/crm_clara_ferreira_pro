@@ -39,7 +39,10 @@ class MessagesController < ApplicationController
         timestamp: message.created_at.strftime('%H:%M'),
         status: message.status,
         agentName: current_user.first_name,
-        isPrivate: message.is_private
+        isPrivate: message.is_private,
+        attachmentUrl: message.attachment.attached? ? Rails.application.routes.url_helpers.rails_storage_proxy_url(message.attachment, host: ENV['API_HOST'] || 'http://localhost:3000') : nil,
+        attachmentType: message.attachment.attached? ? message.attachment.content_type : nil,
+        attachmentName: message.attachment.attached? ? message.attachment.filename.to_s : nil
       }}, status: :created
     else
       render json: { errors: message.errors }, status: :unprocessable_entity

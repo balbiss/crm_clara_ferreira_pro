@@ -112,7 +112,7 @@ const submitForm = async () => {
     }
 
     const response = await api.post(`/conversations/${props.conversationId}/scheduled_messages`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+      headers: { 'Content-Type': undefined }
     })
     
     emit('scheduled', response.data)

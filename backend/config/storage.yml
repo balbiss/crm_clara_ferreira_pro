@@ -6,6 +6,19 @@ local:
   service: Disk
   root: <%= Rails.root.join("storage") %>
 
+# MinIO (self-hosted, S3-compatible) — arquivo fica fora do container, então
+# sobrevive a redeploy. force_path_style: true porque MinIO usa o formato
+# http://host/bucket/key (não o virtual-hosted-style bucket.host usado pela
+# AWS de verdade).
+minio:
+  service: S3
+  endpoint: <%= ENV.fetch("MINIO_ENDPOINT", "http://clara-minio:9000") %>
+  access_key_id: <%= ENV.fetch("MINIO_ACCESS_KEY", "") %>
+  secret_access_key: <%= ENV.fetch("MINIO_SECRET_KEY", "") %>
+  region: us-east-1
+  bucket: <%= ENV.fetch("MINIO_BUCKET", "clara-crm") %>
+  force_path_style: true
+
 # Use bin/rails credentials:edit to set the AWS secrets (as aws:access_key_id|secret_access_key)
 # amazon:
 #   service: S3

@@ -96,7 +96,7 @@ class InstagramMessagingService
   end
 
   def attachment_payload(attachment)
-    url = Rails.application.routes.url_helpers.rails_blob_url(
+    url = Rails.application.routes.url_helpers.rails_storage_proxy_url(
       attachment, host: ENV['API_HOST'] || 'http://localhost:3000'
     )
     content_type = attachment.content_type.to_s

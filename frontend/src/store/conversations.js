@@ -218,10 +218,14 @@ export const useConversationsStore = defineStore('conversations', {
           const formData = new FormData()
           formData.append('text', text)
           formData.append('is_private', isPrivate)
-          formData.append('attachment', file)
+          formData.append('attachment', file, file.name || 'audio.webm')
           response = await api.post(`/conversations/${this.activeConversationId}/messages`, formData, {
             headers: {
-              'Content-Type': 'multipart/form-data'
+              // undefined (não 'multipart/form-data') deixa o navegador gerar o
+              // boundary certo — com o header fixo o parser multipart do
+              // backend não conseguia ler o anexo (mesmo bug já visto no
+              // envio de áudio do chat interno).
+              'Content-Type': undefined
             }
           })
         } else {

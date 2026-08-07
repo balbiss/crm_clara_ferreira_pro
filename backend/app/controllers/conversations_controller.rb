@@ -356,7 +356,7 @@ class ConversationsController < ApplicationController
           status: msg.status,
           agentName: msg.sender_type == 'User' ? (users_hash[msg.sender_id]&.first_name || 'Agente') : nil,
           isPrivate: msg.is_private,
-          attachmentUrl: msg.attachment.attached? ? Rails.application.routes.url_helpers.rails_blob_url(msg.attachment, host: ENV['API_HOST'] || 'http://localhost:3000') : nil,
+          attachmentUrl: msg.attachment.attached? ? Rails.application.routes.url_helpers.rails_storage_proxy_url(msg.attachment, host: ENV['API_HOST'] || 'http://localhost:3000') : nil,
           attachmentType: msg.attachment.attached? ? msg.attachment.content_type : nil
         }
       end,

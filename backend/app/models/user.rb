@@ -55,6 +55,6 @@ class User < ApplicationRecord
   # serializa um User: login, /agents, threads do chat interno.
   def avatar_url
     return nil unless avatar.attached?
-    Rails.application.routes.url_helpers.rails_blob_url(avatar, host: ENV.fetch('API_HOST', 'http://localhost:3000'))
+    Rails.application.routes.url_helpers.rails_storage_proxy_url(avatar, host: ENV.fetch('API_HOST', 'http://localhost:3000'))
   end
 end

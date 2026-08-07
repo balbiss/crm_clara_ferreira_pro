@@ -34,7 +34,9 @@ import {
   Sparkles,
   Loader2,
   BotOff,
-  Bot
+  Bot,
+  Mic,
+  Square
 } from '@lucide/vue'
 
 import api from '../api'
@@ -576,6 +578,70 @@ const handleSendMessage = () => {
   }
 }
 
+// Gravação de áudio na hora — MediaRecorder nativo do navegador, igual ao
+// microfone do WhatsApp Web. Clica pra gravar, clica de novo pra enviar (ou
+// no X pra cancelar sem enviar).
+const isRecording = ref(false)
+const recordingSeconds = ref(0)
+let mediaRecorder = null
+let audioChunks = []
+let mediaStream = null
+let recordingInterval = null
+
+const startRecording = async () => {
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+  } catch (err) {
+    console.error('Erro ao acessar microfone:', err)
+    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Não foi possível acessar o microfone.', showConfirmButton: false, timer: 3500 })
+    return
+  }
+
+  audioChunks = []
+  mediaRecorder = new MediaRecorder(mediaStream)
+  mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data) }
+  mediaRecorder.start()
+
+  isRecording.value = true
+  recordingSeconds.value = 0
+  recordingInterval = setInterval(() => { recordingSeconds.value++ }, 1000)
+}
+
+const stopMic = () => {
+  mediaStream?.getTracks().forEach(t => t.stop())
+  mediaStream = null
+  clearInterval(recordingInterval)
+  isRecording.value = false
+  recordingSeconds.value = 0
+}
+
+const cancelRecording = () => {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.onstop = null
+    mediaRecorder.stop()
+  }
+  stopMic()
+}
+
+const finishRecording = () => {
+  if (!mediaRecorder || mediaRecorder.state === 'inactive') return
+  mediaRecorder.onstop = () => {
+    const blob = new Blob(audioChunks, { type: 'audio/webm' })
+    stopMic()
+    if (blob.size === 0) return
+    const audioFile = new File([blob], `audio-${Date.now()}.webm`, { type: 'audio/webm' })
+    store.sendMessage('', isPrivateMessage.value, audioFile)
+    scrollToBottom()
+  }
+  mediaRecorder.stop()
+}
+
+const formatRecordingTime = (secs) => {
+  const m = Math.floor(secs / 60).toString().padStart(2, '0')
+  const s = (secs % 60).toString().padStart(2, '0')
+  return `${m}:${s}`
+}
+
 // IA pause status
 const aiPauseStatus = ref({ paused: false, remaining_seconds: 0 })
 const aiStatusInterval = ref(null)
@@ -653,6 +719,7 @@ onUnmounted(() => {
   window.removeEventListener('new-message', handleNewMessage)
   document.removeEventListener('click', closeEmojiPicker)
   document.removeEventListener('click', closeFilterPopover)
+  stopMic()
 })
 </script>
 
@@ -859,40 +926,57 @@ onUnmounted(() => {
           </button>
         </div>
         <div class="input-box">
-          <div v-if="selectedFile" class="file-preview-area">
-            <div class="file-preview-content">
-              <img v-if="selectedFilePreview" :src="selectedFilePreview" class="preview-img" />
-              <div v-else class="file-icon">📄</div>
-              <span class="file-name">{{ selectedFile.name }}</span>
+          <template v-if="isRecording">
+            <div class="recording-bar">
+              <button class="cancel-recording-btn" @click="cancelRecording" title="Cancelar gravação">
+                <X class="icon-sm" />
+              </button>
+              <div class="recording-indicator">
+                <span class="recording-dot"></span>
+                Gravando áudio... {{ formatRecordingTime(recordingSeconds) }}
+              </div>
+              <button class="btn-send" @click="finishRecording" title="Enviar áudio">
+                <Send class="icon-sm" /> Enviar
+              </button>
             </div>
-            <button class="clear-file-btn" @click="clearSelectedFile">&times;</button>
-          </div>
-          <textarea 
-            v-model="newMessageText" 
-            @keydown.enter.prevent="handleSendMessage"
-            :placeholder="isPrivateMessage ? 'Digite uma nota privada...' : 'Digite sua mensagem aqui...'"
-          ></textarea>
-          <div class="input-actions">
-            <div class="left-actions">
-              <input type="file" ref="fileInput" @change="handleFileChange" hidden />
-              <button class="icon-btn" @click="triggerFileInput" title="Anexar arquivo"><Paperclip class="icon-sm" /></button>
-              <div class="emoji-wrapper">
-                <button class="icon-btn" @click.stop="toggleEmojiPicker"><Smile class="icon-sm" /></button>
-                <div v-if="isEmojiPickerOpen" class="emoji-picker-container" @click.stop>
-                  <EmojiPicker :native="true" @select="onSelectEmoji" />
+          </template>
+          <template v-else>
+            <div v-if="selectedFile" class="file-preview-area">
+              <div class="file-preview-content">
+                <img v-if="selectedFilePreview" :src="selectedFilePreview" class="preview-img" />
+                <div v-else class="file-icon">📄</div>
+                <span class="file-name">{{ selectedFile.name }}</span>
+              </div>
+              <button class="clear-file-btn" @click="clearSelectedFile">&times;</button>
+            </div>
+            <textarea
+              v-model="newMessageText"
+              @keydown.enter.prevent="handleSendMessage"
+              :placeholder="isPrivateMessage ? 'Digite uma nota privada...' : 'Digite sua mensagem aqui...'"
+            ></textarea>
+            <div class="input-actions">
+              <div class="left-actions">
+                <input type="file" ref="fileInput" @change="handleFileChange" hidden />
+                <button class="icon-btn" @click="triggerFileInput" title="Anexar arquivo"><Paperclip class="icon-sm" /></button>
+                <div class="emoji-wrapper">
+                  <button class="icon-btn" @click.stop="toggleEmojiPicker"><Smile class="icon-sm" /></button>
+                  <div v-if="isEmojiPickerOpen" class="emoji-picker-container" @click.stop>
+                    <EmojiPicker :native="true" @select="onSelectEmoji" />
+                  </div>
+                </div>
+                <button v-if="!newMessageText.trim() && !selectedFile" class="icon-btn" @click="startRecording" title="Gravar áudio"><Mic class="icon-sm" /></button>
+                <!-- Indicador IA pausada -->
+                <div v-if="aiPauseStatus.paused" class="ai-paused-pill">
+                  <BotOff class="pill-icon" />
+                  <span>IA pausada · {{ formatAiRemaining(aiPauseStatus.remaining_seconds) }}</span>
+                  <button class="pill-resume" @click="resumeAi" title="Reativar IA agora">
+                    <Bot class="pill-icon" />
+                  </button>
                 </div>
               </div>
-              <!-- Indicador IA pausada -->
-              <div v-if="aiPauseStatus.paused" class="ai-paused-pill">
-                <BotOff class="pill-icon" />
-                <span>IA pausada · {{ formatAiRemaining(aiPauseStatus.remaining_seconds) }}</span>
-                <button class="pill-resume" @click="resumeAi" title="Reativar IA agora">
-                  <Bot class="pill-icon" />
-                </button>
-              </div>
+              <button class="btn-send" @click="handleSendMessage">Enviar (↵)</button>
             </div>
-            <button class="btn-send" @click="handleSendMessage">Enviar (↵)</button>
-          </div>
+          </template>
         </div>
       </div>
     </div>
@@ -2200,17 +2284,42 @@ onUnmounted(() => {
     }
   }
 
-  .input-actions {
+  .recording-bar {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: 0.5rem 1rem;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
     background: var(--bg-secondary);
-    border-top: 1px solid var(--border-color);
-    border-radius: 0 0 8px 8px;
+    border-radius: 8px;
 
-    .left-actions { display: flex; gap: 0.5rem; }
-    
+    .cancel-recording-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      padding: 0.4rem;
+      border-radius: 6px;
+      &:hover { background: var(--bg-hover); color: #ef4444; }
+    }
+
+    .recording-indicator {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      color: var(--text-main);
+
+      .recording-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #ef4444;
+        animation: recording-pulse 1.2s infinite;
+      }
+    }
+
     .btn-send {
       background: var(--primary);
       color: white;
@@ -2220,14 +2329,50 @@ onUnmounted(() => {
       font-size: 0.85rem;
       font-weight: 500;
       cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      &:hover { background: var(--primary-hover); }
+    }
+  }
+
+  @keyframes recording-pulse {
+    0% { opacity: 0.4; }
+    50% { opacity: 1; }
+    100% { opacity: 0.4; }
+  }
+
+  .input-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-color);
+    border-radius: 0 0 8px 8px;
+
+    .left-actions { display: flex; gap: 0.5rem; align-items: center; }
+
+    .btn-send {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
 
       &:hover { background: var(--primary-hover); }
     }
-    
+
     .emoji-wrapper {
       position: relative;
     }
-    
+
     .emoji-picker-container {
       position: absolute;
       bottom: 40px;

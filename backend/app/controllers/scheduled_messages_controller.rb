@@ -50,7 +50,7 @@ class ScheduledMessagesController < ApplicationController
       text: msg.text,
       send_at: msg.send_at.iso8601,
       status: msg.status,
-      attachmentUrl: msg.attachment.attached? ? Rails.application.routes.url_helpers.rails_blob_url(msg.attachment, host: ENV['API_HOST'] || 'http://localhost:3000') : nil,
+      attachmentUrl: msg.attachment.attached? ? Rails.application.routes.url_helpers.rails_storage_proxy_url(msg.attachment, host: ENV['API_HOST'] || 'http://localhost:3000') : nil,
       attachmentType: msg.attachment.attached? ? msg.attachment.content_type : nil,
       attachmentName: msg.attachment.attached? ? msg.attachment.filename.to_s : nil
     }

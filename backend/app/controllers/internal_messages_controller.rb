@@ -108,7 +108,7 @@ class InternalMessagesController < ApplicationController
       text: m.text,
       created_at: m.created_at,
       read_at: m.read_at,
-      attachment_url: m.attachment.attached? ? Rails.application.routes.url_helpers.rails_blob_url(m.attachment, host: ENV['API_HOST'] || 'http://localhost:3000') : nil,
+      attachment_url: m.attachment.attached? ? Rails.application.routes.url_helpers.rails_storage_proxy_url(m.attachment, host: ENV['API_HOST'] || 'http://localhost:3000') : nil,
       attachment_type: m.attachment.attached? ? m.attachment.content_type : nil,
       attachment_name: m.attachment.attached? ? m.attachment.filename.to_s : nil
     }

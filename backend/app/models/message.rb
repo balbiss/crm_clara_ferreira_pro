@@ -49,7 +49,7 @@ class Message < ApplicationRecord
       status: status,
       agentName: sender_type == 'User' ? User.where(id: sender_id).pick(:first_name) : nil,
       isPrivate: is_private,
-      attachmentUrl: attachment.attached? ? Rails.application.routes.url_helpers.rails_blob_url(attachment, host: ENV['API_HOST'] || 'http://localhost:3000') : nil,
+      attachmentUrl: attachment.attached? ? Rails.application.routes.url_helpers.rails_storage_proxy_url(attachment, host: ENV['API_HOST'] || 'http://localhost:3000') : nil,
       attachmentType: attachment.attached? ? attachment.content_type : nil
     }
 
