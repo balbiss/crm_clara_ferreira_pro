@@ -268,7 +268,8 @@ const addTag = async () => {
     isTagInputOpen.value = false
   } catch (error) {
     console.error('Erro ao adicionar etiqueta:', error)
-    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Erro ao adicionar etiqueta.', showConfirmButton: false, timer: 3000 })
+    const msg = error.response?.data?.message || 'Erro ao adicionar etiqueta.'
+    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: msg, showConfirmButton: false, timer: 3500 })
   }
 }
 

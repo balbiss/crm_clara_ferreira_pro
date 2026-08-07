@@ -607,7 +607,8 @@ const addTag = async () => {
     newTagColor.value = TAG_COLORS[0]
   } catch (e) {
     console.error('Erro ao adicionar etiqueta:', e)
-    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Erro ao adicionar etiqueta.', showConfirmButton: false, timer: 3000 })
+    const msg = e.response?.data?.message || 'Erro ao adicionar etiqueta.'
+    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: msg, showConfirmButton: false, timer: 3500 })
   }
 }
 

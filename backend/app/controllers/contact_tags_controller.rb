@@ -10,11 +10,18 @@ class ContactTagsController < ApplicationController
 
   def create
     name = params[:name].to_s.strip.downcase.gsub(/\s+/, '_')
-    color = params[:color].presence || '#6b7280'
     return render json: { error: 'Nome obrigatório' }, status: :unprocessable_entity if name.blank?
 
-    tag = current_user.account.tags.find_or_create_by!(name: name) do |t|
-      t.color = color
+    # RBAC (TagsController): "apenas o dono cria, edita ou remove etiquetas"
+    # do catálogo. Qualquer usuário pode ANEXAR uma etiqueta já existente,
+    # mas criar um nome de etiqueta novo é reservado à diretoria — senão o
+    # find_or_create_by! daqui virava uma porta lateral pra burlar essa regra.
+    tag = current_user.account.tags.find_by(name: name)
+    if tag.nil?
+      unless owner?
+        return render json: { error: 'forbidden', message: 'Só a diretoria pode criar etiquetas novas. Escolha uma já existente.' }, status: :forbidden
+      end
+      tag = current_user.account.tags.create!(name: name, color: params[:color].presence || '#6b7280')
     end
 
     @contact.tags << tag unless @contact.tags.include?(tag)
