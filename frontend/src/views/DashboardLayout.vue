@@ -7,6 +7,7 @@ import { useInboxesStore } from '../store/inboxes'
 import { useContactsStore } from '../store/contacts'
 import { useAgentsStore } from '../store/agents'
 import { usePipelinesStore } from '../store/pipelines'
+import { useInternalChatStore } from '../store/internalChat'
 import {
   Search,
   Inbox,
@@ -138,6 +139,7 @@ const inboxesStore = useInboxesStore()
 const contactsStore = useContactsStore()
 const agentsStore = useAgentsStore()
 const pipelinesStore = usePipelinesStore()
+const internalChatStore = useInternalChatStore()
 
 // Dados reais do usuário logado
 const currentUser = ref({ first_name: '', last_name: '', email: '', account_name: '' })
@@ -329,6 +331,12 @@ onMounted(() => {
   if (!contactsStore.isLoadedOnce) contactsStore.fetchContacts()
   if (!agentsStore.isLoadedOnce) agentsStore.fetchAgents()
   if (!pipelinesStore.isLoadedOnce) pipelinesStore.fetchPipelines()
+
+  // Chat interno da equipe: ativo em qualquer tela do sistema (não só na
+  // tela do próprio chat), pra badge de não lidas e toast tipo WhatsApp
+  // funcionarem mesmo quando o usuário está trabalhando em outra parte do CRM.
+  internalChatStore.fetchThreads()
+  internalChatStore.setupWebSocket()
 
   window.addEventListener('keydown', handlePaletteKeydown)
   const savedTheme = localStorage.getItem('theme') || 'system'
@@ -555,7 +563,10 @@ const saveReorder = async () => {
           </div>
           <div class="settings-menu" v-show="isConversasOpen">
             <router-link to="/conversas" class="nav-item sub-item" exact-active-class="active"><MessageCircle class="icon-sm" /> Inbox de chat</router-link>
-            <router-link to="/chat-equipe" class="nav-item sub-item" exact-active-class="active"><Users class="icon-sm" /> Chat da Equipe</router-link>
+            <router-link to="/chat-equipe" class="nav-item sub-item" exact-active-class="active">
+              <Users class="icon-sm" /> Chat da Equipe
+              <span v-if="internalChatStore.totalUnread > 0" class="nav-unread-badge">{{ internalChatStore.totalUnread }}</span>
+            </router-link>
           </div>
         </div>
 
@@ -1104,6 +1115,18 @@ const saveReorder = async () => {
   .sub-item {
     font-weight: 400;
     font-size: 0.85rem;
+  }
+
+  .nav-unread-badge {
+    margin-left: auto;
+    background: #ef4444;
+    color: white;
+    font-size: 0.68rem;
+    font-weight: 700;
+    border-radius: 10px;
+    padding: 0.1rem 0.4rem;
+    min-width: 18px;
+    text-align: center;
   }
 
   .tag-color {

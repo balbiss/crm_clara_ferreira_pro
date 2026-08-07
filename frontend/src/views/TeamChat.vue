@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
-import { Send, Users } from 'lucide-vue-next'
+import { Send, Users, Paperclip, Mic, Square, X, FileText, Download } from 'lucide-vue-next'
+import Swal from 'sweetalert2'
 import { useInternalChatStore } from '../store/internalChat'
 import { ROLE_LABELS } from '../config/roles'
 
@@ -11,9 +12,23 @@ const store = useInternalChatStore()
 
 const newMessageText = ref('')
 const messagesEndRef = ref(null)
+const fileInputRef = ref(null)
 const searchQuery = ref('')
+const isSending = ref(false)
 
 const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
+
+// Cor do avatar varia por pessoa (hash simples do nome) — antes era um rosa
+// só, ficava tudo igual e monótono na lista.
+const AVATAR_COLORS = [
+  '#ba5e72', '#6366f1', '#10b981', '#f59e0b', '#ec4899', '#3b82f6', '#8b5cf6', '#14b8a6'
+]
+const avatarColor = (name) => {
+  const str = name || '?'
+  let hash = 0
+  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash)
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
+}
 
 const filteredThreads = computed(() => {
   if (!searchQuery.value.trim()) return store.threads
@@ -35,8 +50,106 @@ const selectThread = async (userId) => {
 const sendMessage = async () => {
   const text = newMessageText.value
   newMessageText.value = ''
-  await store.sendMessage(text)
-  scrollToBottom()
+  isSending.value = true
+  try {
+    await store.sendMessage(text)
+    scrollToBottom()
+  } finally {
+    isSending.value = false
+  }
+}
+
+// Anexo (foto ou documento) — um input de arquivo genérico cobre os dois
+// casos, igual ao "clipe" do WhatsApp Web.
+const triggerFilePicker = () => fileInputRef.value?.click()
+const onFileSelected = async (e) => {
+  const file = e.target.files?.[0]
+  e.target.value = ''
+  if (!file) return
+  if (file.size > 25 * 1024 * 1024) {
+    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Arquivo muito grande (máx. 25MB).', showConfirmButton: false, timer: 3500 })
+    return
+  }
+  isSending.value = true
+  try {
+    await store.sendMessage('', file)
+    scrollToBottom()
+  } catch (err) {
+    console.error('Erro ao enviar anexo:', err)
+    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Erro ao enviar anexo.', showConfirmButton: false, timer: 3500 })
+  } finally {
+    isSending.value = false
+  }
+}
+
+// Gravação de áudio na hora — MediaRecorder nativo do navegador, sem lib
+// externa. Clica pra começar, clica de novo (ou no X) pra parar/cancelar.
+const isRecording = ref(false)
+const recordingSeconds = ref(0)
+let mediaRecorder = null
+let audioChunks = []
+let mediaStream = null
+let recordingInterval = null
+
+const startRecording = async () => {
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+  } catch (err) {
+    console.error('Erro ao acessar microfone:', err)
+    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Não foi possível acessar o microfone.', showConfirmButton: false, timer: 3500 })
+    return
+  }
+
+  audioChunks = []
+  mediaRecorder = new MediaRecorder(mediaStream)
+  mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data) }
+  mediaRecorder.start()
+
+  isRecording.value = true
+  recordingSeconds.value = 0
+  recordingInterval = setInterval(() => { recordingSeconds.value++ }, 1000)
+}
+
+const stopMic = () => {
+  mediaStream?.getTracks().forEach(t => t.stop())
+  mediaStream = null
+  clearInterval(recordingInterval)
+  isRecording.value = false
+  recordingSeconds.value = 0
+}
+
+const cancelRecording = () => {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.onstop = null
+    mediaRecorder.stop()
+  }
+  stopMic()
+}
+
+const finishRecording = () => {
+  if (!mediaRecorder || mediaRecorder.state === 'inactive') return
+  mediaRecorder.onstop = async () => {
+    const blob = new Blob(audioChunks, { type: 'audio/webm' })
+    stopMic()
+    if (blob.size === 0) return
+    isSending.value = true
+    try {
+      await store.sendMessage('', blob)
+      scrollToBottom()
+    } catch (err) {
+      console.error('Erro ao enviar áudio:', err)
+      Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Erro ao enviar áudio.', showConfirmButton: false, timer: 3500 })
+    } finally {
+      isSending.value = false
+    }
+  }
+  mediaRecorder.stop()
+}
+
+const formatRecordingTime = (secs) => {
+  const m = Math.floor(secs / 60).toString().padStart(2, '0')
+  const s = (secs % 60).toString().padStart(2, '0')
+  return `${m}:${s}`
 }
 
 const formatTime = (iso) => {
@@ -64,10 +177,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  if (store.ws) {
-    store.ws.close()
-    store.ws = null
-  }
+  stopMic()
 })
 </script>
 
@@ -87,7 +197,9 @@ onUnmounted(() => {
           :class="{ active: store.activeUserId === t.id }"
           @click="selectThread(t.id)"
         >
-          <div class="thread-avatar">{{ getInitials(`${t.first_name || ''} ${t.last_name || ''}`) }}</div>
+          <div class="thread-avatar" :style="{ background: avatarColor(`${t.first_name || ''} ${t.last_name || ''}`) }">
+            {{ getInitials(`${t.first_name || ''} ${t.last_name || ''}`) }}
+          </div>
           <div class="thread-info">
             <div class="thread-top">
               <span class="thread-name">{{ t.first_name }} {{ t.last_name }}</span>
@@ -108,7 +220,9 @@ onUnmounted(() => {
 
     <div class="thread-detail-pane" v-if="store.activeUserId">
       <div class="detail-header">
-        <div class="thread-avatar">{{ getInitials(`${store.activeThread?.first_name || ''} ${store.activeThread?.last_name || ''}`) }}</div>
+        <div class="thread-avatar" :style="{ background: avatarColor(`${store.activeThread?.first_name || ''} ${store.activeThread?.last_name || ''}`) }">
+          {{ getInitials(`${store.activeThread?.first_name || ''} ${store.activeThread?.last_name || ''}`) }}
+        </div>
         <div>
           <div class="detail-name">{{ store.activeThread?.first_name }} {{ store.activeThread?.last_name }}</div>
           <div class="detail-role">{{ ROLE_LABELS[store.activeThread?.role] || store.activeThread?.role }}</div>
@@ -122,9 +236,20 @@ onUnmounted(() => {
             v-for="m in store.activeMessages"
             :key="m.id"
             class="message-bubble"
-            :class="{ 'from-me': m.sender_id === currentUser.id }"
+            :class="{ 'from-me': m.sender_id === currentUser.id, 'has-attachment': !!m.attachment_url }"
           >
-            <div class="bubble-text">{{ m.text }}</div>
+            <div v-if="m.attachment_url" class="bubble-attachment">
+              <a v-if="m.attachment_type?.startsWith('image/')" :href="m.attachment_url" target="_blank" title="Clique para ampliar">
+                <img :src="m.attachment_url" class="attachment-image" @load="scrollToBottom" />
+              </a>
+              <audio v-else-if="m.attachment_type?.startsWith('audio/')" :src="m.attachment_url" controls class="attachment-audio" />
+              <a v-else :href="m.attachment_url" target="_blank" download class="attachment-doc">
+                <FileText class="icon-xs" />
+                <span>{{ m.attachment_name || 'Documento' }}</span>
+                <Download class="icon-xs" />
+              </a>
+            </div>
+            <div class="bubble-text" v-if="m.text">{{ m.text }}</div>
             <div class="bubble-time">{{ formatTime(m.created_at) }}</div>
           </div>
           <p v-if="store.activeMessages.length === 0" class="empty-thread-text">
@@ -135,15 +260,37 @@ onUnmounted(() => {
       </div>
 
       <div class="composer">
-        <input
-          v-model="newMessageText"
-          type="text"
-          placeholder="Digite uma mensagem..."
-          @keyup.enter="sendMessage"
-        />
-        <button class="send-btn" :disabled="!newMessageText.trim()" @click="sendMessage">
-          <Send class="icon-sm" />
-        </button>
+        <template v-if="isRecording">
+          <button class="cancel-recording-btn" @click="cancelRecording" title="Cancelar gravação">
+            <X class="icon-sm" />
+          </button>
+          <div class="recording-indicator">
+            <span class="recording-dot"></span>
+            Gravando... {{ formatRecordingTime(recordingSeconds) }}
+          </div>
+          <button class="send-btn" @click="finishRecording" title="Enviar áudio">
+            <Send class="icon-sm" />
+          </button>
+        </template>
+        <template v-else>
+          <input type="file" ref="fileInputRef" class="hidden-file-input" @change="onFileSelected" />
+          <button class="composer-icon-btn" @click="triggerFilePicker" title="Anexar imagem ou documento" :disabled="isSending">
+            <Paperclip class="icon-sm" />
+          </button>
+          <input
+            v-model="newMessageText"
+            type="text"
+            placeholder="Digite uma mensagem..."
+            :disabled="isSending"
+            @keyup.enter="sendMessage"
+          />
+          <button v-if="!newMessageText.trim()" class="composer-icon-btn" @click="startRecording" title="Gravar áudio" :disabled="isSending">
+            <Mic class="icon-sm" />
+          </button>
+          <button v-else class="send-btn" :disabled="isSending" @click="sendMessage" title="Enviar">
+            <Send class="icon-sm" />
+          </button>
+        </template>
       </div>
     </div>
 
@@ -189,7 +336,7 @@ onUnmounted(() => {
   width: 100%;
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--bg-primary);
   color: var(--text-main);
   font-size: 0.85rem;
@@ -210,16 +357,16 @@ onUnmounted(() => {
   padding: 0.85rem 1.25rem;
   cursor: pointer;
   border-bottom: 1px solid var(--border-color);
+  transition: background 0.15s;
 
   &:hover { background: var(--bg-tertiary); }
   &.active { background: var(--bg-tertiary); border-left: 3px solid var(--primary); }
 }
 
 .thread-avatar {
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
-  background: var(--primary);
   color: white;
   display: flex;
   align-items: center;
@@ -227,6 +374,7 @@ onUnmounted(() => {
   font-size: 0.85rem;
   font-weight: 700;
   flex-shrink: 0;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
 }
 
 .thread-info {
@@ -280,6 +428,7 @@ onUnmounted(() => {
   border-radius: 10px;
   padding: 0.1rem 0.45rem;
   flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .thread-detail-pane {
@@ -294,7 +443,7 @@ onUnmounted(() => {
     gap: 0.75rem;
     color: var(--text-muted);
 
-    .icon-lg { width: 48px; height: 48px; opacity: 0.4; }
+    .icon-lg { width: 48px; height: 48px; opacity: 0.35; }
     p { font-size: 0.9rem; }
   }
 }
@@ -306,6 +455,7 @@ onUnmounted(() => {
   padding: 1rem 1.5rem;
   border-bottom: 1px solid var(--border-color);
   background: var(--bg-secondary);
+  box-shadow: 0 1px 2px rgba(43, 0, 22, 0.05);
 
   .detail-name { font-size: 0.95rem; font-weight: 700; color: var(--text-main); }
   .detail-role { font-size: 0.78rem; color: var(--text-muted); }
@@ -318,6 +468,8 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
+  background:
+    linear-gradient(var(--bg-primary), var(--bg-primary));
 }
 
 .message-bubble {
@@ -325,18 +477,58 @@ onUnmounted(() => {
   align-self: flex-start;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
-  border-radius: 12px 12px 12px 2px;
-  padding: 0.55rem 0.85rem;
+  border-radius: 14px 14px 14px 3px;
+  padding: 0.6rem 0.9rem;
+  box-shadow: 0 1px 2px rgba(43, 0, 22, 0.06);
 
   &.from-me {
     align-self: flex-end;
     background: var(--primary);
     color: white;
     border-color: var(--primary);
-    border-radius: 12px 12px 2px 12px;
+    border-radius: 14px 14px 3px 14px;
 
     .bubble-time { color: rgba(255, 255, 255, 0.75); }
+    .attachment-doc { background: rgba(255, 255, 255, 0.15); color: white; }
   }
+
+  &.has-attachment { padding: 0.5rem; }
+  &.has-attachment.from-me .bubble-text,
+  &.has-attachment .bubble-text { padding: 0.3rem 0.4rem 0; }
+}
+
+.bubble-attachment {
+  display: flex;
+  flex-direction: column;
+}
+
+.attachment-image {
+  max-width: 260px;
+  max-height: 260px;
+  border-radius: 10px;
+  display: block;
+  cursor: zoom-in;
+  object-fit: cover;
+}
+
+.attachment-audio {
+  max-width: 260px;
+  height: 40px;
+}
+
+.attachment-doc {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: 8px;
+  background: var(--bg-tertiary);
+  color: var(--text-main);
+  text-decoration: none;
+  font-size: 0.82rem;
+
+  span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  &:hover { opacity: 0.85; }
 }
 
 .bubble-text {
@@ -361,23 +553,45 @@ onUnmounted(() => {
 
 .composer {
   display: flex;
-  gap: 0.6rem;
-  padding: 1rem 1.5rem;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.9rem 1.5rem;
   border-top: 1px solid var(--border-color);
   background: var(--bg-secondary);
 
-  input {
+  input[type="text"] {
     flex: 1;
-    padding: 0.6rem 0.9rem;
+    padding: 0.65rem 0.95rem;
     border: 1px solid var(--border-color);
-    border-radius: 8px;
+    border-radius: 20px;
     background: var(--bg-primary);
     color: var(--text-main);
     font-size: 0.9rem;
     outline: none;
 
     &:focus { border-color: var(--primary); }
+    &:disabled { opacity: 0.6; }
   }
+}
+
+.hidden-file-input { display: none; }
+
+.composer-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+
+  &:hover:not(:disabled) { background: var(--bg-tertiary); color: var(--primary); }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
 .send-btn {
@@ -386,14 +600,55 @@ onUnmounted(() => {
   justify-content: center;
   width: 40px;
   height: 40px;
-  border-radius: 8px;
+  border-radius: 50%;
   border: none;
   background: var(--primary);
   color: white;
   cursor: pointer;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(186, 94, 114, 0.4);
 
   &:hover:not(:disabled) { opacity: 0.9; }
   &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.recording-indicator {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+  color: var(--text-main);
+  font-weight: 500;
+}
+
+.recording-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ef4444;
+  animation: pulse-dot 1.2s infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.cancel-recording-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: #ef4444;
+  cursor: pointer;
+  flex-shrink: 0;
+
+  &:hover { background: rgba(239, 68, 68, 0.1); }
 }
 
 .empty-state {
@@ -404,6 +659,7 @@ onUnmounted(() => {
 }
 
 .icon-sm { width: 18px; height: 18px; }
+.icon-xs { width: 14px; height: 14px; }
 
 @media (max-width: 900px) {
   .team-chat-container { flex-direction: column; }

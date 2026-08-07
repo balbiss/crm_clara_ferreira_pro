@@ -4,8 +4,9 @@ class InternalMessage < ApplicationRecord
   belongs_to :account
   belongs_to :sender, class_name: 'User'
   belongs_to :recipient, class_name: 'User'
+  has_one_attached :attachment
 
-  validates :text, presence: true
+  validates :text, presence: true, unless: -> { attachment.attached? }
 
   scope :between, ->(user_a_id, user_b_id) {
     where(sender_id: user_a_id, recipient_id: user_b_id)

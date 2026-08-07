@@ -30,7 +30,7 @@ class InternalMessagesController < ApplicationController
         first_name: u.first_name,
         last_name: u.last_name,
         role: u.role,
-        last_message: last&.text,
+        last_message: last && message_preview(last),
         last_message_at: last&.created_at,
         unread_count: unread_by_colleague[u.id] || 0
       }
@@ -55,15 +55,19 @@ class InternalMessagesController < ApplicationController
     render json: { error: 'not_found', message: 'Usuário não encontrado.' }, status: :not_found
   end
 
-  # POST /internal_messages { recipient_id, text }
+  # POST /internal_messages { recipient_id, text, attachment }
+  # text é opcional quando vem attachment (áudio gravado na hora, foto,
+  # documento) — precisa de pelo menos um dos dois, ver validação no model.
   def create
     recipient = current_user.account.users.find(params[:recipient_id])
-    message = InternalMessage.create!(
+    message = InternalMessage.new(
       account: current_user.account,
       sender: current_user,
       recipient: recipient,
-      text: params[:text]
+      text: params[:text].presence
     )
+    message.attachment.attach(params[:attachment]) if params[:attachment].present?
+    message.save!
 
     ActionCable.server.broadcast("internal_chat_channel_#{current_user.account_id}", {
       event: 'internal_message_created',
@@ -79,6 +83,22 @@ class InternalMessagesController < ApplicationController
 
   private
 
+  # Prévia pra lista de conversas quando a última mensagem é só anexo (sem
+  # texto) — senão ficava em branco na listagem.
+  def message_preview(m)
+    return m.text if m.text.present?
+    return nil unless m.attachment.attached?
+
+    type = m.attachment.content_type.to_s
+    if type.start_with?('image/')
+      '📷 Foto'
+    elsif type.start_with?('audio/')
+      '🎤 Áudio'
+    else
+      "📎 #{m.attachment.filename}"
+    end
+  end
+
   def serialize(m)
     {
       id: m.id,
@@ -86,7 +106,10 @@ class InternalMessagesController < ApplicationController
       recipient_id: m.recipient_id,
       text: m.text,
       created_at: m.created_at,
-      read_at: m.read_at
+      read_at: m.read_at,
+      attachment_url: m.attachment.attached? ? Rails.application.routes.url_helpers.rails_blob_url(m.attachment, host: ENV['API_HOST'] || 'http://localhost:3000') : nil,
+      attachment_type: m.attachment.attached? ? m.attachment.content_type : nil,
+      attachment_name: m.attachment.attached? ? m.attachment.filename.to_s : nil
     }
   end
 end

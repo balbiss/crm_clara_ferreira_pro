@@ -1,5 +1,14 @@
 import { defineStore } from 'pinia'
+import Swal from 'sweetalert2'
 import api from '../api'
+
+const previewFor = (msg) => {
+  if (msg.text) return msg.text
+  if (msg.attachment_type?.startsWith('image/')) return '📷 Foto'
+  if (msg.attachment_type?.startsWith('audio/')) return '🎤 Áudio'
+  if (msg.attachment_type) return `📎 ${msg.attachment_name || 'Documento'}`
+  return ''
+}
 
 // Chat interno da equipe (consultor <-> gerente <-> financeiro <-> diretoria)
 // — sem relação nenhuma com WhatsApp/revendedora, ver InternalMessage no
@@ -62,17 +71,27 @@ export const useInternalChatStore = defineStore('internalChat', {
       }
     },
 
-    async sendMessage(text) {
+    // file opcional — foto, documento ou áudio gravado na hora (Blob).
+    async sendMessage(text, file = null) {
       const trimmed = (text || '').trim()
-      if (!this.activeUserId || !trimmed) return
-      const { data } = await api.post('/internal_messages', { recipient_id: this.activeUserId, text: trimmed })
+      if (!this.activeUserId || (!trimmed && !file)) return
+
+      const formData = new FormData()
+      formData.append('recipient_id', this.activeUserId)
+      if (trimmed) formData.append('text', trimmed)
+      if (file) formData.append('attachment', file, file.name || 'audio.webm')
+
+      const { data } = await api.post('/internal_messages', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+
       if (!this.messagesByUser[this.activeUserId]) this.messagesByUser[this.activeUserId] = []
       if (!this.messagesByUser[this.activeUserId].some(m => m.id === data.id)) {
         this.messagesByUser[this.activeUserId].push(data)
       }
       const t = this.threads.find(t => t.id === this.activeUserId)
       if (t) {
-        t.last_message = data.text
+        t.last_message = previewFor(data)
         t.last_message_at = data.created_at
       }
       return data
@@ -111,24 +130,33 @@ export const useInternalChatStore = defineStore('internalChat', {
           if (msg.sender_id !== me && msg.recipient_id !== me) return
 
           const otherId = msg.sender_id === me ? msg.recipient_id : msg.sender_id
+          const isIncoming = msg.recipient_id === me
+          const isViewingThread = this.activeUserId === otherId
+
           if (!this.messagesByUser[otherId]) this.messagesByUser[otherId] = []
           if (!this.messagesByUser[otherId].some(m => m.id === msg.id)) {
             this.messagesByUser[otherId].push(msg)
           }
 
-          let t = this.threads.find(t => t.id === otherId)
+          const t = this.threads.find(t => t.id === otherId)
           if (t) {
-            t.last_message = msg.text
+            t.last_message = previewFor(msg)
             t.last_message_at = msg.created_at
-            if (msg.recipient_id === me && this.activeUserId !== otherId) {
+            if (isIncoming && !isViewingThread) {
               t.unread_count = (t.unread_count || 0) + 1
-            } else if (msg.recipient_id === me && this.activeUserId === otherId) {
+              this.notifyNewMessage(t, msg)
+            } else if (isIncoming && isViewingThread) {
               // Já está com a conversa aberta — marca como lida no servidor
               // sem precisar reabrir a thread inteira.
               api.get('/internal_messages', { params: { with: otherId } }).catch(() => {})
             }
           } else {
-            this.fetchThreads()
+            this.fetchThreads().then(() => {
+              if (isIncoming) {
+                const newT = this.threads.find(t => t.id === otherId)
+                if (newT) this.notifyNewMessage(newT, msg)
+              }
+            })
           }
         } catch (e) {
           console.error('Erro processando mensagem do chat interno:', e)
@@ -143,6 +171,22 @@ export const useInternalChatStore = defineStore('internalChat', {
       ws.onerror = () => {
         ws.close()
       }
+    },
+
+    // Toast estilo WhatsApp quando chega mensagem de um colega que não é a
+    // conversa aberta no momento — igual ao badge de não lidas na sidebar.
+    notifyNewMessage(thread, msg) {
+      const name = `${thread.first_name || ''} ${thread.last_name || ''}`.trim() || 'Colega'
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'info',
+        title: name,
+        text: previewFor(msg),
+        showConfirmButton: false,
+        timer: 4500,
+        timerProgressBar: true
+      })
     }
   }
 })
