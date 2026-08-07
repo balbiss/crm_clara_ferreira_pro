@@ -257,6 +257,59 @@ const openThemePalette = () => {
   selectedThemeIndex.value = 0
 }
 
+// Foto de perfil — cada usuário troca a própria (ProfileController), igual
+// no WhatsApp. Salva em avatar_url no localStorage 'user' pra refletir em
+// todo lugar que lê currentUser (Chat da Equipe, este cartão, etc).
+const isProfileModalOpen = ref(false)
+const profileFileInputRef = ref(null)
+const isUploadingAvatar = ref(false)
+
+const openProfileModal = () => {
+  showUserMenu.value = false
+  isProfileModalOpen.value = true
+}
+
+const triggerAvatarPicker = () => profileFileInputRef.value?.click()
+
+const persistAvatarUrl = (url) => {
+  currentUser.value = { ...currentUser.value, avatar_url: url }
+  localStorage.setItem('user', JSON.stringify(currentUser.value))
+}
+
+const onAvatarSelected = async (e) => {
+  const file = e.target.files?.[0]
+  e.target.value = ''
+  if (!file) return
+  if (file.size > 5 * 1024 * 1024) {
+    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Imagem muito grande (máx. 5MB).', showConfirmButton: false, timer: 3500 })
+    return
+  }
+  const formData = new FormData()
+  formData.append('avatar', file)
+  isUploadingAvatar.value = true
+  try {
+    const { data } = await api.patch('/profile/avatar', formData, { headers: { 'Content-Type': undefined } })
+    persistAvatarUrl(data.avatar_url)
+  } catch (err) {
+    console.error('Erro ao trocar foto de perfil:', err)
+    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Erro ao trocar a foto.', showConfirmButton: false, timer: 3500 })
+  } finally {
+    isUploadingAvatar.value = false
+  }
+}
+
+const removeAvatar = async () => {
+  isUploadingAvatar.value = true
+  try {
+    await api.delete('/profile/avatar')
+    persistAvatarUrl(null)
+  } catch (err) {
+    console.error('Erro ao remover foto de perfil:', err)
+  } finally {
+    isUploadingAvatar.value = false
+  }
+}
+
 const applyTheme = (themeId) => {
   if (themeId === 'dark') {
     document.body.classList.add('dark-theme')
@@ -701,14 +754,15 @@ const saveReorder = async () => {
           
           <div class="menu-divider"></div>
           
-          <a href="#" class="menu-item"><User class="icon-sm" /> Configurações do Perfil</a>
+          <a href="#" class="menu-item" @click.prevent="openProfileModal"><User class="icon-sm" /> Configurações do Perfil</a>
           <a href="#" class="menu-item" @click.prevent="openThemePalette"><Palette class="icon-sm" /> Alterar Tema</a>
           <a href="#" class="menu-item logout" @click="handleLogout"><Power class="icon-sm" /> Encerrar sessão</a>
         </div>
 
         <div class="user-profile" @click="toggleUserMenu" :class="{ 'active': showUserMenu }">
           <div class="avatar-wrapper">
-            <div class="avatar">{{ userInitials() }}</div>
+            <img v-if="currentUser.avatar_url" :src="currentUser.avatar_url" class="avatar avatar-photo" />
+            <div v-else class="avatar">{{ userInitials() }}</div>
             <div class="status-indicator online"></div>
           </div>
           <div class="user-info">
@@ -779,6 +833,47 @@ const saveReorder = async () => {
           <div class="shortcut-group">
             <kbd>esc</kbd>
             <span>to close</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de perfil: cada usuário troca a própria foto, igual no WhatsApp -->
+    <div class="profile-overlay" v-if="isProfileModalOpen" @click.self="isProfileModalOpen = false">
+      <div class="profile-modal">
+        <div class="profile-modal-header">
+          <h3>Configurações do Perfil</h3>
+          <button class="profile-modal-close" @click="isProfileModalOpen = false"><X class="icon-sm" /></button>
+        </div>
+        <div class="profile-modal-body">
+          <div class="profile-avatar-block">
+            <div class="profile-avatar-preview">
+              <img v-if="currentUser.avatar_url" :src="currentUser.avatar_url" />
+              <div v-else class="profile-avatar-fallback">{{ userInitials() }}</div>
+            </div>
+            <input type="file" ref="profileFileInputRef" accept="image/*" class="hidden-file-input" @change="onAvatarSelected" />
+            <div class="profile-avatar-actions">
+              <button class="btn-change-photo" :disabled="isUploadingAvatar" @click="triggerAvatarPicker">
+                {{ isUploadingAvatar ? 'Enviando...' : 'Alterar foto' }}
+              </button>
+              <button v-if="currentUser.avatar_url" class="btn-remove-photo" :disabled="isUploadingAvatar" @click="removeAvatar">
+                Remover
+              </button>
+            </div>
+          </div>
+          <div class="profile-info-block">
+            <div class="profile-info-row">
+              <span class="label">Nome</span>
+              <span class="value">{{ userDisplayName() }}</span>
+            </div>
+            <div class="profile-info-row">
+              <span class="label">E-mail</span>
+              <span class="value">{{ currentUser.email }}</span>
+            </div>
+            <div class="profile-info-row">
+              <span class="label">Perfil</span>
+              <span class="value">{{ roleLabel }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -1491,6 +1586,10 @@ const saveReorder = async () => {
     font-weight: 500;
   }
 
+  .avatar-photo {
+    object-fit: cover;
+  }
+
   .status-indicator {
     position: absolute;
     bottom: 0;
@@ -1759,5 +1858,132 @@ const saveReorder = async () => {
       }
     }
   }
+}
+
+.profile-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.profile-modal {
+  width: 90%;
+  max-width: 380px;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+
+.profile-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.1rem 1.4rem;
+  border-bottom: 1px solid var(--border-color);
+
+  h3 { margin: 0; font-size: 1rem; color: var(--text-main); }
+}
+
+.profile-modal-close {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  padding: 0.25rem;
+  border-radius: 4px;
+
+  &:hover { background: var(--bg-tertiary); }
+}
+
+.profile-modal-body {
+  padding: 1.5rem;
+}
+
+.profile-avatar-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.profile-avatar-preview {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+
+  img { width: 100%; height: 100%; object-fit: cover; }
+}
+
+.profile-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--input-focus);
+  color: var(--primary);
+  font-size: 1.7rem;
+  font-weight: 600;
+}
+
+.hidden-file-input { display: none; }
+
+.profile-avatar-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.btn-change-photo {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { opacity: 0.9; }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+.btn-remove-photo {
+  background: transparent;
+  color: #ef4444;
+  border: 1px solid #ef4444;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: rgba(239, 68, 68, 0.08); }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+.profile-info-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.profile-info-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+
+  .label { color: var(--text-muted); }
+  .value { color: var(--text-main); font-weight: 500; }
 }
 </style>

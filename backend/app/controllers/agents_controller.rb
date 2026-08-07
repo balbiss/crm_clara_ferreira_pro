@@ -19,13 +19,13 @@ class AgentsController < ApplicationController
     @agents = account.users.order(created_at: :desc)
     
     render json: @agents.as_json(except: [:encrypted_password, :jti],
-                                  methods: [:available_for_roundrobin, :queue_position])
+                                  methods: [:available_for_roundrobin, :queue_position, :avatar_url])
   end
 
   # GET /agents/1
   def show
     render json: @agent.as_json(except: [:encrypted_password, :jti],
-                                 methods: [:available_for_roundrobin, :queue_position])
+                                 methods: [:available_for_roundrobin, :queue_position, :avatar_url])
   end
 
   # POST /agents

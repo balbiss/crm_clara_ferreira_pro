@@ -30,6 +30,7 @@ class InternalMessagesController < ApplicationController
         first_name: u.first_name,
         last_name: u.last_name,
         role: u.role,
+        avatar_url: u.avatar_url,
         last_message: last && message_preview(last),
         last_message_at: last&.created_at,
         unread_count: unread_by_colleague[u.id] || 0

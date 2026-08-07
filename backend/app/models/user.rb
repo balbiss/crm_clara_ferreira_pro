@@ -11,6 +11,7 @@ class User < ApplicationRecord
   has_many :push_subscriptions, dependent: :destroy
   has_many :inbox_members, dependent: :destroy
   has_many :assigned_inboxes, through: :inbox_members, source: :inbox
+  has_one_attached :avatar
 
   # Include default devise modules. Others available are:
   # :confirmable, :lockable, :timeoutable, :trackable and :omniauthable
@@ -47,5 +48,13 @@ class User < ApplicationRecord
 
   def finance_access?
     FINANCE_ROLES.include?(role)
+  end
+
+  # Foto de perfil (cada usuário troca a própria, ver ProfileController) —
+  # calculado aqui (não numa coluna) pra ser reaproveitado em todo lugar que
+  # serializa um User: login, /agents, threads do chat interno.
+  def avatar_url
+    return nil unless avatar.attached?
+    Rails.application.routes.url_helpers.rails_blob_url(avatar, host: ENV.fetch('API_HOST', 'http://localhost:3000'))
   end
 end

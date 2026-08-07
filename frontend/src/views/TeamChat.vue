@@ -197,7 +197,8 @@ onUnmounted(() => {
           :class="{ active: store.activeUserId === t.id }"
           @click="selectThread(t.id)"
         >
-          <div class="thread-avatar" :style="{ background: avatarColor(`${t.first_name || ''} ${t.last_name || ''}`) }">
+          <img v-if="t.avatar_url" :src="t.avatar_url" class="thread-avatar thread-avatar-photo" />
+          <div v-else class="thread-avatar" :style="{ background: avatarColor(`${t.first_name || ''} ${t.last_name || ''}`) }">
             {{ getInitials(`${t.first_name || ''} ${t.last_name || ''}`) }}
           </div>
           <div class="thread-info">
@@ -220,7 +221,8 @@ onUnmounted(() => {
 
     <div class="thread-detail-pane" v-if="store.activeUserId">
       <div class="detail-header">
-        <div class="thread-avatar" :style="{ background: avatarColor(`${store.activeThread?.first_name || ''} ${store.activeThread?.last_name || ''}`) }">
+        <img v-if="store.activeThread?.avatar_url" :src="store.activeThread.avatar_url" class="thread-avatar thread-avatar-photo" />
+        <div v-else class="thread-avatar" :style="{ background: avatarColor(`${store.activeThread?.first_name || ''} ${store.activeThread?.last_name || ''}`) }">
           {{ getInitials(`${store.activeThread?.first_name || ''} ${store.activeThread?.last_name || ''}`) }}
         </div>
         <div>
@@ -375,6 +377,10 @@ onUnmounted(() => {
   font-weight: 700;
   flex-shrink: 0;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+}
+
+.thread-avatar-photo {
+  object-fit: cover;
 }
 
 .thread-info {

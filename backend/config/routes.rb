@@ -62,6 +62,9 @@ Rails.application.routes.draw do
     collection { get :threads }
   end
 
+  patch 'profile/avatar', to: 'profile#update_avatar'
+  delete 'profile/avatar', to: 'profile#destroy_avatar'
+
   resources :notifications, only: [:index] do
     collection do
       put :mark_all_read

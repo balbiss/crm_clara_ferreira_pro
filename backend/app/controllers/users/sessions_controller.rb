@@ -14,7 +14,8 @@ class Users::SessionsController < Devise::SessionsController
         role: resource.role,
         account_id: resource.account_id,
         account_name: resource.account&.name,
-        permissions: resource.permissions
+        permissions: resource.permissions,
+        avatar_url: resource.avatar_url
       }
     }, status: :ok
   end

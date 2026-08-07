@@ -81,8 +81,13 @@ export const useInternalChatStore = defineStore('internalChat', {
       if (trimmed) formData.append('text', trimmed)
       if (file) formData.append('attachment', file, file.name || 'audio.webm')
 
+      // A instância `api` tem Content-Type: application/json fixo por padrão
+      // (src/api/index.js) — isso vazava pra esse POST mesmo mandando
+      // FormData, e o servidor recebia multipart sem o "boundary" que só o
+      // navegador sabe gerar. undefined aqui faz o axios deixar o navegador
+      // decidir sozinho (era a causa real do "Erro ao enviar áudio": 500).
       const { data } = await api.post('/internal_messages', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': undefined }
       })
 
       if (!this.messagesByUser[this.activeUserId]) this.messagesByUser[this.activeUserId] = []
