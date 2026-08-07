@@ -51,6 +51,11 @@ class JueriSyncService
   def initialize(account:)
     @account = account
     @service = JueriApiService.new
+    @gerente_nome_cache = {}
+    # Mapeamento ID do gerente no Jueri -> usuário do CRM (diretoria configura
+    # em Agentes, um por um, com o ID que a Clara passa). Carregado 1x por
+    # ciclo — é só uma query, não custa nada de rate limit da API do Jueri.
+    @gerente_user_map = @account.users.where.not(jueri_gerente_id: [nil, '']).index_by(&:jueri_gerente_id)
   end
 
   def call
@@ -312,11 +317,41 @@ class JueriSyncService
     telefone_principal = formatar_telefone(revendedor['telefone_1'])
     contact.phone = telefone_principal if telefone_principal.present? && contact.phone.blank?
 
+    gerente_id = revendedor['gerente'] || revendedor['fk_revendedor_gerente_id']
+
+    # Atribuição por mapeamento real (não é rodízio/sorteio, ver briefing):
+    # se a Clara já configurou o ID desse gerente do Jueri num usuário daqui
+    # (Agentes > ID do Gerente no Jueri), a revendedora nova cai direto pra
+    # ele. Sem mapeamento configurado, mantém user_id nil — gerente atribui
+    # manualmente como já era o combinado. Só roda na CRIAÇÃO (build_contact),
+    # nunca sobrescreve atribuição/transferência manual de quem já existe.
+    mapped_user = @gerente_user_map[gerente_id.to_s] if gerente_id.present?
+    contact.user_id = mapped_user.id if mapped_user
+
     contact.custom_attributes = (contact.custom_attributes || {}).merge(
       'origem' => 'Sincronizado do Jueri',
       'id_jueri' => contact.id_jueri,
+      'gerente_jueri_id' => gerente_id,
+      'gerente_jueri_nome' => resolve_gerente_nome(gerente_id) || contact.custom_attributes&.dig('gerente_jueri_nome'),
       'meta' => revendedor['meta_mensal'].present? ? "R$ #{format('%.2f', revendedor['meta_mensal'].to_f).tr('.', ',')}" : contact.custom_attributes&.dig('meta')
     )
+  end
+
+  # Resolve o nome do gerente/hierarquia do Jueri (campo `gerente`/
+  # `fk_revendedor_gerente_id` no cadastro do revendedor é só um ID interno,
+  # sem nome junto — precisa de outra chamada em find_revendedor pra pegar o
+  # nome). Cacheado por execução do sync: várias revendedoras costumam
+  # compartilhar o mesmo gerente, então isso não vira 1 chamada extra por
+  # revendedora, e sim 1 por gerente único encontrado na rodada.
+  def resolve_gerente_nome(gerente_id)
+    return nil if gerente_id.blank?
+    return @gerente_nome_cache[gerente_id] if @gerente_nome_cache.key?(gerente_id)
+
+    nome = @service.find_revendedor(gerente_id)['nome']
+    @gerente_nome_cache[gerente_id] = nome
+  rescue JueriApiService::ApiError => e
+    Rails.logger.warn("[JueriSyncService] Falha ao resolver nome do gerente #{gerente_id}: #{e.message}")
+    @gerente_nome_cache[gerente_id] = nil
   end
 
   # Telefones adicionais persistidos DIRETO em reseller_phones (não passa mais

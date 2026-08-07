@@ -227,6 +227,7 @@ const getAttr = (key) => store.activeConversation?.contact?.custom_attributes?.[
 const RESERVED_ATTR_KEYS = [
   ...principalFields.map(f => f.key),
   'instagram', 'id_jueri', 'origem',
+  'gerente_jueri_nome', 'gerente_jueri_id',
   'pedidos', 'telefones_adicionais',
 ]
 const humanizeKey = (key) => key
@@ -264,6 +265,8 @@ const dadosFields = [
   { key: 'instagram', label: 'Instagram', source: 'attr' },
   { key: 'id_jueri', label: 'ID Jueri (ERP)', source: 'attr' },
   { key: 'origem', label: 'Origem do lead', source: 'attr' },
+  { key: 'gerente_jueri_nome', label: 'Gerente no Jueri', source: 'attr' },
+  { key: 'gerente_jueri_id', label: 'ID do Gerente no Jueri', source: 'attr' },
 ]
 const getDadoValue = (f) => {
   const c = store.activeConversation?.contact

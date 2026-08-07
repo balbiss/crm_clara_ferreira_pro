@@ -36,6 +36,7 @@ const form = ref({
   password: '',
   role: 'consultor',
   department: 'corretor',
+  jueri_gerente_id: '',
   round_robin_group_id: null,
   status: 'active',
   permissions: {
@@ -58,6 +59,7 @@ const fetchAgent = async (id) => {
       password: '',
       role: data.role || 'consultor',
       department: data.department || 'corretor',
+      jueri_gerente_id: data.jueri_gerente_id || '',
       round_robin_group_id: data.round_robin_group_id || null,
       status: data.status || 'active',
       permissions: data.permissions || {
@@ -189,6 +191,12 @@ const saveAgent = async () => {
               </span>
             </label>
           </div>
+        </div>
+
+        <div class="input-group" v-if="form.role === 'gerente' || form.role === 'consultor'">
+          <label>ID do Gerente no Jueri <span class="text-muted text-xs">(opcional)</span></label>
+          <input type="text" v-model="form.jueri_gerente_id" placeholder="Ex: 42" />
+          <small class="field-hint">Se preenchido, toda revendedora nova sincronizada do Jueri sob esse gerente já entra atribuída direto pra esta pessoa (sem precisar de atribuição manual). A Clara informa esse ID.</small>
         </div>
 
         <div class="input-group">
@@ -449,6 +457,7 @@ const saveAgent = async () => {
 .icon-sm { width: 16px; height: 16px; }
 .text-muted { color: var(--text-muted); }
 .text-xs { font-size: 0.75rem; }
+.field-hint { display: block; margin-top: 0.4rem; color: var(--text-muted); font-size: 0.78rem; line-height: 1.3; }
 
 .dept-options {
   display: flex;
