@@ -274,8 +274,8 @@ const dadosFields = [
   { key: 'referencia_nome', label: 'Contato de referência', source: 'attr' },
   { key: 'referencia_telefone', label: 'Telefone de referência', source: 'attr' },
   { key: 'status_cadastral_jueri', label: 'Status cadastral (Jueri)', source: 'attr' },
-  { key: 'data_criacao_jueri', label: 'Cadastrado no Jueri em', source: 'attr' },
-  { key: 'data_ultima_alteracao_jueri', label: 'Última alteração no Jueri', source: 'attr' },
+  { key: 'data_criacao_jueri', label: 'Cadastrado no Jueri em', source: 'attr', format: 'datetime' },
+  { key: 'data_ultima_alteracao_jueri', label: 'Última alteração no Jueri', source: 'attr', format: 'datetime' },
   { key: 'data_inativacao_jueri', label: 'Data de Inativação (Jueri)', source: 'attr', format: 'date' },
 ]
 const getDadoValue = (f) => {
@@ -283,7 +283,9 @@ const getDadoValue = (f) => {
   if (!c) return null
   const raw = f.source === 'attr' ? c.custom_attributes?.[f.key] : c[f.key]
   if (!raw) return null
-  return f.format === 'date' ? formatDate(raw) : raw
+  if (f.format === 'date') return formatDate(raw)
+  if (f.format === 'datetime') return formatDateTime(raw.replace(' ', 'T'))
+  return raw
 }
 
 // Campos livres criados em "Atributos Personalizados" (EditContactModal) — qualquer
