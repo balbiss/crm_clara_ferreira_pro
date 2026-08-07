@@ -7,7 +7,7 @@ if ENV.fetch("ACTIVE_STORAGE_SERVICE", "local") == "minio"
       require "aws-sdk-s3"
 
       client = Aws::S3::Client.new(
-        endpoint: ENV.fetch("MINIO_ENDPOINT", "http://clara-minio:9000"),
+        endpoint: ENV.fetch("MINIO_ENDPOINT", "http://minio-f14n39m4f0h2rlktr41axton:9000"),
         access_key_id: ENV.fetch("MINIO_ACCESS_KEY", ""),
         secret_access_key: ENV.fetch("MINIO_SECRET_KEY", ""),
         region: "us-east-1",
