@@ -233,29 +233,6 @@ const principalFields = [
 ]
 const getAttr = (key) => store.activeConversation?.contact?.custom_attributes?.[key]
 
-// Campos livres criados em "Atributos Personalizados" (EditContactModal) — qualquer
-// chave que não seja um dos campos fixos acima nem uma chave de sistema (telefones,
-// pedidos, dados da aba "Dados"). Mantém a lista de chaves reservadas espelhando
-// RESERVED_KEYS do EditContactModal.vue pra não exibir campo duplicado nem os
-// internos (telefones_adicionais, pedidos) aqui no painel Principal.
-const RESERVED_ATTR_KEYS = [
-  ...principalFields.map(f => f.key),
-  'instagram', 'id_jueri', 'origem',
-  'gerente_jueri_nome', 'gerente_jueri_id', 'supervisor_nome',
-  'rg', 'profissao', 'razao_social', 'nome_fantasia', 'cnpj',
-  'observacao_jueri', 'observacao_interna_jueri', 'data_inativacao_jueri',
-  'pedidos', 'telefones_adicionais',
-]
-const humanizeKey = (key) => key
-  .replace(/_/g, ' ')
-  .replace(/\b\w/g, (c) => c.toUpperCase())
-const extraAttributes = computed(() => {
-  const custom = store.activeConversation?.contact?.custom_attributes || {}
-  return Object.keys(custom)
-    .filter(k => !RESERVED_ATTR_KEYS.includes(k) && custom[k])
-    .map(k => ({ key: k, label: humanizeKey(k), value: custom[k] }))
-})
-
 const formatDate = (iso) => {
   if (!iso) return null
   return new Date(iso).toLocaleDateString('pt-BR')
@@ -292,6 +269,13 @@ const dadosFields = [
   { key: 'cnpj', label: 'CNPJ', source: 'attr' },
   { key: 'observacao_jueri', label: 'Observação (Jueri)', source: 'attr' },
   { key: 'observacao_interna_jueri', label: 'Observação Interna (Jueri)', source: 'attr' },
+  { key: 'local_trabalho', label: 'Local de trabalho', source: 'attr' },
+  { key: 'website_jueri', label: 'Site / link da revendedora', source: 'attr' },
+  { key: 'referencia_nome', label: 'Contato de referência', source: 'attr' },
+  { key: 'referencia_telefone', label: 'Telefone de referência', source: 'attr' },
+  { key: 'status_cadastral_jueri', label: 'Status cadastral (Jueri)', source: 'attr' },
+  { key: 'data_criacao_jueri', label: 'Cadastrado no Jueri em', source: 'attr' },
+  { key: 'data_ultima_alteracao_jueri', label: 'Última alteração no Jueri', source: 'attr' },
   { key: 'data_inativacao_jueri', label: 'Data de Inativação (Jueri)', source: 'attr', format: 'date' },
 ]
 const getDadoValue = (f) => {
@@ -301,6 +285,26 @@ const getDadoValue = (f) => {
   if (!raw) return null
   return f.format === 'date' ? formatDate(raw) : raw
 }
+
+// Campos livres criados em "Atributos Personalizados" (EditContactModal) — qualquer
+// chave que não seja um dos campos fixos acima nem uma chave de sistema (telefones,
+// pedidos, dados da aba "Dados"). Mantém a lista de chaves reservadas espelhando
+// RESERVED_KEYS do EditContactModal.vue pra não exibir campo duplicado nem os
+// internos (telefones_adicionais, pedidos) aqui no painel Principal.
+const RESERVED_ATTR_KEYS = [
+  ...principalFields.map(f => f.key),
+  ...dadosFields.filter(f => f.source === 'attr').map(f => f.key),
+  'pedidos', 'telefones_adicionais',
+]
+const humanizeKey = (key) => key
+  .replace(/_/g, ' ')
+  .replace(/\b\w/g, (c) => c.toUpperCase())
+const extraAttributes = computed(() => {
+  const custom = store.activeConversation?.contact?.custom_attributes || {}
+  return Object.keys(custom)
+    .filter(k => !RESERVED_ATTR_KEYS.includes(k) && custom[k])
+    .map(k => ({ key: k, label: humanizeKey(k), value: custom[k] }))
+})
 
 // Aba Financeiro — pedidos sincronizados da tabela `pedidos` (Jueri é a fonte
 // da verdade; baixa/cancelamento de pedido é feito na tela do Jueri, não aqui
@@ -1080,6 +1084,11 @@ onUnmounted(() => {
         <div class="lead-field" v-for="f in principalFields" :key="f.key">
           <span class="lf-label">{{ f.label }}</span>
           <span class="lf-value" :class="{ empty: !getAttr(f.key) }">{{ getAttr(f.key) || '...' }}</span>
+        </div>
+        <div class="lead-field-divider">Dados do Jueri (sincronizado)</div>
+        <div class="lead-field" v-for="f in dadosFields" :key="'jueri-' + f.key">
+          <span class="lf-label">{{ f.label }}</span>
+          <span class="lf-value" :class="{ empty: !getDadoValue(f) }">{{ getDadoValue(f) || '...' }}</span>
         </div>
         <div class="lead-field" v-for="attr in extraAttributes" :key="'extra-' + attr.key">
           <span class="lf-label">{{ attr.label }}</span>
@@ -2657,6 +2666,17 @@ onUnmounted(() => {
 
   &:focus { outline: none; border-color: var(--primary); }
   &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+.lead-field-divider {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  padding-top: 0.5rem;
+  margin-top: 0.25rem;
+  border-top: 1px dashed var(--border-color);
 }
 
 .lead-field {

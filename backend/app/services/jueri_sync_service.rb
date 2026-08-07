@@ -500,8 +500,24 @@ class JueriSyncService
       'observacao_jueri' => revendedor['observacao'].presence || old.call('observacao_jueri'),
       'observacao_interna_jueri' => revendedor['observacao_interna'].presence || old.call('observacao_interna_jueri'),
       'supervisor_nome' => revendedor['supervisor_nome'].presence || old.call('supervisor_nome'),
-      'data_inativacao_jueri' => revendedor['data_inativacao'].presence || old.call('data_inativacao_jueri')
+      'data_inativacao_jueri' => revendedor['data_inativacao'].presence || old.call('data_inativacao_jueri'),
+      # Resto do cadastro do Jueri que ainda não tinha lugar nenhum aqui —
+      # pedido explícito do cliente pra trazer tudo, não só um recorte.
+      'local_trabalho' => revendedor['local'].presence || old.call('local_trabalho'),
+      'website_jueri' => revendedor['website'].presence || old.call('website_jueri'),
+      'referencia_nome' => revendedor['referencia_nome'].presence || old.call('referencia_nome'),
+      'referencia_telefone' => (revendedor['referencia_celular'].presence || revendedor['referencia_telefone'].presence) || old.call('referencia_telefone'),
+      'status_cadastral_jueri' => resolve_status_cadastral(revendedor['fk_status_id']) || old.call('status_cadastral_jueri'),
+      'data_criacao_jueri' => revendedor['data_criacao'].presence || old.call('data_criacao_jueri'),
+      'data_ultima_alteracao_jueri' => revendedor['data_ultima_alteracao'].presence || old.call('data_ultima_alteracao_jueri')
     )
+  end
+
+  # fk_status_id no Jueri é o status CADASTRAL (1-Ativo/2-Inativo), não tem
+  # relação nenhuma com a régua do CRM (Contact#status) — não confundir os
+  # dois em lugar nenhum, são conceitos diferentes com o mesmo nome.
+  def resolve_status_cadastral(fk_status_id)
+    { 1 => 'Ativo', 2 => 'Inativo' }[fk_status_id]
   end
 
   # Resolve o nome do gerente/hierarquia do Jueri (campo `gerente`/
