@@ -583,6 +583,8 @@ const resumeAi = async () => {
 }
 
 const newTagName = ref('')
+const TAG_COLORS = ['#6b7280', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899']
+const newTagColor = ref(TAG_COLORS[0])
 
 const removeTag = async (tagId) => {
   const convId = store.activeConversationId
@@ -600,8 +602,9 @@ const addTag = async () => {
   const name = newTagName.value.trim()
   if (!convId || !name) return
   try {
-    await api.post(`/conversations/${convId}/tags`, { name })
+    await api.post(`/conversations/${convId}/tags`, { name, color: newTagColor.value })
     newTagName.value = ''
+    newTagColor.value = TAG_COLORS[0]
   } catch (e) {
     console.error('Erro ao adicionar etiqueta:', e)
     Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Erro ao adicionar etiqueta.', showConfirmButton: false, timer: 3000 })
@@ -1052,6 +1055,17 @@ onUnmounted(() => {
             <button class="btn-add-tag" @click="addTag" :disabled="!newTagName.trim()">
               <Plus class="icon-xs" /> Adicionar
             </button>
+          </div>
+          <div class="tag-color-picker">
+            <button
+              v-for="c in TAG_COLORS"
+              :key="c"
+              class="tag-color-dot"
+              :class="{ active: newTagColor === c }"
+              :style="{ background: c }"
+              @click="newTagColor = c"
+              :title="c"
+            ></button>
           </div>
         </div>
       </div>
@@ -1541,6 +1555,25 @@ onUnmounted(() => {
     display: flex;
     gap: 0.5rem;
     align-items: stretch;
+  }
+
+  .tag-color-picker {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+  }
+
+  .tag-color-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    padding: 0;
+
+    &.active { border-color: var(--text-main); }
+    &:hover { opacity: 0.85; }
   }
 
   .tag-input {

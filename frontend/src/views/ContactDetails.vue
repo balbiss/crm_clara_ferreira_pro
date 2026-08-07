@@ -253,15 +253,18 @@ const saveNote = async () => {
 // nunca trocou mensagem, não teria onde pendurar tag se fosse por conversa.
 const isTagInputOpen = ref(false)
 const newTagName = ref('')
+const TAG_COLORS = ['#6b7280', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899']
+const newTagColor = ref(TAG_COLORS[0])
 
 const addTag = async () => {
   const name = newTagName.value.trim()
   if (!name || !contact.value) return
   try {
-    const { data } = await api.post(`/contacts/${contact.value.id}/tags`, { name })
+    const { data } = await api.post(`/contacts/${contact.value.id}/tags`, { name, color: newTagColor.value })
     if (!contact.value.tags) contact.value.tags = []
     if (!contact.value.tags.some(t => t.id === data.id)) contact.value.tags.push(data)
     newTagName.value = ''
+    newTagColor.value = TAG_COLORS[0]
     isTagInputOpen.value = false
   } catch (error) {
     console.error('Erro ao adicionar etiqueta:', error)
@@ -315,16 +318,29 @@ const removeTag = async (tagId) => {
               {{ tag.name }}
               <button class="tag-remove" @click="removeTag(tag.id)" title="Remover etiqueta">×</button>
             </span>
-            <div class="tag-add-inline" v-if="isTagInputOpen">
-              <input
-                v-model="newTagName"
-                @keyup.enter="addTag"
-                @keyup.esc="isTagInputOpen = false"
-                placeholder="Nova etiqueta..."
-                class="tag-input"
-                autofocus
-              />
-              <button class="btn-add-tag" @click="addTag" :disabled="!newTagName.trim()">OK</button>
+            <div class="tag-add-box" v-if="isTagInputOpen">
+              <div class="tag-add-inline">
+                <input
+                  v-model="newTagName"
+                  @keyup.enter="addTag"
+                  @keyup.esc="isTagInputOpen = false"
+                  placeholder="Nova etiqueta..."
+                  class="tag-input"
+                  autofocus
+                />
+                <button class="btn-add-tag" @click="addTag" :disabled="!newTagName.trim()">OK</button>
+              </div>
+              <div class="tag-color-picker">
+                <button
+                  v-for="c in TAG_COLORS"
+                  :key="c"
+                  class="tag-color-dot"
+                  :class="{ active: newTagColor === c }"
+                  :style="{ background: c }"
+                  @click="newTagColor = c"
+                  :title="c"
+                ></button>
+              </div>
             </div>
             <button class="btn-tag" v-else @click="isTagInputOpen = true"><Plus class="icon-xs" /> etiqueta</button>
           </div>
@@ -680,10 +696,34 @@ const removeTag = async (tagId) => {
     &:hover { background: rgba(255, 255, 255, 0.4); }
   }
 
+  .tag-add-box {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
   .tag-add-inline {
     display: flex;
     align-items: center;
     gap: 0.35rem;
+  }
+
+  .tag-color-picker {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .tag-color-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    padding: 0;
+
+    &.active { border-color: #1f2937; }
+    &:hover { opacity: 0.85; }
   }
 
   .tag-input {
