@@ -88,6 +88,7 @@ Rails.application.routes.draw do
     member do
       get :qr_code
       get :status
+      post :disconnect
       post :generate_prompt
     end
   end

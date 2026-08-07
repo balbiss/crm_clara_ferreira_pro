@@ -2,10 +2,10 @@ require_relative '../services/whatsapp_baileys_service'
 
 class InboxesController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_inbox, only: %i[ show update destroy qr_code status generate_prompt ]
+  before_action :set_inbox, only: %i[ show update destroy qr_code status disconnect generate_prompt ]
   # Corretores podem ler inboxes e ver status (para filtrar conversas por canal).
-  # Apenas o dono gerencia: criar, editar, remover, escanear QR, gerar prompt de IA.
-  before_action :require_owner!, only: %i[ create update destroy qr_code generate_prompt ]
+  # Apenas o dono gerencia: criar, editar, remover, escanear QR, desconectar, gerar prompt de IA.
+  before_action :require_owner!, only: %i[ create update destroy qr_code disconnect generate_prompt ]
 
   def index
     @inboxes = current_user.account.inboxes
@@ -67,6 +67,18 @@ class InboxesController < ApplicationController
   def status
     connected = @inbox.messaging_service.connected?
     render json: { connected: connected }
+  end
+
+  # POST /inboxes/:id/disconnect — desloga o WhatsApp (como "sair" no celular),
+  # mas mantém a caixa de entrada e todo o histórico. Diferente do destroy, que
+  # apaga a caixa em si; aqui só a sessão do Baileys é encerrada, permitindo
+  # reconectar depois com um novo QR sem recriar nada.
+  def disconnect
+    @inbox.messaging_service.delete_connection
+    render json: { disconnected: true }
+  rescue StandardError => e
+    Rails.logger.error("Failed to disconnect #{@inbox.provider} inbox #{@inbox.id}: #{e.message}")
+    render json: { error: 'Não foi possível desconectar. Tente novamente.' }, status: :unprocessable_entity
   end
 
   def destroy

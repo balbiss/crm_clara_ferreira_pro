@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted, onUnmounted, ref } from 'vue'
-import { Search, Settings2, Trash2, ChevronRight, RefreshCw, X } from 'lucide-vue-next'
+import { Search, Settings2, Trash2, ChevronRight, RefreshCw, X, LogOut } from 'lucide-vue-next'
 import api from '../api'
 import Swal from 'sweetalert2'
 import { useInboxesStore } from '../store/inboxes'
@@ -79,6 +79,27 @@ const openReconnectModal = (inbox) => {
       await fetchQr()
     } catch (_) {}
   }, 4000)
+}
+
+const disconnectInbox = async (inbox) => {
+  const result = await Swal.fire({
+    title: 'Desconectar?',
+    text: `O WhatsApp "${inbox.name}" vai sair, como se você deslogasse pelo celular. A caixa e o histórico de conversas continuam intactos — dá pra reconectar depois.`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Sim, desconectar',
+    cancelButtonText: 'Cancelar'
+  })
+
+  if (!result.isConfirmed) return
+
+  try {
+    await api.post(`/inboxes/${inbox.id}/disconnect`)
+    inboxesStore.checkStatus(inbox.id)
+  } catch (error) {
+    console.error('Failed to disconnect inbox:', error)
+    Swal.fire('Erro', 'Não foi possível desconectar. Tente novamente.', 'error')
+  }
 }
 
 const closeReconnectModal = () => {
@@ -177,6 +198,15 @@ onUnmounted(() => {
               >
                 <RefreshCw class="icon-sm" />
                 Reconectar
+              </button>
+              <button
+                v-if="['baileys', 'instagram'].includes(inbox.provider) && inbox.connected === true"
+                class="icon-btn btn-disconnect"
+                title="Desconectar"
+                @click="disconnectInbox(inbox)"
+              >
+                <LogOut class="icon-sm" />
+                Desconectar
               </button>
               <router-link :to="`/settings/inboxes/${inbox.id}`" class="icon-btn" title="Configurações"><Settings2 class="icon-sm" /></router-link>
               <button class="icon-btn text-danger" @click="deleteInbox(inbox.id)" title="Deletar"><Trash2 class="icon-sm" /></button>
@@ -555,6 +585,23 @@ onUnmounted(() => {
       background: #fef3c7;
       color: #b45309;
       border-color: #fcd34d;
+    }
+  }
+
+  .btn-disconnect {
+    width: auto;
+    padding: 0 0.75rem;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #6b7280;
+    border-color: var(--border-color);
+    background: var(--bg-secondary);
+
+    &:hover {
+      background: #f3f4f6;
+      color: #374151;
+      border-color: #d1d5db;
     }
   }
 }
