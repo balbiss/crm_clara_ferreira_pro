@@ -28,6 +28,31 @@ class ConversationsController < ApplicationController
     render json: conversations.map { |conv| format_conversation(conv, users_hash) }
   end
 
+  # POST /conversations — inicia conversa com uma revendedora que ainda não
+  # tem nenhuma (sem isso, só existia conversa depois que ELA mandasse a
+  # primeira mensagem — a régua pede o contrário: consultor manda a mensagem
+  # de incentivo no 3º/10º/20º dia, briefing seção 12/23, e não tinha como).
+  def create
+    contact = visible_contacts_scope.find(params[:contact_id])
+    inbox = pick_inbox_for(contact)
+
+    unless inbox
+      return render json: { error: 'sem_caixa_conectada', message: 'Nenhuma caixa de WhatsApp conectada nesta conta ainda.' }, status: :unprocessable_entity
+    end
+
+    conversation = Conversation.find_or_create_by(contact: contact, inbox: inbox) do |conv|
+      conv.account = current_user.account
+      conv.status = :open
+      conv.user_id = contact.user_id || current_user.id
+      conv.source = 'whatsapp'
+    end
+
+    users_hash = current_user.account.users.index_by(&:id)
+    render json: format_conversation(conversation, users_hash), status: :created
+  rescue ActiveRecord::RecordNotFound
+    render json: { error: 'not_found', message: 'Revendedora não encontrada ou fora da sua carteira.' }, status: :not_found
+  end
+
   def show
     conversation = visible_conversations_scope
       .includes(:user, :tags, messages: { attachment_attachment: :blob }, contact: { notes: :user, pedidos: {}, reseller_phones: {}, lifecycle_events: {} })
@@ -238,6 +263,14 @@ class ConversationsController < ApplicationController
   end
 
   private
+
+  # Prioriza uma caixa de WhatsApp que o usuário tem acesso (InboxMembers);
+  # sem nenhuma específica, usa a primeira caixa Baileys conectada da conta
+  # (caso comum: só existe uma linha de WhatsApp na empresa toda).
+  def pick_inbox_for(_contact)
+    current_user.assigned_inboxes.where(provider: 'baileys').first ||
+      current_user.account.inboxes.where(provider: 'baileys').first
+  end
 
   # Mesma lógica de ContactsController#visible_contacts_scope — consultor só
   # acessa conversa atribuída a ele, mesmo sabendo o ID direto (antes todo

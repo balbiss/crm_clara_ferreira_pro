@@ -1,7 +1,8 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, Users, Clock, AlertTriangle, X } from '@lucide/vue'
+import { Search, Users, Clock, AlertTriangle, X, MessageCircle } from '@lucide/vue'
+import Swal from 'sweetalert2'
 import api from '../api'
 import { useContactsStore } from '../store/contacts'
 import { useConversationsStore } from '../store/conversations'
@@ -208,6 +209,21 @@ const totalValor = computed(() => filteredContacts.value.reduce((s, c) => s + (p
 
 const openContact = (contact) => router.push(`/contatos/${contact.id}`)
 
+const isStartingConversation = ref(null)
+const startConversation = async (contact) => {
+  isStartingConversation.value = contact.id
+  try {
+    const conv = await convStore.startConversation(contact.id)
+    router.push(`/conversas?abrir=${conv.id}`)
+  } catch (e) {
+    console.error('Erro ao iniciar conversa:', e)
+    const msg = e.response?.data?.message || 'Erro ao iniciar conversa.'
+    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: msg, showConfirmButton: false, timer: 3500 })
+  } finally {
+    isStartingConversation.value = null
+  }
+}
+
 onMounted(async () => {
   isLoading.value = true
   try {
@@ -321,6 +337,7 @@ onMounted(async () => {
             <th>Próxima tarefa</th>
             <th>Alerta</th>
             <th>Responsável</th>
+            <th>Ação</th>
           </tr>
         </thead>
         <tbody>
@@ -343,6 +360,16 @@ onMounted(async () => {
               <span v-else class="alerta-ok">Em dia</span>
             </td>
             <td>{{ responsavelNome(c) || 'Não atribuído' }}</td>
+            <td @click.stop>
+              <button
+                class="btn-start-conversation"
+                :disabled="isStartingConversation === c.id"
+                @click="startConversation(c)"
+                title="Iniciar conversa no WhatsApp"
+              >
+                <MessageCircle class="icon-xs" />
+              </button>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -633,6 +660,22 @@ onMounted(async () => {
 .alerta-ok {
   font-size: 0.78rem;
   color: var(--text-muted);
+}
+
+.btn-start-conversation {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--primary);
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: var(--primary); color: white; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
 .empty-state {

@@ -489,13 +489,22 @@ const toggleDetailsMenu = () => {
   isDetailsMenuOpen.value = !isDetailsMenuOpen.value
 }
 
-onMounted(() => {
-  if (store.conversations.length === 0) store.fetchConversations()
+onMounted(async () => {
+  // Se vier de "Iniciar conversa" sem nunca ter aberto o Inbox nesta sessão,
+  // store.conversations já tem 1 item (a recém-criada) — teria pulado o fetch
+  // e escondido o resto da lista. Nesse caso busca completo mesmo assim.
+  if (store.conversations.length === 0 || route.query.abrir) await store.fetchConversations()
   if (store.agents.length === 0) store.fetchAgents()
   if (route.params.inboxId) {
     store.setSidebarInboxId(route.params.inboxId)
   } else {
     store.setSidebarFilter(route.params.filter || 'all')
+  }
+  // Vem de "Iniciar conversa" (RevendedorasAtivas.vue/TarefasView.vue) — abre
+  // direto a conversa recém-criada em vez de deixar a lista sem nada selecionado.
+  if (route.query.abrir) {
+    store.setActiveConversation(Number(route.query.abrir))
+    mobileView.value = 'chat'
   }
   window.addEventListener('new-message', handleNewMessage)
   document.addEventListener('click', closeEmojiPicker)

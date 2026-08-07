@@ -1,8 +1,9 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, ListChecks, Check } from '@lucide/vue'
+import { Search, ListChecks, Check, MessageCircle } from '@lucide/vue'
 import api from '../api'
+import Swal from 'sweetalert2'
 import { useConversationsStore } from '../store/conversations'
 
 // Tela de Tarefas (briefing seção 28.4). Antes as tarefas eram DERIVADAS em
@@ -57,6 +58,22 @@ const filteredTasks = computed(() => {
 })
 
 const openContact = (contact) => contact && router.push(`/contatos/${contact.id}`)
+
+const isStartingConversation = ref(null)
+const startConversation = async (contact) => {
+  if (!contact) return
+  isStartingConversation.value = contact.id
+  try {
+    const conv = await convStore.startConversation(contact.id)
+    router.push(`/conversas?abrir=${conv.id}`)
+  } catch (e) {
+    console.error('Erro ao iniciar conversa:', e)
+    const msg = e.response?.data?.message || 'Erro ao iniciar conversa.'
+    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: msg, showConfirmButton: false, timer: 3500 })
+  } finally {
+    isStartingConversation.value = null
+  }
+}
 
 const fetchTarefas = async () => {
   isLoading.value = true
@@ -123,6 +140,9 @@ onMounted(async () => {
         <div class="task-footer">
           <span>{{ agentsById[t.user_id] || 'Não atribuído' }}</span>
           <span v-if="daysInCycle(t) !== null">{{ daysInCycle(t) }} dias em aberto</span>
+          <button class="whatsapp-btn" :disabled="isStartingConversation === t.contact?.id" @click="startConversation(t.contact)" title="Iniciar conversa no WhatsApp">
+            <MessageCircle class="icon-xs" />
+          </button>
           <button class="complete-btn" :disabled="isCompleting === t.id" @click="completeTask(t)">
             <Check class="icon-xs" /> {{ isCompleting === t.id ? 'Concluindo...' : 'Concluir' }}
           </button>
@@ -297,11 +317,28 @@ onMounted(async () => {
   color: var(--text-muted);
 }
 
+.whatsapp-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  border: 1px solid var(--primary);
+  background: transparent;
+  color: var(--primary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+
+  &:hover:not(:disabled) { background: var(--primary); color: white; }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
 .complete-btn {
   display: flex;
   align-items: center;
   gap: 0.3rem;
-  margin-left: auto;
   padding: 0.35rem 0.7rem;
   border-radius: 6px;
   border: 1px solid var(--primary);
