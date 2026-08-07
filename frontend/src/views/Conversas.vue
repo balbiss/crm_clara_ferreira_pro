@@ -227,7 +227,9 @@ const getAttr = (key) => store.activeConversation?.contact?.custom_attributes?.[
 const RESERVED_ATTR_KEYS = [
   ...principalFields.map(f => f.key),
   'instagram', 'id_jueri', 'origem',
-  'gerente_jueri_nome', 'gerente_jueri_id',
+  'gerente_jueri_nome', 'gerente_jueri_id', 'supervisor_nome',
+  'rg', 'profissao', 'razao_social', 'nome_fantasia', 'cnpj',
+  'observacao_jueri', 'observacao_interna_jueri', 'data_inativacao_jueri',
   'pedidos', 'telefones_adicionais',
 ]
 const humanizeKey = (key) => key
@@ -262,11 +264,21 @@ const enderecoCompleto = computed(() => {
 const dadosFields = [
   { key: 'cpf', label: 'CPF', source: 'contact' },
   { key: 'birth_date', label: 'Data de Nascimento', source: 'contact', format: 'date' },
+  { key: 'nivel', label: 'Nível', source: 'contact' },
   { key: 'instagram', label: 'Instagram', source: 'attr' },
   { key: 'id_jueri', label: 'ID Jueri (ERP)', source: 'attr' },
   { key: 'origem', label: 'Origem do lead', source: 'attr' },
   { key: 'gerente_jueri_nome', label: 'Gerente no Jueri', source: 'attr' },
   { key: 'gerente_jueri_id', label: 'ID do Gerente no Jueri', source: 'attr' },
+  { key: 'supervisor_nome', label: 'Supervisor no Jueri', source: 'attr' },
+  { key: 'rg', label: 'RG', source: 'attr' },
+  { key: 'profissao', label: 'Profissão', source: 'attr' },
+  { key: 'razao_social', label: 'Razão Social', source: 'attr' },
+  { key: 'nome_fantasia', label: 'Nome Fantasia', source: 'attr' },
+  { key: 'cnpj', label: 'CNPJ', source: 'attr' },
+  { key: 'observacao_jueri', label: 'Observação (Jueri)', source: 'attr' },
+  { key: 'observacao_interna_jueri', label: 'Observação Interna (Jueri)', source: 'attr' },
+  { key: 'data_inativacao_jueri', label: 'Data de Inativação (Jueri)', source: 'attr', format: 'date' },
 ]
 const getDadoValue = (f) => {
   const c = store.activeConversation?.contact

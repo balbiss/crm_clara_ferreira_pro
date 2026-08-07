@@ -33,6 +33,7 @@
 # não tem mais pedido acima do limiar (Sem Maleta).
 class JueriSyncService
   PEDIDOS_PER_PAGE = 500
+  REVENDEDORES_PER_PAGE = 500
 
   # A API do Jueri devolve o status do pedido como STRING em `status` (não um
   # código numérico em `fk_status_pedido_id` como o briefing original sugeria
@@ -99,6 +100,13 @@ class JueriSyncService
     # limiar agora" fez o acerto e não levou nova maleta — vira Sem Maleta.
     marcar_sem_maleta(ids_ativos_agora, resultado)
 
+    # --- Passo 4: refresca cadastro (nível, RG, profissão, observações etc)
+    # de TODAS as revendedoras já existentes — não só das novas. Usa a
+    # listagem em lote /revendedor (mesma estratégia paginada do Passo 1 pros
+    # pedidos), então custa 1 request a cada ~500 revendedoras, não 1 por
+    # revendedora — sem risco de rate limit mesmo rodando pra base toda.
+    atualizar_cadastro_existentes(contatos_existentes, resultado)
+
     resultado
   end
 
@@ -135,6 +143,45 @@ class JueriSyncService
     end
 
     pedidos_por_revendedor
+  end
+
+  # Cadastro completo (nível, RG, profissão, observações etc) em lote — igual
+  # à busca de pedidos, sem custo de find_revendedor por revendedora.
+  def buscar_todo_cadastro_de_revendedores
+    cadastro_por_revendedor = {}
+
+    page = 1
+    loop do
+      response = @service.revendedores(page: page, per_page: REVENDEDORES_PER_PAGE)
+      items = response['data'] || []
+      break if items.empty?
+
+      items.each do |revendedor|
+        id = revendedor['id']
+        next if id.blank?
+        cadastro_por_revendedor[id.to_s] = revendedor
+      end
+
+      break if response['next_page_url'].blank?
+      page += 1
+    end
+
+    cadastro_por_revendedor
+  end
+
+  def atualizar_cadastro_existentes(contatos_existentes, resultado)
+    cadastro_por_revendedor = buscar_todo_cadastro_de_revendedores
+
+    contatos_existentes.each do |id_jueri, contact|
+      revendedor = cadastro_por_revendedor[id_jueri.to_s]
+      next unless revendedor
+
+      apply_revendedor_attrs(contact, revendedor)
+      contact.save! if contact.changed?
+    rescue => e
+      Rails.logger.error("[JueriSyncService] Falha ao atualizar cadastro do contato #{contact.id}: #{e.message}")
+      resultado[:erros] += 1
+    end
   end
 
   def soma_pecas_abertas(pedidos_raw)
@@ -313,6 +360,11 @@ class JueriSyncService
     contact.state = revendedor['uf'].presence || contact.state
     contact.country = 'Brasil'
     contact.jueri_synced_at = Time.current
+    # "Nível" (Consignado/Colaborador/Caução/Safira/Rubi/Esmeralda/Diamante) —
+    # já vem resolvido (texto, não ID) no `level_revendedor` da listagem em
+    # lote, sem custo de request extra. Coluna dedicada (não custom_attributes)
+    # pra dar pra filtrar/indexar (usado na fila de Acertos do Agendamento).
+    contact.nivel = revendedor['level_revendedor'].presence || contact.nivel
 
     telefone_principal = formatar_telefone(revendedor['telefone_1'])
     contact.phone = telefone_principal if telefone_principal.present? && contact.phone.blank?
@@ -321,19 +373,30 @@ class JueriSyncService
 
     # Atribuição por mapeamento real (não é rodízio/sorteio, ver briefing):
     # se a Clara já configurou o ID desse gerente do Jueri num usuário daqui
-    # (Agentes > ID do Gerente no Jueri), a revendedora nova cai direto pra
-    # ele. Sem mapeamento configurado, mantém user_id nil — gerente atribui
-    # manualmente como já era o combinado. Só roda na CRIAÇÃO (build_contact),
-    # nunca sobrescreve atribuição/transferência manual de quem já existe.
+    # (Agentes > ID do Gerente no Jueri), a revendedora cai direto pra ele.
+    # Só se AINDA não tiver responsável — nunca sobrescreve atribuição ou
+    # transferência manual de quem já tem user_id setado (isso é decisão do
+    # gerente, roda tanto na criação quanto no refresh de cadastro existente).
     mapped_user = @gerente_user_map[gerente_id.to_s] if gerente_id.present?
-    contact.user_id = mapped_user.id if mapped_user
+    contact.user_id = mapped_user.id if mapped_user && contact.user_id.nil?
 
-    contact.custom_attributes = (contact.custom_attributes || {}).merge(
-      'origem' => 'Sincronizado do Jueri',
+    custom = contact.custom_attributes || {}
+    old = ->(key) { custom[key] }
+    contact.custom_attributes = custom.merge(
+      'origem' => custom['origem'] || 'Sincronizado do Jueri',
       'id_jueri' => contact.id_jueri,
       'gerente_jueri_id' => gerente_id,
-      'gerente_jueri_nome' => resolve_gerente_nome(gerente_id) || contact.custom_attributes&.dig('gerente_jueri_nome'),
-      'meta' => revendedor['meta_mensal'].present? ? "R$ #{format('%.2f', revendedor['meta_mensal'].to_f).tr('.', ',')}" : contact.custom_attributes&.dig('meta')
+      'gerente_jueri_nome' => resolve_gerente_nome(gerente_id) || old.call('gerente_jueri_nome'),
+      'meta' => revendedor['meta_mensal'].present? ? "R$ #{format('%.2f', revendedor['meta_mensal'].to_f).tr('.', ',')}" : old.call('meta'),
+      'rg' => revendedor['rg'].presence || old.call('rg'),
+      'profissao' => revendedor['profissao'].presence || old.call('profissao'),
+      'razao_social' => revendedor['razao_social'].presence || old.call('razao_social'),
+      'nome_fantasia' => revendedor['nome_fantasia'].presence || old.call('nome_fantasia'),
+      'cnpj' => revendedor['cnpj'].presence || old.call('cnpj'),
+      'observacao_jueri' => revendedor['observacao'].presence || old.call('observacao_jueri'),
+      'observacao_interna_jueri' => revendedor['observacao_interna'].presence || old.call('observacao_interna_jueri'),
+      'supervisor_nome' => revendedor['supervisor_nome'].presence || old.call('supervisor_nome'),
+      'data_inativacao_jueri' => revendedor['data_inativacao'].presence || old.call('data_inativacao_jueri')
     )
   end
 
