@@ -555,7 +555,7 @@ const saveReorder = async () => {
           </div>
           <div class="settings-menu" v-show="isConversasOpen">
             <router-link to="/conversas" class="nav-item sub-item" exact-active-class="active"><MessageCircle class="icon-sm" /> Inbox de chat</router-link>
-            <router-link to="/conversas/participantes" class="nav-item sub-item" exact-active-class="active"><Users class="icon-sm" /> Chats da equipe</router-link>
+            <router-link v-if="isFullPortfolio" to="/conversas/participantes" class="nav-item sub-item" exact-active-class="active"><Users class="icon-sm" /> Chats da equipe</router-link>
           </div>
         </div>
 

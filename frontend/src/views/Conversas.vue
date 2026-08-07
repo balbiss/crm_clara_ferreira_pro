@@ -52,6 +52,17 @@ import TransferModal from '../components/TransferModal.vue'
 
 const store = useConversationsStore()
 const route = useRoute()
+
+// Título da lista por filtro de rota (espelha os labels usados no menu lateral
+// em DashboardLayout.vue — antes mostrava o param cru capitalizado, ex:
+// "Participantes" em vez de "Chats da equipe").
+const SIDEBAR_FILTER_LABELS = {
+  participantes: 'Chats da equipe',
+  mencoes: 'Menções',
+  'nao-atendidas': 'Não atendidas',
+}
+const listTitle = computed(() => SIDEBAR_FILTER_LABELS[route.params.filter] || 'Todas as conversas')
+
 const newMessageText = ref('')
 const isPrivateMessage = ref(false)
 const isEmojiPickerOpen = ref(false)
@@ -642,7 +653,7 @@ onUnmounted(() => {
     <div class="conv-list-pane" :class="{ 'mobile-hidden': mobileView !== 'list' }">
       <div class="list-header">
         <div class="header-top">
-          <h2 style="text-transform: capitalize;">{{ route.params.filter ? route.params.filter.replace('-', ' ') : 'Todas as conversas' }} <span class="badge">Abertas</span></h2>
+          <h2>{{ listTitle }} <span class="badge">Abertas</span></h2>
           <div class="actions" style="position: relative; display: flex; gap: 0.5rem;">
             <div style="position: relative;">
               <button class="icon-btn" @click.stop="toggleFilterPopover"><Filter class="icon" /></button>

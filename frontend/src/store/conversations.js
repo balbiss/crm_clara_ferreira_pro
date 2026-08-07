@@ -46,7 +46,9 @@ export const useConversationsStore = defineStore('conversations', {
       if (state.sidebarFilter === 'mencoes') {
         filtered = filtered.filter(() => false) // Mock
       } else if (state.sidebarFilter === 'participantes') {
-        filtered = filtered.filter(c => c.assignee_id !== state.currentUser.id)
+        // "Chats da equipe" = conversas atribuídas a OUTRO membro da equipe
+        // (não as minhas, não as sem responsável — essas já têm filtro próprio).
+        filtered = filtered.filter(c => c.assignee_id && c.assignee_id !== state.currentUser.id)
       } else if (state.sidebarFilter === 'nao-atendidas') {
         filtered = filtered.filter(c => c.status === 'open' && c.unread > 0)
       }
