@@ -173,6 +173,37 @@ const closeDropdown = () => {
   }
 }
 
+// Cadastro completo vindo do Jueri (mesmos campos exibidos na aba "Dados" de
+// Conversas.vue) — a aba "Atributos" aqui só mostrava um texto fixo antes,
+// sem nunca renderizar contact.custom_attributes de verdade.
+const dadosFields = [
+  { key: 'cpf', label: 'CPF', source: 'contact' },
+  { key: 'birth_date', label: 'Data de Nascimento', source: 'contact', format: 'date' },
+  { key: 'nivel', label: 'Nível', source: 'contact' },
+  { key: 'instagram', label: 'Instagram', source: 'attr' },
+  { key: 'id_jueri', label: 'ID Jueri (ERP)', source: 'attr' },
+  { key: 'origem', label: 'Origem do lead', source: 'attr' },
+  { key: 'gerente_jueri_nome', label: 'Gerente no Jueri', source: 'attr' },
+  { key: 'gerente_jueri_id', label: 'ID do Gerente no Jueri', source: 'attr' },
+  { key: 'supervisor_nome', label: 'Supervisor no Jueri', source: 'attr' },
+  { key: 'rg', label: 'RG', source: 'attr' },
+  { key: 'profissao', label: 'Profissão', source: 'attr' },
+  { key: 'razao_social', label: 'Razão Social', source: 'attr' },
+  { key: 'nome_fantasia', label: 'Nome Fantasia', source: 'attr' },
+  { key: 'cnpj', label: 'CNPJ', source: 'attr' },
+  { key: 'meta', label: 'Meta Mensal', source: 'attr' },
+  { key: 'observacao_jueri', label: 'Observação (Jueri)', source: 'attr' },
+  { key: 'observacao_interna_jueri', label: 'Observação Interna (Jueri)', source: 'attr' },
+  { key: 'data_inativacao_jueri', label: 'Data de Inativação (Jueri)', source: 'attr', format: 'date' },
+]
+const getDadoValue = (f) => {
+  if (!contact.value) return null
+  const raw = f.source === 'attr' ? contact.value.custom_attributes?.[f.key] : contact.value[f.key]
+  if (!raw) return null
+  return f.format === 'date' ? new Date(raw).toLocaleDateString('pt-BR') : raw
+}
+const dadosPreenchidos = computed(() => dadosFields.filter(f => getDadoValue(f)))
+
 const newNote = ref('')
 const selectedNote = ref(null)
 const showNoteModal = ref(false)
@@ -331,10 +362,16 @@ const saveNote = async () => {
           </button>
         </div>
         <div class="tab-content">
-          <!-- Tab Atributos -->
+          <!-- Tab Atributos: cadastro completo sincronizado do Jueri -->
           <div v-show="activeTab === 'Atributos'">
-            <p class="empty-state-text">
-              Não há atributos personalizados de contatos disponíveis nesta conta. Você pode criar um atributo personalizado nas configurações.
+            <div class="attrs-list" v-if="dadosPreenchidos.length > 0">
+              <div class="attr-row" v-for="f in dadosPreenchidos" :key="f.key">
+                <span class="attr-label">{{ f.label }}</span>
+                <span class="attr-value">{{ getDadoValue(f) }}</span>
+              </div>
+            </div>
+            <p class="empty-state-text" v-else>
+              Nenhum dado cadastral disponível ainda. Revendedoras sincronizadas do Jueri recebem esses dados automaticamente — se essa revendedora já existia antes da sincronização, aguarde o próximo ciclo automático.
             </p>
           </div>
           
@@ -758,6 +795,39 @@ const saveNote = async () => {
     font-size: 0.95rem;
     text-align: center;
     line-height: 1.5;
+  }
+
+  .attrs-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    text-align: left;
+  }
+
+  .attr-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.7rem 1rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #ffffff;
+    border-left: 4px solid #d49ba7;
+
+    .attr-label {
+      font-size: 0.8rem;
+      color: #6b7280;
+      font-weight: 500;
+    }
+
+    .attr-value {
+      font-size: 0.9rem;
+      color: #1f2937;
+      font-weight: 500;
+      text-align: right;
+      word-break: break-word;
+    }
   }
 
   .history-item {
