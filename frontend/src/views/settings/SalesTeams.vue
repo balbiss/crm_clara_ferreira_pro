@@ -132,8 +132,9 @@ const availableAgents = computed(() => agentsStore.agents)
         <div class="team-members">
           <div v-if="team.users.length === 0" class="no-members">Ninguém com acesso ainda</div>
           <div v-else class="member-avatars">
-            <div v-for="u in team.users" :key="u.id" class="member-avatar" :style="{ backgroundColor: colorFor(u.name) }" :title="`${u.name} · ${roleLabels[u.role] || u.role}`">
-              {{ initials(u.name) }}
+            <div v-for="u in team.users" :key="u.id" class="member-avatar" :title="`${u.name} · ${roleLabels[u.role] || u.role}`">
+              <img v-if="u.avatar_url" :src="u.avatar_url" alt="" />
+              <span v-else :style="{ backgroundColor: colorFor(u.name) }" class="member-avatar-fallback">{{ initials(u.name) }}</span>
             </div>
           </div>
         </div>
@@ -162,8 +163,9 @@ const availableAgents = computed(() => agentsStore.agents)
           <div class="user-list">
             <label v-for="agent in availableAgents" :key="agent.id" class="user-row" :class="{ selected: selectedUserIds.has(agent.id) }">
               <input type="checkbox" :checked="selectedUserIds.has(agent.id)" @change="toggleUser(agent.id)" />
-              <div class="user-avatar" :style="{ backgroundColor: colorFor(`${agent.first_name} ${agent.last_name}`) }">
-                {{ initials(`${agent.first_name} ${agent.last_name}`) }}
+              <div class="user-avatar">
+                <img v-if="agent.avatar_url" :src="agent.avatar_url" alt="" />
+                <span v-else :style="{ backgroundColor: colorFor(`${agent.first_name} ${agent.last_name}`) }" class="user-avatar-fallback">{{ initials(`${agent.first_name} ${agent.last_name}`) }}</span>
               </div>
               <div class="user-details">
                 <span class="user-name">{{ agent.first_name }} {{ agent.last_name }}</span>
@@ -246,11 +248,16 @@ const availableAgents = computed(() => agentsStore.agents)
 
 .member-avatars { display: flex; flex-wrap: wrap; gap: -0.4rem; }
 .member-avatar {
-  width: 32px; height: 32px; border-radius: 50%; color: white; font-size: 0.72rem; font-weight: 700;
-  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; overflow: hidden;
   border: 2px solid var(--bg-secondary);
   margin-right: -0.5rem;
   cursor: default;
+
+  img { width: 100%; height: 100%; object-fit: cover; display: block; }
+}
+.member-avatar-fallback {
+  width: 100%; height: 100%; color: white; font-size: 0.72rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
 }
 
 .btn-manage {
@@ -328,8 +335,12 @@ const availableAgents = computed(() => agentsStore.agents)
   input[type="checkbox"] { display: none; }
 
   .user-avatar {
-    width: 30px; height: 30px; border-radius: 50%; color: white; font-size: 0.68rem; font-weight: 700;
-    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    width: 30px; height: 30px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
+    img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  }
+  .user-avatar-fallback {
+    width: 100%; height: 100%; color: white; font-size: 0.68rem; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
   }
   .user-details { display: flex; flex-direction: column; flex: 1; min-width: 0; }
   .user-name { color: var(--text-main); font-size: 0.88rem; font-weight: 500; }

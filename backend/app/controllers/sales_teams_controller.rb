@@ -40,7 +40,7 @@ class SalesTeamsController < ApplicationController
       id: team.id,
       jueri_lider_id: team.jueri_lider_id,
       nome: team.nome,
-      users: team.users.map { |u| { id: u.id, name: "#{u.first_name} #{u.last_name}".strip, role: u.role } }
+      users: team.users.map { |u| { id: u.id, name: "#{u.first_name} #{u.last_name}".strip, role: u.role, avatar_url: u.avatar_url } }
     }
   end
 end
