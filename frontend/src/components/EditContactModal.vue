@@ -274,7 +274,16 @@ for (let i = 0; i < REVENDA_FIELDS.length; i += 2) {
 }
 
 const CADASTRO_KEYS = ['instagram', 'id_jueri', 'origem']
-const RESERVED_KEYS = [...REVENDA_FIELDS.map(f => f.key), ...CADASTRO_KEYS, 'pedidos', 'telefones_adicionais']
+// Campos sincronizados automaticamente do Jueri (JueriSyncService) — têm
+// exibição própria na aba "Dados"/"Atributos", não devem aparecer duplicados
+// nem editáveis/removíveis na lista livre de "Atributos Personalizados"
+// (senão o gerente apaga sem querer e eles só voltam no próximo sync).
+const JUERI_CADASTRO_KEYS = [
+  'gerente_jueri_id', 'gerente_jueri_nome', 'supervisor_nome',
+  'rg', 'profissao', 'razao_social', 'nome_fantasia', 'cnpj',
+  'observacao_jueri', 'observacao_interna_jueri', 'data_inativacao_jueri',
+]
+const RESERVED_KEYS = [...REVENDA_FIELDS.map(f => f.key), ...CADASTRO_KEYS, ...JUERI_CADASTRO_KEYS, 'pedidos', 'telefones_adicionais']
 
 const formData = ref({
   name: '',

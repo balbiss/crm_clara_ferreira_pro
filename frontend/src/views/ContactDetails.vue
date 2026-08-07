@@ -1,9 +1,10 @@
 <script setup>
 import { ref, onMounted, computed, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Search, ChevronDown, Activity, AtSign, Plus, X } from 'lucide-vue-next'
+import { Search, ChevronDown, Activity, AtSign, Plus, X, Edit2 } from 'lucide-vue-next'
 import api from '../api'
 import Swal from 'sweetalert2'
+import EditContactModal from '../components/EditContactModal.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -12,6 +13,11 @@ const isLoading = ref(true)
 
 const activeTab = ref('Atributos')
 const tabs = ['Atributos', 'Histórico', 'Notas', 'Mesclar']
+const isEditModalOpen = ref(false)
+const closeEditModal = () => {
+  isEditModalOpen.value = false
+  fetchContact()
+}
 
 // Fetch Contact
 const fetchContact = async () => {
@@ -363,7 +369,7 @@ const saveNote = async () => {
         </div>
         <div class="tab-content">
           <!-- Tab Atributos: cadastro completo sincronizado do Jueri -->
-          <div v-show="activeTab === 'Atributos'">
+          <div v-show="activeTab === 'Atributos'" class="attrs-tab">
             <div class="attrs-list" v-if="dadosPreenchidos.length > 0">
               <div class="attr-row" v-for="f in dadosPreenchidos" :key="f.key">
                 <span class="attr-label">{{ f.label }}</span>
@@ -373,6 +379,7 @@ const saveNote = async () => {
             <p class="empty-state-text" v-else>
               Nenhum dado cadastral disponível ainda. Revendedoras sincronizadas do Jueri recebem esses dados automaticamente — se essa revendedora já existia antes da sincronização, aguarde o próximo ciclo automático.
             </p>
+            <button class="attrs-edit-btn" @click="isEditModalOpen = true"><Edit2 class="icon-xs" /> Adicionar/editar campos</button>
           </div>
           
           <!-- Tab Histórico -->
@@ -430,6 +437,8 @@ const saveNote = async () => {
   <div class="loading-state" v-else-if="isLoading">
     Carregando...
   </div>
+
+  <EditContactModal :isOpen="isEditModalOpen" :contact="contact" @close="closeEditModal" />
 
   <!-- Note Modal -->
   <div class="modal-overlay" v-show="showNoteModal" @click="closeNoteModal">
@@ -797,37 +806,45 @@ const saveNote = async () => {
     line-height: 1.5;
   }
 
-  .attrs-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
+  .attrs-tab {
     text-align: left;
   }
 
-  .attr-row {
+  .attrs-list {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+  }
+
+  .attr-row {
+    display: grid;
+    grid-template-columns: 180px 1fr;
     gap: 1rem;
-    padding: 0.7rem 1rem;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    background: #ffffff;
-    border-left: 4px solid #d49ba7;
+    align-items: baseline;
+    padding: 0.55rem 0;
+    border-bottom: 1px solid #f3f4f6;
+    font-size: 0.85rem;
 
-    .attr-label {
-      font-size: 0.8rem;
-      color: #6b7280;
-      font-weight: 500;
-    }
+    &:last-child { border-bottom: none; }
 
-    .attr-value {
-      font-size: 0.9rem;
-      color: #1f2937;
-      font-weight: 500;
-      text-align: right;
-      word-break: break-word;
-    }
+    .attr-label { color: #6b7280; }
+    .attr-value { color: #1f2937; font-weight: 500; overflow-wrap: break-word; }
+  }
+
+  .attrs-edit-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-top: 1rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #ba5e72;
+    background: rgba(186, 94, 114, 0.07);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+
+    &:hover { background: rgba(186, 94, 114, 0.14); }
   }
 
   .history-item {

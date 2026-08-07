@@ -191,7 +191,11 @@ const filteredSnapshot = computed(() => {
   return list
 })
 
-const totalValor = computed(() => filteredContacts.value.reduce((s, c) => s + (parseFloat(c.custom_attributes?.venda) || 0), 0))
+// Valor real da carteira em aberto — vem de valor_aberto (soma dos pedidos
+// abertos sincronizados do Jueri, calculada no backend). Antes somava
+// custom_attributes.venda, um campo de texto livre nunca preenchido por
+// ninguém (por isso sempre aparecia R$ 0,00 aqui).
+const totalValor = computed(() => filteredContacts.value.reduce((s, c) => s + (parseFloat(c.valor_aberto) || 0), 0))
 
 const openContact = (contact) => router.push(`/contatos/${contact.id}`)
 
@@ -213,7 +217,7 @@ onMounted(async () => {
       <div class="title-block">
         <h1>Minhas Revendedoras Ativas</h1>
         <p v-if="isTimeTravel">Snapshot de {{ formatDate(timeTravelDate) }} — {{ filteredSnapshot.length }} revendedora{{ filteredSnapshot.length === 1 ? '' : 's' }} ativa{{ filteredSnapshot.length === 1 ? '' : 's' }} naquela data</p>
-        <p v-else>Carteira de revendedoras em ciclo consignado — {{ filteredContacts.length }} ativa{{ filteredContacts.length === 1 ? '' : 's' }}, {{ brl(totalValor) || 'R$ 0,00' }} em vendas registradas</p>
+        <p v-else>Carteira de revendedoras em ciclo consignado — {{ filteredContacts.length }} ativa{{ filteredContacts.length === 1 ? '' : 's' }}, {{ brl(totalValor) || 'R$ 0,00' }} em maleta aberta</p>
       </div>
     </div>
 

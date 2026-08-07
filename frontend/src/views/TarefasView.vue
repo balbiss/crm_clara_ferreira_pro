@@ -196,9 +196,10 @@ onMounted(async () => {
 }
 
 .tasks-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 0.65rem;
+  align-items: start;
 }
 
 .task-card {
@@ -206,7 +207,7 @@ onMounted(async () => {
   border: 1px solid var(--border-color);
   border-left: 4px solid var(--border-color);
   border-radius: 10px;
-  padding: 1rem 1.25rem;
+  padding: 0.85rem 1rem;
 
   &.priority-alta { border-left-color: #f59e0b; }
   &.priority-urgente { border-left-color: #ef4444; }

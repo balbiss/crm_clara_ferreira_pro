@@ -13,8 +13,21 @@ class ContactsController < ApplicationController
     page     = (params[:page] || 1).to_i
     per_page = (params[:per_page] || 50).to_i.clamp(1, 200)
     @contacts = @contacts.includes(:reseller_phones).order(created_at: :desc).offset((page - 1) * per_page).limit(per_page)
+    contacts_arr = @contacts.to_a
 
-    render json: @contacts.to_a.as_json(include: :reseller_phones)
+    # "Em vendas registradas" (RevendedorasAtivas.vue) precisa de um valor real —
+    # antes somava custom_attributes.venda, um campo de texto livre que o
+    # consultor preenche na mão e que ninguém nunca preencheu (dava sempre
+    # R$ 0,00). valor_aberto é o valor de verdade, vindo dos pedidos
+    # sincronizados do Jueri: soma em 1 query só (evita N+1 pra até 200 contatos).
+    valores_abertos = Pedido.open_now.where(contact_id: contacts_arr.map(&:id))
+                             .group(:contact_id).sum(:valor_total)
+
+    json = contacts_arr.map do |c|
+      c.as_json(include: :reseller_phones).merge('valor_aberto' => valores_abertos[c.id].to_f)
+    end
+
+    render json: json
   end
 
   # GET /contacts/ativas?data=2026-06-30 — Engine de Time Travel. Sem `data`,
