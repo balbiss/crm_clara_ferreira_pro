@@ -53,12 +53,15 @@ class JueriSyncService
   # que usam o mesmo cadastro por falta de campo próprio no Jueri (confirmado
   # pelo cliente por vídeo, 2026-08-07): "Caução" (cadastro de responsável/
   # cônjuge que assina/paga por uma revendedora menor de idade, não é ela
-  # mesma), "Atacado" (compra à vista, fora do modelo consignado) e
-  # "Colaborador" (funcionário interno). Nenhum dos três é revendedora
-  # consignada de verdade — nunca deixar virar Contact nem contar pedido
-  # deles pra ativação (achado real: 2 "Atacado" e 1 "Colaborador" já tinham
-  # virado "revendedor_ativo" por engano antes dessa correção).
-  NIVEIS_NAO_REVENDEDORA = ['Caução', 'Atacado', 'Colaborador'].freeze
+  # mesma) e "Colaborador" (funcionário interno) — nenhum dos dois é cliente,
+  # nunca viram Contact nem contam pedido pra ativação. "Atacado" (compra à
+  # vista, fora do modelo consignado) É cliente de verdade, só que fora da
+  # régua consignada — vira Contact com status próprio ('atacado'), fora das
+  # telas de carteira Ativa/Inativa (achado real: 2 "Atacado" e 1
+  # "Colaborador" já tinham virado "revendedor_ativo" por engano antes desta
+  # correção).
+  NIVEIS_EXCLUIR_COMPLETAMENTE = ['Caução', 'Colaborador'].freeze
+  NIVEL_ATACADO = 'Atacado'.freeze
 
   def initialize(account:)
     @account = account
@@ -80,7 +83,8 @@ class JueriSyncService
     # Reaproveitado depois no Passo 4, não busca a listagem duas vezes.
     cadastro_por_revendedor = buscar_todo_cadastro_de_revendedores
     operador_ids = cadastro_por_revendedor.select { |_, r| r['fk_tipo_revendedor_id'] == 1 }.keys
-    nao_revendedora_ids = cadastro_por_revendedor.select { |_, r| NIVEIS_NAO_REVENDEDORA.include?(r['level_revendedor']) }.keys
+    excluir_ids = cadastro_por_revendedor.select { |_, r| NIVEIS_EXCLUIR_COMPLETAMENTE.include?(r['level_revendedor']) }.keys
+    atacado_ids = cadastro_por_revendedor.select { |_, r| r['level_revendedor'] == NIVEL_ATACADO }.keys
 
     # Catálogo dos "times de vendas" (Vendas 1, Vendas 4 etc) — mesmo lote já
     # buscado acima, zero custo extra de API. Usado pela tela de gestão de
@@ -88,7 +92,12 @@ class JueriSyncService
     # tem membership num time (ver visible_contacts_scope).
     sincronizar_times_de_vendas(cadastro_por_revendedor, operador_ids)
 
-    pedidos_por_revendedor = buscar_todo_historico_de_pedidos.except(*operador_ids, *nao_revendedora_ids)
+    # Atacado é cliente de verdade, só que fora da régua consignada — cadastro
+    # simples (sem pedido/régua), status fixo 'atacado', nunca entra no cálculo
+    # de ativação abaixo.
+    sincronizar_atacado(cadastro_por_revendedor, atacado_ids, resultado)
+
+    pedidos_por_revendedor = buscar_todo_historico_de_pedidos.except(*operador_ids, *excluir_ids, *atacado_ids)
     limiar = @account.min_pecas_ativa
     contatos_existentes = @account.contacts.where.not(id_jueri: nil).index_by(&:id_jueri)
 
@@ -212,6 +221,30 @@ class JueriSyncService
       SalesTeamMembership.find_or_create_by!(sales_team: team, user: mapped_user)
     rescue => e
       Rails.logger.error("[JueriSyncService] Falha ao sincronizar time de vendas #{id}: #{e.message}")
+    end
+  end
+
+  # Atacado (compra à vista, fora do consignado) é cliente de verdade da
+  # empresa — vira Contact igual a uma revendedora, só que com status fixo
+  # 'atacado' (fora de ACTIVE_STATUSES/INACTIVE_STATUSES, então nunca entra
+  # na régua nem nas telas de Carteira Ativa/Inativa — tela própria no
+  # frontend). Cadastro simples: sem pedido/snapshot, não precisa de
+  # find_revendedor (já veio tudo no lote de buscar_todo_cadastro_de_revendedores).
+  def sincronizar_atacado(cadastro_por_revendedor, atacado_ids, resultado)
+    atacado_ids.each do |id|
+      revendedor = cadastro_por_revendedor[id]
+      contact = @account.contacts.find_or_initialize_by(id_jueri: id.to_s)
+      is_new = contact.new_record?
+      apply_revendedor_attrs(contact, revendedor)
+      contact.source = 'Jueri' if contact.source.blank?
+      contact.status = 'atacado'
+      next unless contact.new_record? || contact.changed?
+
+      contact.save!
+      resultado[:criados] += 1 if is_new
+    rescue => e
+      Rails.logger.error("[JueriSyncService] Falha ao sincronizar Atacado #{id}: #{e.message}")
+      resultado[:erros] += 1
     end
   end
 

@@ -42,6 +42,7 @@ import {
 import api from '../api'
 import Swal from 'sweetalert2'
 import { ALL_STATUS_LABELS, ACTIVE_STATUS_LABELS, INACTIVE_STATUS_LABELS, statusLabel } from '../constants/regua'
+import { nivelInfo } from '../constants/nivel'
 
 import EmojiPicker from 'vue3-emoji-picker'
 import 'vue3-emoji-picker/css'
@@ -1014,6 +1015,11 @@ onUnmounted(() => {
           <template v-if="store.activeConversation.contact.id_jueri">
             <span class="lead-tag lead-tag-revendedora">REVENDEDORA</span>
             <span class="lead-tag lead-tag-consignado">CONSIGNADO</span>
+            <span
+              v-if="store.activeConversation.contact.nivel"
+              class="lead-tag nivel-tag"
+              :style="{ color: nivelInfo(store.activeConversation.contact.nivel).color, backgroundColor: nivelInfo(store.activeConversation.contact.nivel).bg }"
+            >{{ nivelInfo(store.activeConversation.contact.nivel).emoji }} {{ nivelInfo(store.activeConversation.contact.nivel).nome.toUpperCase() }}</span>
           </template>
           <span v-else class="lead-tag lead-tag-novo">NOVO CONTATO</span>
         </div>

@@ -47,7 +47,8 @@ import {
   Plus,
   MoreVertical,
   GripVertical,
-  Users2
+  Users2,
+  Package
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -611,6 +612,11 @@ const saveReorder = async () => {
         <router-link to="/inativas" class="nav-item">
           <UserX class="icon" />
           <span>Inativas</span>
+        </router-link>
+
+        <router-link to="/atacado" class="nav-item">
+          <Package class="icon" />
+          <span>Atacado</span>
         </router-link>
 
         <router-link v-if="!isFinanceiro" to="/tarefas" class="nav-item">

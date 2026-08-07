@@ -8,6 +8,7 @@ import { useContactsStore } from '../store/contacts'
 import { useConversationsStore } from '../store/conversations'
 import { ACTIVE_STATUS_LABELS, statusLabel } from '../constants/regua'
 import { isFullPortfolio as isFullPortfolioRole } from '../config/roles'
+import { nivelInfo } from '../constants/nivel'
 
 // Tela "Minhas Revendedoras Ativas" (briefing seção 28.1) — visão de carteira/lista,
 // não kanban (briefing seção 9 pede explicitamente pra não copiar o modelo de etapas
@@ -348,6 +349,12 @@ onMounted(async () => {
             <td class="cell-name">
               <div class="row-avatar">{{ (c.name || c.first_name || '?').charAt(0).toUpperCase() }}</div>
               <span>{{ c.name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Sem nome' }}</span>
+              <span
+                v-if="c.nivel"
+                class="nivel-badge"
+                :style="{ color: nivelInfo(c.nivel).color, backgroundColor: nivelInfo(c.nivel).bg }"
+                :title="`Nível: ${nivelInfo(c.nivel).nome}`"
+              >{{ nivelInfo(c.nivel).emoji }} {{ nivelInfo(c.nivel).nome }}</span>
             </td>
             <td><span class="stage-badge" :class="stageBadgeClass(c.status)">{{ stageLabel(c.status) }}</span></td>
             <td>{{ daysInCycle(c) !== null ? daysInCycle(c) + ' dias' : '...' }}</td>
@@ -602,6 +609,17 @@ onMounted(async () => {
     align-items: center;
     gap: 0.6rem;
     font-weight: 600;
+  }
+
+  .nivel-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 0.15rem 0.5rem;
+    border-radius: 20px;
+    white-space: nowrap;
   }
 
   .cell-tarefa {
