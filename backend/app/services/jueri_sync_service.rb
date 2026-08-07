@@ -49,6 +49,17 @@ class JueriSyncService
   # em rajada) — espaça as buscas de cadastro completo pra não estourar o limite.
   PAUSA_ENTRE_CHAMADAS = 0.3
 
+  # O endpoint /revendedor mistura revendedora de verdade com outras categorias
+  # que usam o mesmo cadastro por falta de campo próprio no Jueri (confirmado
+  # pelo cliente por vídeo, 2026-08-07): "Caução" (cadastro de responsável/
+  # cônjuge que assina/paga por uma revendedora menor de idade, não é ela
+  # mesma), "Atacado" (compra à vista, fora do modelo consignado) e
+  # "Colaborador" (funcionário interno). Nenhum dos três é revendedora
+  # consignada de verdade — nunca deixar virar Contact nem contar pedido
+  # deles pra ativação (achado real: 2 "Atacado" e 1 "Colaborador" já tinham
+  # virado "revendedor_ativo" por engano antes dessa correção).
+  NIVEIS_NAO_REVENDEDORA = ['Caução', 'Atacado', 'Colaborador'].freeze
+
   def initialize(account:)
     @account = account
     @service = JueriApiService.new
@@ -69,6 +80,7 @@ class JueriSyncService
     # Reaproveitado depois no Passo 4, não busca a listagem duas vezes.
     cadastro_por_revendedor = buscar_todo_cadastro_de_revendedores
     operador_ids = cadastro_por_revendedor.select { |_, r| r['fk_tipo_revendedor_id'] == 1 }.keys
+    nao_revendedora_ids = cadastro_por_revendedor.select { |_, r| NIVEIS_NAO_REVENDEDORA.include?(r['level_revendedor']) }.keys
 
     # Catálogo dos "times de vendas" (Vendas 1, Vendas 4 etc) — mesmo lote já
     # buscado acima, zero custo extra de API. Usado pela tela de gestão de
@@ -76,7 +88,7 @@ class JueriSyncService
     # tem membership num time (ver visible_contacts_scope).
     sincronizar_times_de_vendas(cadastro_por_revendedor, operador_ids)
 
-    pedidos_por_revendedor = buscar_todo_historico_de_pedidos.except(*operador_ids)
+    pedidos_por_revendedor = buscar_todo_historico_de_pedidos.except(*operador_ids, *nao_revendedora_ids)
     limiar = @account.min_pecas_ativa
     contatos_existentes = @account.contacts.where.not(id_jueri: nil).index_by(&:id_jueri)
 
