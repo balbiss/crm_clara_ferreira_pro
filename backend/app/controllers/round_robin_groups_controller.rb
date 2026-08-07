@@ -1,17 +1,18 @@
 class RoundRobinGroupsController < ApplicationController
+  before_action :authenticate_user!
   before_action :require_owner!
   before_action :set_round_robin_group, only: %i[ update destroy ]
 
   # GET /round_robin_groups
   def index
-    account = current_user&.account || Account.first
+    account = current_user.account
     @groups = account.round_robin_groups.order(:name)
     render json: @groups
   end
 
   # POST /round_robin_groups
   def create
-    account = current_user&.account || Account.first
+    account = current_user.account
     @group = account.round_robin_groups.build(round_robin_group_params)
 
     if @group.save
@@ -38,7 +39,7 @@ class RoundRobinGroupsController < ApplicationController
 
   private
     def set_round_robin_group
-      account = current_user&.account || Account.first
+      account = current_user.account
       @group = account.round_robin_groups.find(params[:id])
     end
 

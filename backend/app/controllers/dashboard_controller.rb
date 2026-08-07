@@ -1,4 +1,6 @@
 class DashboardController < ApplicationController
+  before_action :authenticate_user!
+
   def index
     is_owner   = full_portfolio? || current_user.has_permission?('view_all_contacts')
     account    = current_user.account

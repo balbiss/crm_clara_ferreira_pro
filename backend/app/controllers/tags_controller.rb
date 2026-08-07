@@ -1,4 +1,5 @@
 class TagsController < ApplicationController
+  before_action :authenticate_user!
   before_action :set_tag, only: %i[ update destroy ]
   # Corretores podem listar etiquetas (para filtrar conversas).
   # Apenas o dono cria, edita ou remove etiquetas.

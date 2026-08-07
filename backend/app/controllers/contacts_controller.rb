@@ -1,4 +1,5 @@
 class ContactsController < ApplicationController
+  before_action :authenticate_user!
   before_action :set_contact, only: %i[ show update destroy merge add_note block unblock ]
   before_action :require_full_portfolio!, only: %i[ destroy merge bulk_assign ]
 

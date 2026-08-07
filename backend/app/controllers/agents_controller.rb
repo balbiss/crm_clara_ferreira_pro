@@ -1,14 +1,21 @@
 class AgentsController < ApplicationController
+  # FALHA CRÍTICA CORRIGIDA (2026-08-07): nenhuma action aqui exigia login —
+  # index/show usavam `current_user&.account || Account.first`, então uma
+  # chamada SEM autenticação nenhuma caía no fallback e devolvia nome/email/
+  # telefone/cargo de todos os agentes da primeira conta do banco. Confirmado
+  # exploitable ao vivo (GET /agents sem token devolvia os 4 agentes reais).
+  before_action :authenticate_user!
   before_action :set_agent, only: %i[ show update destroy block unblock toggle_roundrobin ]
-  # Leitura liberada para todos (corretores precisam ver a equipe para atribuição).
-  # Escrita restrita ao dono: criar, editar, remover, bloquear, configurar rodízio.
+  # Leitura liberada pra qualquer usuário logado (corretores precisam ver a
+  # equipe para atribuição). Escrita restrita ao dono: criar, editar, remover,
+  # bloquear, configurar rodízio.
   before_action :require_owner!, only: %i[ create update destroy block unblock toggle_roundrobin ]
 
   # GET /agents
   def index
-    # We list users that belong to the current user's account
-    # Exclude the current user if you don't want them to see themselves (optional)
-    account = current_user&.account || Account.first
+    # authenticate_user! já garante current_user presente — não usar mais
+    # Account.first como fallback (isso é o que causava o vazamento acima).
+    account = current_user.account
     @agents = account.users.order(created_at: :desc)
     
     render json: @agents.as_json(except: [:encrypted_password, :jti],
@@ -23,7 +30,7 @@ class AgentsController < ApplicationController
 
   # POST /agents
   def create
-    account = current_user&.account || Account.first
+    account = current_user.account
     @agent = account.users.build(agent_params.except(:role))
     @agent.role = agent_params[:role].presence || :consultor
     plain_password = agent_params[:password]
@@ -74,7 +81,7 @@ class AgentsController < ApplicationController
 
   # GET /agents/queue
   def queue
-    account = current_user&.account || Account.first
+    account = current_user.account
     agents = account.users
       .where(status: 'active', available_for_roundrobin: true)
       .order(Arel.sql('queue_position ASC NULLS FIRST, id ASC'))
@@ -83,7 +90,7 @@ class AgentsController < ApplicationController
 
   # PATCH /agents/1/toggle_roundrobin
   def toggle_roundrobin
-    account = current_user&.account || Account.first
+    account = current_user.account
 
     if @agent.available_for_roundrobin?
       @agent.update!(available_for_roundrobin: false, queue_position: nil)
@@ -106,7 +113,7 @@ class AgentsController < ApplicationController
 
   private
     def set_agent
-      account = current_user&.account || Account.first
+      account = current_user.account
       @agent = account.users.find(params[:id])
     end
 
