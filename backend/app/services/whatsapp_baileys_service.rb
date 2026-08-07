@@ -192,24 +192,17 @@ class WhatsappBaileysService
   end
 
   def connected?
-    # Cache tem prioridade (escrito pelo webhook connection.update)
-    cached = Rails.cache.read("inbox:#{@inbox.id}:status")
-    return cached == 'open' unless cached.nil?
-
-    # Cache vazio (ex: após restart) — consulta o Baileys API diretamente
-    begin
-      uri = URI.parse("#{@api_url}/connections/#{@phone_number}/presence")
-      req = Net::HTTP::Patch.new(uri)
-      req.content_type = "application/json"
-      req["x-api-key"] = @api_key
-      req.body = JSON.dump({ "type" => "available" })
-      res = Net::HTTP.start(uri.hostname, uri.port, open_timeout: 3, read_timeout: 5) { |h| h.request(req) }
-      is_connected = res.is_a?(Net::HTTPSuccess)
-      Rails.cache.write("inbox:#{@inbox.id}:status", is_connected ? 'open' : 'close', expires_in: 2.minutes)
-      is_connected
-    rescue StandardError
-      false
-    end
+    # Único critério confiável: o cache escrito pelo webhook connection.update,
+    # que reflete o estado real reportado pela própria lib Baileys ('open' só
+    # depois do pareamento completo). Um PATCH de presence aqui já foi tentado
+    # como fallback pra cache vazio (ex: logo após restart), mas o endpoint de
+    # presence responde sucesso mesmo com a conexão ainda em pareamento (QR
+    # nunca escaneado) — fazia a tela mostrar "conectado" na hora de criar uma
+    # conexão nova, sem o usuário nunca ter lido o QR. Cache vazio = não
+    # conectado (ou ainda não confirmado); a lib reconecta sozinha com
+    # frequência (ver comentário sobre stream errors 503/515 no webhook), então
+    # o cache se autocorrige rápido mesmo depois de um restart do Rails.
+    Rails.cache.read("inbox:#{@inbox.id}:status") == 'open'
   end
 
   # Sends raw binary data as a document (e.g. a PDF)

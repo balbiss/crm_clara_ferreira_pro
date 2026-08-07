@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, onUnmounted, ref, computed } from 'vue'
+import { onMounted, onUnmounted, ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import api from '../api'
 import Swal from 'sweetalert2'
@@ -224,6 +224,25 @@ const dismissIosBanner = () => {
   localStorage.setItem('ios_install_banner_dismissed', 'true')
 }
 
+// Banner de canal desconectado — some sozinho quando reconectar; o "fechar"
+// só oculta pra aquela caixa até ela cair de novo (não persiste no reload,
+// é um alerta operacional, não é pra ficar escondido pra sempre).
+const dismissedInboxIds = ref(new Set())
+const disconnectedInboxBanner = computed(() =>
+  inboxesStore.disconnectedInboxes.find(i => !dismissedInboxIds.value.has(i.id))
+)
+const dismissDisconnectedBanner = () => {
+  if (disconnectedInboxBanner.value) {
+    dismissedInboxIds.value.add(disconnectedInboxBanner.value.id)
+  }
+}
+// Se a caixa reconectar, tira do "dismissed" pra alertar de novo caso caia outra vez
+watch(() => inboxesStore.disconnectedInboxes.map(i => i.id), (currentIds) => {
+  dismissedInboxIds.value.forEach(id => {
+    if (!currentIds.includes(id)) dismissedInboxIds.value.delete(id)
+  })
+})
+
 const accountName = () => {
   return currentUser.value.account_name || brand.name
 }
@@ -384,6 +403,7 @@ onMounted(() => {
   if (!contactsStore.isLoadedOnce) contactsStore.fetchContacts()
   if (!agentsStore.isLoadedOnce) agentsStore.fetchAgents()
   if (!pipelinesStore.isLoadedOnce) pipelinesStore.fetchPipelines()
+  inboxesStore.startStatusPolling()
 
   // Chat interno da equipe: ativo em qualquer tela do sistema (não só na
   // tela do próprio chat), pra badge de não lidas e toast tipo WhatsApp
@@ -472,6 +492,7 @@ onUnmounted(() => {
   window.removeEventListener('tags-updated', fetchTags)
   window.removeEventListener('lead-atribuido', handleLeadAtribuido)
   window.removeEventListener('snooze-expired', handleSnoozeExpired)
+  inboxesStore.stopStatusPolling()
 })
 
 const handleLogout = () => {
@@ -794,6 +815,14 @@ const saveReorder = async () => {
         <span>Instale o {{ brand.name }} no seu celular pra acesso rápido e notificações.</span>
         <button class="install-cta-btn" @click="promptInstall">Instalar</button>
         <button class="ios-install-banner-close" @click="dismissAndroidBanner">
+          <X class="icon-sm" />
+        </button>
+      </div>
+
+      <div v-if="disconnectedInboxBanner" class="disconnected-banner">
+        <span>⚠️ O WhatsApp "{{ disconnectedInboxBanner.name }}" está desconectado. As mensagens não estão sendo enviadas nem recebidas.</span>
+        <router-link to="/settings/inboxes" class="install-cta-btn">Reconectar</router-link>
+        <button class="ios-install-banner-close" @click="dismissDisconnectedBanner">
           <X class="icon-sm" />
         </button>
       </div>
@@ -1691,6 +1720,45 @@ const saveReorder = async () => {
     display: flex;
     padding: 0.2rem;
     &:hover { color: var(--text-main); }
+  }
+}
+
+.disconnected-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 1rem;
+  background: #fee2e2;
+  border-bottom: 1px solid #fca5a5;
+  color: #991b1b;
+  font-size: 0.82rem;
+  line-height: 1.35;
+
+  span { flex: 1; }
+
+  .install-cta-btn {
+    flex-shrink: 0;
+    background: #dc2626;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 0.35rem 0.8rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    &:hover { opacity: 0.9; }
+  }
+
+  .ios-install-banner-close {
+    flex-shrink: 0;
+    background: transparent;
+    border: none;
+    color: #991b1b;
+    cursor: pointer;
+    display: flex;
+    padding: 0.2rem;
+    &:hover { color: #7f1d1d; }
   }
 }
 

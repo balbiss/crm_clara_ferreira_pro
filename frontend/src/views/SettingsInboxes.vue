@@ -1,6 +1,6 @@
 <script setup>
-import { onMounted } from 'vue'
-import { Search, Settings2, Trash2, ChevronRight } from 'lucide-vue-next'
+import { onMounted, onUnmounted, ref } from 'vue'
+import { Search, Settings2, Trash2, ChevronRight, RefreshCw, X } from 'lucide-vue-next'
 import api from '../api'
 import Swal from 'sweetalert2'
 import { useInboxesStore } from '../store/inboxes'
@@ -21,7 +21,7 @@ const deleteInbox = async (id) => {
     showCancelButton: true,
     confirmButtonText: 'Sim, deletar'
   })
-  
+
   if (result.isConfirmed) {
     try {
       await api.delete(`/inboxes/${id}`)
@@ -32,6 +32,72 @@ const deleteInbox = async (id) => {
     }
   }
 }
+
+// Reconectar (Baileys) — mesmo fluxo de QR Code do assistente de criação de
+// caixa de entrada, só que disparado a partir de uma caixa já existente.
+const showReconnectModal = ref(false)
+const reconnectingInbox = ref(null)
+const qrCodeData = ref(null)
+const qrLoading = ref(false)
+const qrConnected = ref(false)
+let qrPollInterval = null
+
+const openReconnectModal = (inbox) => {
+  reconnectingInbox.value = inbox
+  showReconnectModal.value = true
+  qrCodeData.value = null
+  qrConnected.value = false
+  qrLoading.value = true
+
+  const fetchQr = async () => {
+    try {
+      const res = await api.get(`/inboxes/${inbox.id}/qr_code`)
+      if (res.data.qr_code) {
+        qrCodeData.value = res.data.qr_code
+        qrLoading.value = false
+      }
+    } catch (e) {
+      console.warn('Erro ao buscar QR Code:', e.message)
+    }
+  }
+
+  fetchQr()
+
+  qrPollInterval = setInterval(async () => {
+    try {
+      const statusRes = await api.get(`/inboxes/${inbox.id}/status`)
+      if (statusRes.data.connected) {
+        qrConnected.value = true
+        qrCodeData.value = null
+        inboxesStore.checkStatus(inbox.id)
+        if (qrPollInterval) {
+          clearInterval(qrPollInterval)
+          qrPollInterval = null
+        }
+        return
+      }
+      await fetchQr()
+    } catch (_) {}
+  }, 4000)
+}
+
+const closeReconnectModal = () => {
+  showReconnectModal.value = false
+  reconnectingInbox.value = null
+  if (qrPollInterval) {
+    clearInterval(qrPollInterval)
+    qrPollInterval = null
+  }
+  // Garante que o badge da lista reflita o status mais recente ao fechar
+  inboxesStore.fetchInboxes()
+}
+
+onUnmounted(() => {
+  if (qrPollInterval) {
+    clearInterval(qrPollInterval)
+    qrPollInterval = null
+  }
+})
 </script>
 
 <template>
@@ -103,6 +169,15 @@ const deleteInbox = async (id) => {
             </div>
             
             <div class="inbox-actions">
+              <button
+                v-if="inbox.provider === 'baileys' && inbox.connected === false"
+                class="icon-btn btn-reconnect"
+                title="Reconectar"
+                @click="openReconnectModal(inbox)"
+              >
+                <RefreshCw class="icon-sm" />
+                Reconectar
+              </button>
               <router-link :to="`/settings/inboxes/${inbox.id}`" class="icon-btn" title="Configurações"><Settings2 class="icon-sm" /></router-link>
               <button class="icon-btn text-danger" @click="deleteInbox(inbox.id)" title="Deletar"><Trash2 class="icon-sm" /></button>
             </div>
@@ -114,7 +189,43 @@ const deleteInbox = async (id) => {
         </template>
       </div>
     </div>
-    
+
+    <!-- Modal de Reconexão (QR Code) -->
+    <div v-if="showReconnectModal" class="modal-backdrop" @click.self="closeReconnectModal">
+      <div class="qr-modal">
+        <button class="close-btn" @click="closeReconnectModal"><X class="icon-sm" /></button>
+        <div class="qr-content">
+          <h3>Reconectar dispositivo</h3>
+          <p class="qr-desc">Escaneie o QR code no WhatsApp do celular pra reconectar "{{ reconnectingInbox?.name }}".</p>
+
+          <div class="phone-status">
+            <span class="phone-name">{{ reconnectingInbox?.name }}</span>
+            <span class="phone-number">{{ reconnectingInbox?.phone_number }}</span>
+            <div class="status-dot" :class="{ connected: qrConnected }"></div>
+          </div>
+
+          <div v-if="qrConnected" class="connected-state">
+            <div class="success-check">✓</div>
+            <p>WhatsApp reconectado com sucesso!</p>
+          </div>
+
+          <div v-else-if="qrLoading" class="qr-loading">
+            <div class="spinner"></div>
+            <p>Aguardando QR Code da API...</p>
+          </div>
+
+          <div v-else-if="qrCodeData" class="qr-code-box">
+            <img :src="qrCodeData" alt="QR Code WhatsApp" class="qr-image" />
+          </div>
+
+          <div v-else class="qr-unavailable">
+            <p>⚠️ A API Baileys não está acessível neste momento.</p>
+            <p class="small-text">Verifique se a API está rodando e tente novamente em instantes.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -422,13 +533,151 @@ const deleteInbox = async (id) => {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    
+
     &:hover {
       background: #fee2e2;
       color: #ef4444;
       border-color: #fca5a5;
     }
   }
+
+  .btn-reconnect {
+    width: auto;
+    padding: 0 0.75rem;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #d97706;
+    border-color: #fde68a;
+    background: #fffbeb;
+
+    &:hover {
+      background: #fef3c7;
+      color: #b45309;
+      border-color: #fcd34d;
+    }
+  }
+}
+
+/* Modal do QR Code de reconexão */
+.qr-modal {
+  background: white;
+  border-radius: 12px;
+  padding: 1.75rem;
+  width: 380px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+  position: relative;
+  text-align: center;
+
+  .close-btn {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    background: transparent;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+
+    &:hover { color: #4b5563; }
+  }
+
+  h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.15rem;
+    color: #111827;
+  }
+
+  .qr-desc {
+    color: #6b7280;
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+    line-height: 1.4;
+  }
+
+  .phone-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+    color: #374151;
+    font-size: 0.85rem;
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      background: #9ca3af;
+      border-radius: 50%;
+      margin-left: 0.25rem;
+      transition: background 0.3s;
+
+      &.connected { background: #10b981; }
+    }
+  }
+
+  .qr-code-box {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 0.5rem;
+
+    .qr-image {
+      width: 180px;
+      height: 180px;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+      padding: 6px;
+      background: white;
+    }
+  }
+
+  .qr-loading {
+    padding: 1.5rem 0;
+    color: #6b7280;
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid #e5e7eb;
+      border-top-color: #d49ba7;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 0.75rem;
+    }
+
+    p { font-size: 0.85rem; }
+  }
+
+  .connected-state {
+    padding: 1.5rem 0;
+    color: #059669;
+
+    .success-check {
+      width: 48px;
+      height: 48px;
+      background: #d1fae5;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      margin: 0 auto 0.75rem;
+    }
+
+    p { font-size: 0.95rem; font-weight: 500; }
+  }
+
+  .qr-unavailable {
+    padding: 1.5rem 1rem;
+    color: #6b7280;
+
+    p { font-size: 0.85rem; margin-bottom: 0.5rem; }
+    .small-text { font-size: 0.75rem; color: #9ca3af; }
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .modal-backdrop {
