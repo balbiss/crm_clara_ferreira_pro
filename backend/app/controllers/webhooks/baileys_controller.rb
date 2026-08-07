@@ -345,6 +345,12 @@ module Webhooks
           message_record.update(text: '📎 Arquivo não suportado ou vazio')
         end
 
+        # O primeiro broadcast (disparado pelo create! acima) saiu sem anexo,
+        # porque a mídia só termina de baixar/anexar aqui embaixo — reenvia
+        # agora que o texto final e o anexo já estão no registro, senão o
+        # usuário só vê a imagem/áudio depois de recarregar a página.
+        message_record.rebroadcast
+
         # ===== MOTOR DE INTELIGÊNCIA ARTIFICIAL =====
         if inbox.ai_enabled
           is_paused = Rails.cache.read("ai_paused_#{inbox.id}_#{remote_jid}")

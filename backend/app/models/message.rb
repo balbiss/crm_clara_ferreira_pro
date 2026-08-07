@@ -12,6 +12,15 @@ class Message < ApplicationRecord
   after_create_commit :update_conversation_activity
   after_create_commit :notify_agent_of_new_message
 
+  # Reenvia o broadcast depois que texto/anexo terminam de ser processados.
+  # Necessário pro webhook do Baileys: a mensagem é criada (e já dispara o
+  # primeiro broadcast, sem anexo) antes da mídia terminar de baixar e ser
+  # anexada — sem isso, a imagem/áudio só aparecia pro usuário depois de
+  # recarregar a página, nunca em tempo real.
+  def rebroadcast
+    broadcast_to_conversation
+  end
+
   private
 
   def update_conversation_activity

@@ -405,8 +405,8 @@ export const useConversationsStore = defineStore('conversations', {
             const conv = this.conversations.find(c => Number(c.id) === Number(conversation_id))
             if (conv) {
               if (!conv.messages) conv.messages = []
-              const exists = conv.messages.some(m => m.id === newMsg.id)
-              if (!exists) {
+              const existingIdx = conv.messages.findIndex(m => m.id === newMsg.id)
+              if (existingIdx === -1) {
                 conv.messages.push(newMsg)
                 conv.preview = newMsg.text
                 conv.timestamp = newMsg.timestamp
@@ -416,6 +416,12 @@ export const useConversationsStore = defineStore('conversations', {
                 window.dispatchEvent(new CustomEvent('new-message', {
                   detail: { conversationId: conversation_id }
                 }))
+              } else {
+                // Reenvio da mesma mensagem (ex: webhook do Baileys manda de
+                // novo depois que o anexo termina de baixar) — atualiza em
+                // vez de ignorar, senão imagem/áudio só aparece com reload.
+                conv.messages[existingIdx] = { ...conv.messages[existingIdx], ...newMsg }
+                conv.preview = newMsg.text
               }
             } else {
               this.fetchConversations()
