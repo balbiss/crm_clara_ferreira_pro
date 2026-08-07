@@ -62,7 +62,15 @@ class JueriSyncService
   def call
     resultado = { criados: 0, reativados: 0, atualizados: 0, sem_maleta: 0, pedidos_sincronizados: 0, erros: 0 }
 
-    pedidos_por_revendedor = buscar_todo_historico_de_pedidos
+    # Busca o cadastro em lote ANTES dos pedidos — precisamos saber quem é
+    # gerente/operador (fk_tipo_revendedor_id=1) pra nunca deixar entrar como
+    # revendedora (revendedoras-ativas-criterios.md, seção "Exclusões
+    # Automáticas": "Gerentes / carteiras são operadores, não revendedoras").
+    # Reaproveitado depois no Passo 4, não busca a listagem duas vezes.
+    cadastro_por_revendedor = buscar_todo_cadastro_de_revendedores
+    operador_ids = cadastro_por_revendedor.select { |_, r| r['fk_tipo_revendedor_id'] == 1 }.keys
+
+    pedidos_por_revendedor = buscar_todo_historico_de_pedidos.except(*operador_ids)
     limiar = @account.min_pecas_ativa
     contatos_existentes = @account.contacts.where.not(id_jueri: nil).index_by(&:id_jueri)
 
@@ -101,11 +109,9 @@ class JueriSyncService
     marcar_sem_maleta(ids_ativos_agora, resultado)
 
     # --- Passo 4: refresca cadastro (nível, RG, profissão, observações etc)
-    # de TODAS as revendedoras já existentes — não só das novas. Usa a
-    # listagem em lote /revendedor (mesma estratégia paginada do Passo 1 pros
-    # pedidos), então custa 1 request a cada ~500 revendedoras, não 1 por
-    # revendedora — sem risco de rate limit mesmo rodando pra base toda.
-    atualizar_cadastro_existentes(contatos_existentes, resultado)
+    # de TODAS as revendedoras já existentes — não só das novas. Reaproveita
+    # o cadastro já buscado no início do método (não busca de novo).
+    atualizar_cadastro_existentes(cadastro_por_revendedor, contatos_existentes, resultado)
 
     resultado
   end
@@ -169,9 +175,7 @@ class JueriSyncService
     cadastro_por_revendedor
   end
 
-  def atualizar_cadastro_existentes(contatos_existentes, resultado)
-    cadastro_por_revendedor = buscar_todo_cadastro_de_revendedores
-
+  def atualizar_cadastro_existentes(cadastro_por_revendedor, contatos_existentes, resultado)
     contatos_existentes.each do |id_jueri, contact|
       revendedor = cadastro_por_revendedor[id_jueri.to_s]
       next unless revendedor
