@@ -18,6 +18,27 @@ class AgendamentosController < ApplicationController
     render json: agendamentos.order(:inicio_em).includes(:user, :contact).as_json(include: JSON_INCLUDES)
   end
 
+  # GET /agendamentos/resumo?user_id=5 — contadores pra barra de estatísticas
+  # do topo do Calendário, independentes do mês que está sendo navegado na
+  # grade (por isso é uma consulta separada, não filtrada por de/ate).
+  def resumo
+    base = visible_agendamentos_scope
+    base = base.where(user_id: params[:user_id]) if params[:user_id].present? && full_portfolio?
+
+    hoje = Date.current
+    inicio_semana = hoje.beginning_of_week(:sunday)
+    fim_semana = hoje.end_of_week(:sunday)
+
+    render json: {
+      hoje: base.no_periodo(hoje.beginning_of_day, hoje.end_of_day).count,
+      semana: base.no_periodo(inicio_semana.beginning_of_day, fim_semana.end_of_day).count,
+      # "Atrasados": não tem campo de conclusão (diferente de Tarefa), então
+      # conta compromissos com início nos últimos 7 dias que já passaram —
+      # janela rolante, pra não crescer pra sempre com eventos antigos.
+      atrasados: base.where('inicio_em < ? AND inicio_em >= ?', Time.current, 7.days.ago).count
+    }
+  end
+
   # POST /agendamentos
   def create
     agendamento = current_user.account.agendamentos.new(agendamento_params.except(:user_id))

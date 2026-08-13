@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { ChevronLeft, ChevronRight, Plus, X, Trash2, Search } from '@lucide/vue'
+import { ChevronLeft, ChevronRight, Plus, X, Trash2, Search, CalendarDays, CalendarRange, Flame } from '@lucide/vue'
 import Swal from 'sweetalert2'
 import api from '../api'
 import { useAgendamentosStore } from '../store/agendamentos'
@@ -100,6 +100,14 @@ async function carregar() {
   await agendaStore.fetchAgendamentos({
     de: chaveDia(de),
     ate: chaveDia(ate),
+    userId: isFullPortfolio.value && userFilter.value !== 'all' ? userFilter.value : undefined
+  })
+}
+
+// Independente do mês navegado na grade (sempre "hoje" de verdade) — por
+// isso é chamada separada, só refeita quando o filtro de responsável muda.
+async function carregarResumo() {
+  await agendaStore.fetchResumo({
     userId: isFullPortfolio.value && userFilter.value !== 'all' ? userFilter.value : undefined
   })
 }
@@ -212,6 +220,7 @@ async function salvar() {
       await agendaStore.criar(payload)
     }
     fecharModal()
+    carregarResumo()
   } catch (error) {
     const msg = error.response?.data?.error || 'Erro ao salvar o compromisso.'
     Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: msg, showConfirmButton: false, timer: 3500 })
@@ -236,16 +245,18 @@ async function apagar() {
   try {
     await agendaStore.remover(editingId.value)
     fecharModal()
+    carregarResumo()
   } catch {
     Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Erro ao apagar o compromisso.', showConfirmButton: false, timer: 3500 })
   }
 }
 
 watch([mesAtual, anoAtual, userFilter], carregar)
+watch(userFilter, carregarResumo)
 
 onMounted(async () => {
   if (!convStore.agents.length) await convStore.fetchAgents()
-  await carregar()
+  await Promise.all([carregar(), carregarResumo()])
 })
 </script>
 
@@ -257,6 +268,32 @@ onMounted(async () => {
         <p>Agenda de compromissos{{ isFullPortfolio ? ' da equipe' : '' }}</p>
       </div>
       <button class="btn-primary" @click="abrirCriacao(null)"><Plus class="icon-sm" /> Novo compromisso</button>
+    </div>
+
+    <div class="metrics-bar">
+      <div class="metric">
+        <CalendarDays class="metric-ic" />
+        <div>
+          <div class="metric-val">{{ agendaStore.resumo.hoje }}</div>
+          <div class="metric-lbl">Hoje</div>
+        </div>
+      </div>
+      <div class="metric-sep"></div>
+      <div class="metric">
+        <CalendarRange class="metric-ic" />
+        <div>
+          <div class="metric-val">{{ agendaStore.resumo.semana }}</div>
+          <div class="metric-lbl">Esta Semana</div>
+        </div>
+      </div>
+      <div class="metric-sep"></div>
+      <div class="metric" :class="{ alert: agendaStore.resumo.atrasados > 0 }">
+        <Flame class="metric-ic" />
+        <div>
+          <div class="metric-val">{{ agendaStore.resumo.atrasados }}</div>
+          <div class="metric-lbl">Atrasados</div>
+        </div>
+      </div>
     </div>
 
     <div class="toolbar">
@@ -400,9 +437,69 @@ onMounted(async () => {
 
 <style lang="scss" scoped>
 .calendario-page {
+  --wine: #2b0016;
+  --alert: #a24a3a;
+
   padding: 1.5rem;
   height: 100%;
   overflow-y: auto;
+}
+
+// Mesmo padrão visual da barra "Agendadas/Atrasadas" do Dashboard.vue —
+// conceito diferente (compromissos da agenda, não status da régua), mas
+// mantém a linguagem visual consistente entre as telas.
+.metrics-bar {
+  display: flex;
+  align-items: center;
+  background: linear-gradient(135deg, rgba(212, 155, 167, 0.1), rgba(43, 0, 22, 0.04));
+  border: 1px solid rgba(43, 0, 22, 0.12);
+  border-radius: 14px;
+  padding: 1.1rem 1.5rem;
+  margin-bottom: 1.25rem;
+  gap: 1.5rem;
+}
+
+.metric {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 0;
+
+  &.alert {
+    .metric-ic { color: var(--alert); }
+    .metric-val { color: var(--alert); }
+  }
+}
+
+.metric-sep {
+  width: 1px;
+  height: 32px;
+  background: rgba(43, 0, 22, 0.12);
+  flex-shrink: 0;
+}
+
+.metric-ic {
+  width: 22px;
+  height: 22px;
+  color: var(--wine);
+  flex-shrink: 0;
+}
+
+.metric-val {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--wine);
+  line-height: 1.1;
+}
+
+.metric-lbl {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-top: 0.15rem;
 }
 
 .page-header {

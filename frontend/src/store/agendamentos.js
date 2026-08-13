@@ -4,7 +4,8 @@ import api from '../api'
 export const useAgendamentosStore = defineStore('agendamentos', {
   state: () => ({
     agendamentos: [],
-    isLoading: false
+    isLoading: false,
+    resumo: { hoje: 0, semana: 0, atrasados: 0 }
   }),
 
   actions: {
@@ -21,6 +22,15 @@ export const useAgendamentosStore = defineStore('agendamentos', {
       } finally {
         this.isLoading = false
       }
+    },
+
+    // Independente do mês navegado na grade — sempre reflete "hoje" de
+    // verdade, por isso é uma chamada separada do fetchAgendamentos.
+    async fetchResumo({ userId } = {}) {
+      const params = {}
+      if (userId) params.user_id = userId
+      const { data } = await api.get('/agendamentos/resumo', { params })
+      this.resumo = data
     },
 
     async criar(payload) {
