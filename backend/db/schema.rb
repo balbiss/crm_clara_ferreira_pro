@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_12_230000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_13_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -62,15 +62,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_12_230000) do
 
   create_table "agendamentos", force: :cascade do |t|
     t.bigint "account_id", null: false
+    t.bigint "contact_id"
     t.datetime "created_at", null: false
     t.text "descricao"
     t.datetime "fim_em"
     t.datetime "inicio_em", null: false
+    t.string "tipo", default: "outro", null: false
     t.string "titulo", null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
+    t.decimal "valor", precision: 12, scale: 2
     t.index ["account_id", "inicio_em"], name: "index_agendamentos_on_account_id_and_inicio_em"
     t.index ["account_id"], name: "index_agendamentos_on_account_id"
+    t.index ["contact_id"], name: "index_agendamentos_on_contact_id"
     t.index ["user_id", "inicio_em"], name: "index_agendamentos_on_user_id_and_inicio_em"
     t.index ["user_id"], name: "index_agendamentos_on_user_id"
   end
@@ -665,6 +669,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_12_230000) do
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "agendamentos", "accounts"
+  add_foreign_key "agendamentos", "contacts"
   add_foreign_key "agendamentos", "users"
   add_foreign_key "contact_tags", "contacts"
   add_foreign_key "contact_tags", "tags"

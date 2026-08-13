@@ -1,7 +1,8 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { ChevronLeft, ChevronRight, Plus, X, Trash2 } from '@lucide/vue'
+import { ChevronLeft, ChevronRight, Plus, X, Trash2, Search } from '@lucide/vue'
 import Swal from 'sweetalert2'
+import api from '../api'
 import { useAgendamentosStore } from '../store/agendamentos'
 import { useConversationsStore } from '../store/conversations'
 import { isFullPortfolio as isFullPortfolioRole } from '../config/roles'
@@ -20,7 +21,25 @@ const userFilter = ref('all')
 const isModalOpen = ref(false)
 const editingId = ref(null)
 const isSubmitting = ref(false)
-const form = ref({ titulo: '', descricao: '', data: '', horaInicio: '', horaFim: '', userId: null })
+const form = ref({
+  titulo: '', descricao: '', data: '', horaInicio: '', horaFim: '', userId: null,
+  tipo: 'outro', valor: '', contactId: null, contactLabel: ''
+})
+
+const TIPO_OPTIONS = [
+  { value: 'reuniao', label: 'Reunião' },
+  { value: 'entrega_maleta', label: 'Entrega de Maleta' },
+  { value: 'acerto', label: 'Acerto' },
+  { value: 'outro', label: 'Outro' }
+]
+const TIPO_LABEL = Object.fromEntries(TIPO_OPTIONS.map(o => [o.value, o.label]))
+
+const revendedoraQuery = ref('')
+const revendedoraResultados = ref([])
+const isBuscandoRevendedora = ref(false)
+let buscaTimeout = null
+
+const brl = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
 const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
@@ -108,8 +127,14 @@ function abrirCriacao(date) {
     data: chaveDia(base),
     horaInicio: '09:00',
     horaFim: '',
-    userId: currentUser.id
+    userId: currentUser.id,
+    tipo: 'outro',
+    valor: '',
+    contactId: null,
+    contactLabel: ''
   }
+  revendedoraQuery.value = ''
+  revendedoraResultados.value = []
   isModalOpen.value = true
 }
 
@@ -122,13 +147,47 @@ function abrirEdicao(ev) {
     data: chaveDia(inicio),
     horaInicio: inicio.toTimeString().slice(0, 5),
     horaFim: ev.fim_em ? new Date(ev.fim_em).toTimeString().slice(0, 5) : '',
-    userId: ev.user?.id || currentUser.id
+    userId: ev.user?.id || currentUser.id,
+    tipo: ev.tipo || 'outro',
+    valor: ev.valor || '',
+    contactId: ev.contact?.id || null,
+    contactLabel: ev.contact ? `${ev.contact.name || ''}${ev.contact.phone ? ' — ' + ev.contact.phone : ''}` : ''
   }
+  revendedoraQuery.value = ''
+  revendedoraResultados.value = []
   isModalOpen.value = true
 }
 
 function fecharModal() {
   isModalOpen.value = false
+}
+
+function buscarRevendedora(q) {
+  revendedoraQuery.value = q
+  clearTimeout(buscaTimeout)
+  if (!q.trim()) { revendedoraResultados.value = []; return }
+
+  buscaTimeout = setTimeout(async () => {
+    isBuscandoRevendedora.value = true
+    try {
+      const { data } = await api.get('/contacts', { params: { q, per_page: 8 } })
+      revendedoraResultados.value = data
+    } finally {
+      isBuscandoRevendedora.value = false
+    }
+  }, 300)
+}
+
+function selecionarRevendedora(contact) {
+  form.value.contactId = contact.id
+  form.value.contactLabel = `${contact.name || ''}${contact.phone ? ' — ' + contact.phone : ''}`
+  revendedoraQuery.value = ''
+  revendedoraResultados.value = []
+}
+
+function removerRevendedora() {
+  form.value.contactId = null
+  form.value.contactLabel = ''
 }
 
 async function salvar() {
@@ -140,7 +199,10 @@ async function salvar() {
       titulo: form.value.titulo.trim(),
       descricao: form.value.descricao,
       inicio_em: new Date(`${form.value.data}T${form.value.horaInicio}:00`).toISOString(),
-      fim_em: form.value.horaFim ? new Date(`${form.value.data}T${form.value.horaFim}:00`).toISOString() : null
+      fim_em: form.value.horaFim ? new Date(`${form.value.data}T${form.value.horaFim}:00`).toISOString() : null,
+      tipo: form.value.tipo,
+      valor: form.value.valor === '' ? null : form.value.valor,
+      contact_id: form.value.contactId
     }
     if (isFullPortfolio.value) payload.user_id = form.value.userId
 
@@ -232,6 +294,9 @@ onMounted(async () => {
             >
               <span class="event-time">{{ horaCurta(ev.inicio_em) }}</span>
               <span class="event-title">{{ ev.titulo }}</span>
+              <span v-if="ev.tipo !== 'outro' || ev.contact || ev.valor" class="event-contact">
+                {{ [ev.tipo !== 'outro' ? TIPO_LABEL[ev.tipo] : null, ev.contact?.name, ev.valor ? brl(ev.valor) : null].filter(Boolean).join(' — ') }}
+              </span>
               <span v-if="isFullPortfolio" class="event-owner">{{ nomeResponsavel(ev) }}</span>
             </button>
           </div>
@@ -269,6 +334,48 @@ onMounted(async () => {
                 <input v-model="form.horaFim" type="time" />
               </div>
             </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Tipo</label>
+                <select v-model="form.tipo">
+                  <option v-for="opt in TIPO_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Valor (opcional)</label>
+                <input v-model="form.valor" type="number" step="0.01" min="0" placeholder="0,00" />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Revendedora (opcional)</label>
+              <div v-if="form.contactLabel" class="contact-chip">
+                <span>{{ form.contactLabel }}</span>
+                <button type="button" class="icon-btn" @click="removerRevendedora"><X class="icon-xs" /></button>
+              </div>
+              <div v-else class="contact-search">
+                <Search class="icon-xs search-icon" />
+                <input
+                  :value="revendedoraQuery"
+                  @input="buscarRevendedora($event.target.value)"
+                  type="text"
+                  placeholder="Buscar por nome ou telefone..."
+                />
+                <div v-if="revendedoraResultados.length" class="contact-results">
+                  <button
+                    v-for="c in revendedoraResultados"
+                    :key="c.id"
+                    type="button"
+                    class="contact-result-item"
+                    @click="selecionarRevendedora(c)"
+                  >
+                    <span class="contact-result-name">{{ c.name }}</span>
+                    <span class="contact-result-phone">{{ c.phone }}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <div class="form-group" v-if="isFullPortfolio">
               <label>Responsável</label>
               <select v-model="form.userId">
@@ -452,17 +559,27 @@ onMounted(async () => {
   width: 100%;
 }
 
+.event-contact {
+  font-size: 0.62rem;
+  font-style: italic;
+  opacity: 0.9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
 .event-owner {
   font-size: 0.6rem;
   opacity: 0.8;
 }
 
 .btn-primary, .btn-secondary, .btn-danger {
-  padding: 0.5rem 1rem;
+  padding: 0.55rem 1.1rem;
   border-radius: 6px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  border: none;
+  border: 1px solid transparent;
   font-size: 0.85rem;
   display: flex;
   align-items: center;
@@ -471,24 +588,39 @@ onMounted(async () => {
 
 .btn-primary {
   background: var(--primary, #d49ba7);
-  color: white;
+  border-color: var(--primary, #d49ba7);
+  color: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(0.94);
 }
 
 .btn-primary:disabled {
-  opacity: 0.7;
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
 .btn-secondary {
-  background: transparent;
-  border: 1px solid var(--border-color, #e2e8f0);
-  color: var(--text-main);
+  background: var(--bg-primary, #ffffff);
+  border-color: #cbd5e1;
+  color: #1e293b;
+}
+
+.btn-secondary:hover {
+  background: #f1f5f9;
 }
 
 .btn-danger {
-  background: transparent;
-  color: #dc2626;
-  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fca5a5;
+  font-weight: 600;
+}
+
+.btn-danger:hover {
+  background: #fee2e2;
 }
 
 .icon-btn {
@@ -513,6 +645,82 @@ onMounted(async () => {
 .icon-sm {
   width: 16px;
   height: 16px;
+}
+
+.icon-xs {
+  width: 13px;
+  height: 13px;
+}
+
+.contact-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 6px;
+  background: var(--bg-tertiary, #f1e9ed);
+  font-size: 0.85rem;
+  color: var(--text-main);
+}
+
+.contact-search {
+  position: relative;
+
+  input {
+    padding-left: 2rem;
+  }
+}
+
+.search-icon {
+  position: absolute;
+  left: 0.6rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.contact-results {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--bg-primary, #fff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  max-height: 180px;
+  overflow-y: auto;
+  z-index: 10;
+}
+
+.contact-result-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.82rem;
+  color: var(--text-main);
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background: var(--bg-tertiary, #f8f4f6);
+  }
+}
+
+.contact-result-phone {
+  font-size: 0.75rem;
+  color: var(--text-muted);
 }
 
 .modal-overlay {

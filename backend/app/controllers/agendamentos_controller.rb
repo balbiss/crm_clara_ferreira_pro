@@ -15,9 +15,7 @@ class AgendamentosController < ApplicationController
     agendamentos = visible_agendamentos_scope.no_periodo(de.beginning_of_day, ate.end_of_day)
     agendamentos = agendamentos.where(user_id: params[:user_id]) if params[:user_id].present? && full_portfolio?
 
-    render json: agendamentos.order(:inicio_em).includes(:user).as_json(
-      include: { user: { only: %i[id first_name last_name] } }
-    )
+    render json: agendamentos.order(:inicio_em).includes(:user, :contact).as_json(include: JSON_INCLUDES)
   end
 
   # POST /agendamentos
@@ -29,7 +27,7 @@ class AgendamentosController < ApplicationController
     agendamento.user_id = full_portfolio? ? (agendamento_params[:user_id].presence || current_user.id) : current_user.id
 
     if agendamento.save
-      render json: agendamento, status: :created
+      render json: agendamento.as_json(include: JSON_INCLUDES), status: :created
     else
       render json: { error: agendamento.errors.full_messages.to_sentence }, status: :unprocessable_entity
     end
@@ -41,7 +39,7 @@ class AgendamentosController < ApplicationController
     prms = prms.except(:user_id) unless full_portfolio?
 
     if @agendamento.update(prms)
-      render json: @agendamento
+      render json: @agendamento.as_json(include: JSON_INCLUDES)
     else
       render json: { error: @agendamento.errors.full_messages.to_sentence }, status: :unprocessable_entity
     end
@@ -55,8 +53,13 @@ class AgendamentosController < ApplicationController
 
   private
 
+  JSON_INCLUDES = {
+    user: { only: %i[id first_name last_name] },
+    contact: { only: %i[id name phone] }
+  }.freeze
+
   def agendamento_params
-    params.require(:agendamento).permit(:titulo, :descricao, :inicio_em, :fim_em, :user_id)
+    params.require(:agendamento).permit(:titulo, :descricao, :inicio_em, :fim_em, :user_id, :contact_id, :valor, :tipo)
   end
 
   # Consultor/financeiro só veem/gerenciam a própria agenda; gerente/diretoria

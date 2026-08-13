@@ -11,6 +11,13 @@ class ContactsController < ApplicationController
     # abrir por ID direto (show não aplica esse filtro).
     @contacts = visible_contacts_scope.not_blacklisted
 
+    # ?q= — busca por nome/telefone (usado pelo seletor de revendedora do
+    # Calendário e outros pickers, sem precisar carregar a carteira inteira).
+    if params[:q].present?
+      termo = "%#{params[:q].strip}%"
+      @contacts = @contacts.where('contacts.name ILIKE :q OR contacts.phone ILIKE :q', q: termo)
+    end
+
     page     = (params[:page] || 1).to_i
     per_page = (params[:per_page] || 50).to_i.clamp(1, 200)
     @contacts = @contacts.includes(:reseller_phones).order(created_at: :desc).offset((page - 1) * per_page).limit(per_page)
