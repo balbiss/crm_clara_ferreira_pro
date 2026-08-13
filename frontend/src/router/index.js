@@ -113,8 +113,7 @@ const router = createRouter({
         {
           path: 'calendario',
           name: 'calendario',
-          component: () => import('../views/ComingSoon.vue'),
-          meta: { title: 'Calendário', description: 'Agenda consolidada de agendamentos — ainda não disponível.' }
+          component: () => import('../views/Calendario.vue')
         },
         {
           path: 'segmentos',

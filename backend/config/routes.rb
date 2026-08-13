@@ -43,6 +43,7 @@ Rails.application.routes.draw do
   resources :tarefas, only: [:index, :create, :update, :destroy] do
     member { patch :complete }
   end
+  resources :agendamentos, only: [:index, :create, :update, :destroy]
   resources :tags
   get 'dashboard', to: 'dashboard#index'
   

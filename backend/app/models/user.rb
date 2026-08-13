@@ -7,6 +7,7 @@ class User < ApplicationRecord
   has_many :notes, dependent: :destroy
   has_many :contacts, dependent: :nullify
   has_many :tarefas, dependent: :nullify
+  has_many :agendamentos, dependent: :destroy
   has_many :conversations, dependent: :nullify
   has_many :push_subscriptions, dependent: :destroy
   has_many :inbox_members, dependent: :destroy
