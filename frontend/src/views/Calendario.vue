@@ -502,9 +502,11 @@ onMounted(async () => {
   }
 
   &.is-today .day-number {
-    background: var(--primary, #d49ba7);
+    background: var(--primary-hover, #ba5e72);
     color: white;
+    font-weight: 700;
     border-radius: 50%;
+    box-shadow: 0 0 0 3px rgba(186, 94, 114, 0.2);
   }
 }
 
@@ -575,48 +577,51 @@ onMounted(async () => {
 }
 
 .btn-primary, .btn-secondary, .btn-danger {
-  padding: 0.55rem 1.1rem;
-  border-radius: 6px;
-  font-weight: 600;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 700;
   cursor: pointer;
-  border: 1px solid transparent;
-  font-size: 0.85rem;
+  border: 1.5px solid transparent;
+  font-size: 0.88rem;
   display: flex;
   align-items: center;
   gap: 0.4rem;
+  transition: filter 0.15s, box-shadow 0.15s;
 }
 
 .btn-primary {
-  background: var(--primary, #d49ba7);
-  border-color: var(--primary, #d49ba7);
+  background: var(--primary-hover, #ba5e72);
+  border-color: var(--primary-hover, #ba5e72);
   color: #ffffff;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 2px 6px rgba(186, 94, 114, 0.4);
 }
 
 .btn-primary:hover:not(:disabled) {
-  filter: brightness(0.94);
+  filter: brightness(0.92);
+  box-shadow: 0 3px 8px rgba(186, 94, 114, 0.5);
 }
 
 .btn-primary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .btn-secondary {
   background: var(--bg-primary, #ffffff);
-  border-color: #cbd5e1;
-  color: #1e293b;
+  border-color: #94a3b8;
+  color: #0f172a;
 }
 
 .btn-secondary:hover {
   background: #f1f5f9;
+  border-color: #64748b;
 }
 
 .btn-danger {
   background: #fef2f2;
   color: #b91c1c;
-  border-color: #fca5a5;
-  font-weight: 600;
+  border-color: #f87171;
 }
 
 .btn-danger:hover {
@@ -782,7 +787,7 @@ onMounted(async () => {
   gap: 0.75rem;
 }
 
-input[type="text"], input[type="date"], input[type="time"], textarea, select {
+input[type="text"], input[type="date"], input[type="time"], input[type="number"], textarea, select {
   width: 100%;
   padding: 0.6rem;
   border: 1px solid var(--border-color, #e2e8f0);
@@ -791,6 +796,18 @@ input[type="text"], input[type="date"], input[type="time"], textarea, select {
   color: var(--text-main);
   font-family: inherit;
   font-size: 0.9rem;
+}
+
+// Esconde as setinhas nativas do input number — nenhum outro campo do
+// formulário tem esse tipo de controle, e com elas a caixa destoava
+// visualmente das outras (motivo do "Valor" parecer diferente/feio).
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
 }
 
 textarea {
