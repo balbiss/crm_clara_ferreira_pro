@@ -143,7 +143,121 @@ class JueriSyncService
     resultado
   end
 
+  # Fast path do webhook: aplica só o pedido do próprio evento
+  # (pedido.created/updated/deleted) e recalcula o snapshot da revendedora
+  # afetada, sem esperar o resync histórico completo (`call`, que busca
+  # TUDO paginado e leva ~157s — inviável rodar por evento). O payload do
+  # webhook já tem os mesmos campos usados por persistir_pedidos, só que
+  # com `fk_status_pedido_id` numérico em vez de `status` string (ver
+  # status_id_de) e sem os campos de cadastro (nome, endereço etc) que só
+  # vêm no /revendedor em lote — por isso revendedor.*/financeiro.*
+  # continuam só pelo resync completo debounced (JueriSyncJob), que roda em
+  # paralelo de qualquer forma e cobre esses casos + qualquer divergência.
+  def sync_pedido_evento(jueri_payload)
+    resultado = { criados: 0, reativados: 0, atualizados: 0, sem_maleta: 0, pedidos_sincronizados: 0, erros: 0 }
+    id_jueri = (jueri_payload['fk_revendedor_id'] || jueri_payload[:fk_revendedor_id]).to_s
+    return resultado if id_jueri.blank?
+
+    contact = @account.contacts.find_by(id_jueri: id_jueri)
+
+    if contact
+      sync_pedido_evento_existente(contact, jueri_payload, resultado)
+    else
+      sync_pedido_evento_novo(id_jueri, jueri_payload, resultado)
+    end
+
+    resultado
+  rescue JueriApiService::ApiError => e
+    Rails.logger.error("[JueriSyncService] sync_pedido_evento falhou pra revendedor #{id_jueri}: #{e.message}")
+    resultado[:erros] += 1
+    resultado
+  end
+
   private
+
+  # Revendedora já é Contact: só grava ESTE pedido (upsert idempotente) e
+  # recalcula o snapshot a partir de TUDO que já está persistido pra ela
+  # (não só deste evento — é o que garante que a soma bate mesmo que este
+  # seja só 1 de vários pedidos abertos). A decisão de status usa o total
+  # recalculado, nunca o pedido isolado — mesma regra do limiar usada no
+  # resync em lote (call), só que avaliada pra 1 revendedora em vez de
+  # rodar em cima de `ids_ativos_agora`.
+  def sync_pedido_evento_existente(contact, jueri_payload, resultado)
+    pecas_antes = contact.pecas_abertas_atual
+    persistir_pedidos(contact, [jueri_payload], resultado)
+    recalcular_snapshot(contact)
+    resultado[:atualizados] += 1
+
+    acima_do_limiar = contact.pecas_abertas_atual.to_i > @account.min_pecas_ativa
+
+    if contact.desconsiderado? || Contact::STATUS_OVERRIDE_PERMANENTE.include?(contact.status)
+      return # blacklist/Resgate/Negativado/Descadastrada nunca mudam sozinhos
+    elsif acima_do_limiar && Contact::INACTIVE_STATUSES.include?(contact.status)
+      reativar_contact(contact, resultado)
+    elsif !acima_do_limiar && Contact::ACTIVE_STATUSES.include?(contact.status)
+      demover_para_sem_maleta(contact, pecas_antes, resultado)
+    end
+  end
+
+  # Reaproveita a mesma regra de marco de reativação do resync em lote
+  # (transicionar_status) — 60+ dias inativa e sem pendência financeira.
+  def reativar_contact(contact, resultado)
+    dias_inativa = contact.status_changed_at && (Date.current - contact.status_changed_at.to_date).to_i
+    elegivel_marco_reativacao = contact.status != 'inativa_pendencia' &&
+      dias_inativa && dias_inativa >= Contact::DIAS_MINIMOS_PARA_REATIVACAO
+
+    contact.status = 'revendedor_ativo'
+    contact.save!
+    criar_evento(contact, 'reativacao') if elegivel_marco_reativacao
+    resultado[:atualizados] -= 1
+    resultado[:reativados] += 1
+  end
+
+  # Espelha marcar_sem_maleta do resync em lote, só que pra 1 revendedora —
+  # fez o acerto e não levou maleta nova (peças abertas caíram pro limiar).
+  # pecas_antes vem de FORA (capturado antes do recalcular_snapshot lá em
+  # cima) — se pegasse daqui, já estaria com o valor novo (mesmo bug que o
+  # teste local pegou: metadata saindo 0->0 em vez de 30->0).
+  def demover_para_sem_maleta(contact, pecas_antes, resultado)
+    contact.update!(status: 'sem_maleta')
+    LifecycleEvent.create!(
+      account: @account, contact: contact, event_type: 'churn', occurred_at: Time.current,
+      metadata: { pecas_antes: pecas_antes, pecas_depois: contact.pecas_abertas_atual }
+    )
+    resultado[:atualizados] -= 1
+    resultado[:sem_maleta] += 1
+  end
+
+  # Revendedora ainda não é Contact — só cria se ESTE pedido, sozinho, já
+  # cruza o limiar (não temos histórico dela em `pedidos` pra somar mais
+  # nada). Se não cruzar, fica pro próximo resync completo pegar quando ela
+  # tiver pedidos suficientes acumulados — mesmo comportamento que já
+  # existia antes deste fast path (uma revendedora só vira Contact quando
+  # cruza o limiar, nunca antes).
+  def sync_pedido_evento_novo(id_jueri, jueri_payload, resultado)
+    revendedor = @service.find_revendedor(id_jueri)
+    return if revendedor.blank? || revendedor['fk_tipo_revendedor_id'] == 1 ||
+      NIVEIS_EXCLUIR_COMPLETAMENTE.include?(revendedor['level_revendedor'])
+
+    if revendedor['level_revendedor'] == NIVEL_ATACADO
+      sincronizar_atacado_um(id_jueri, revendedor, resultado)
+      return
+    end
+
+    return unless status_aberto?(jueri_payload)
+    return unless quantidade_efetiva_raw(jueri_payload) > @account.min_pecas_ativa
+
+    contact = build_contact(id_jueri, revendedor)
+    contact.status = 'revendedor_ativo'
+    contact.cycle_started_at = inicio_ciclo([jueri_payload])
+    contact.save!
+    persistir_pedidos(contact, [jueri_payload], resultado)
+    persistir_telefones(contact, revendedor)
+    recalcular_snapshot(contact)
+    criar_evento(contact, 'iniciada')
+    criar_card_pipeline(contact, pipeline_slug: 'onboarding', stage_name: 'Primeira Maleta')
+    resultado[:criados] += 1
+  end
 
   # ---- Busca (fonte: API do Jueri) ---------------------------------------
 
@@ -232,25 +346,28 @@ class JueriSyncService
   # find_revendedor (já veio tudo no lote de buscar_todo_cadastro_de_revendedores).
   def sincronizar_atacado(cadastro_por_revendedor, atacado_ids, resultado)
     atacado_ids.each do |id|
-      revendedor = cadastro_por_revendedor[id]
-      contact = @account.contacts.find_or_initialize_by(id_jueri: id.to_s)
-      is_new = contact.new_record?
-      apply_revendedor_attrs(contact, revendedor)
-      contact.source = 'Jueri' if contact.source.blank?
-      contact.status = 'atacado'
-      next unless contact.new_record? || contact.changed?
-
-      contact.save!
-      if is_new
-        resultado[:criados] += 1
-        # Cliente atacado novo cai sozinho no pipeline Atacado, na 1ª etapa —
-        # pedido explícito do cliente, senão ninguém sabe que apareceu.
-        criar_card_pipeline(contact, pipeline_slug: 'atacado')
-      end
-    rescue => e
-      Rails.logger.error("[JueriSyncService] Falha ao sincronizar Atacado #{id}: #{e.message}")
-      resultado[:erros] += 1
+      sincronizar_atacado_um(id, cadastro_por_revendedor[id], resultado)
     end
+  end
+
+  def sincronizar_atacado_um(id, revendedor, resultado)
+    contact = @account.contacts.find_or_initialize_by(id_jueri: id.to_s)
+    is_new = contact.new_record?
+    apply_revendedor_attrs(contact, revendedor)
+    contact.source = 'Jueri' if contact.source.blank?
+    contact.status = 'atacado'
+    return unless contact.new_record? || contact.changed?
+
+    contact.save!
+    return unless is_new
+
+    resultado[:criados] += 1
+    # Cliente atacado novo cai sozinho no pipeline Atacado, na 1ª etapa —
+    # pedido explícito do cliente, senão ninguém sabe que apareceu.
+    criar_card_pipeline(contact, pipeline_slug: 'atacado')
+  rescue => e
+    Rails.logger.error("[JueriSyncService] Falha ao sincronizar Atacado #{id}: #{e.message}")
+    resultado[:erros] += 1
   end
 
   # Cria o card no pipeline manual (Kanban tipo Kommo) só na primeira vez —
@@ -286,13 +403,24 @@ class JueriSyncService
     pedidos_raw.select { |p| status_aberto?(p) }.sum { |p| quantidade_efetiva_raw(p) }
   end
 
+  # O endpoint em lote (/pedido) devolve o status como STRING em `status`
+  # ("Aberto"/"Baixado"/...). O payload do WEBHOOK já vem com o código
+  # numérico em `fk_status_pedido_id` (1/2/3/4, mesma numeração de
+  # Pedido::STATUS_*) e não tem a chave `status` — aceita os dois formatos
+  # pra servir tanto o resync em lote quanto o fast path do webhook
+  # (sync_pedido_evento).
   def status_id_de(p)
-    id = STATUS_LABEL_TO_ID[p['status']]
-    if id.nil?
-      Rails.logger.warn("[JueriSyncService] status de pedido não mapeado: #{p['status'].inspect} (pedido id=#{p['id']}) — tratando como Aberto")
-      id = Pedido::STATUS_ABERTO
-    end
-    id
+    return STATUS_LABEL_TO_ID.fetch(p['status']) { avisar_status_desconhecido(p) } if p.key?('status')
+
+    fk_id = p['fk_status_pedido_id']
+    return fk_id if [Pedido::STATUS_ABERTO, Pedido::STATUS_BAIXADO, Pedido::STATUS_CANCELADO, Pedido::STATUS_PERDIDO].include?(fk_id)
+
+    avisar_status_desconhecido(p)
+  end
+
+  def avisar_status_desconhecido(p)
+    Rails.logger.warn("[JueriSyncService] status de pedido não mapeado: status=#{p['status'].inspect} fk_status_pedido_id=#{p['fk_status_pedido_id'].inspect} (pedido id=#{p['id']}) — tratando como Aberto")
+    Pedido::STATUS_ABERTO
   end
 
   def status_aberto?(p)

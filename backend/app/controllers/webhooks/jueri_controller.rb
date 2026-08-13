@@ -3,26 +3,42 @@
 # Autenticação é o token na própria URL (gerado por conta em Account#jueri_webhook_token,
 # igual ao :token usado ao registrar o webhook no Jueri via JueriApiService#create_webhook).
 #
-# Em vez de tentar interpretar o payload de cada tipo de evento (o formato exato não é
-# documentado publicamente pelo Jueri), qualquer evento relevante dispara uma
-# sincronização pontual da conta — mais simples e robusto do que replicar a lógica de
-# negócio do ERP aqui. Uma rajada de eventos vira só uma sincronização (debounce de
-# 30s via cache) pra não estourar o rate limit da API do Jueri.
+# Dois caminhos em paralelo, propositalmente:
+#
+# 1. Fast path (SEM debounce, todo evento pedido.*): o payload do próprio
+#    evento já traz o pedido inteiro (mesmos campos da listagem em lote, só
+#    que com fk_status_pedido_id numérico em vez de status string — ver
+#    JueriSyncService#status_id_de), então dá pra aplicar SÓ essa revendedora
+#    na hora (JueriWebhookPedidoJob), sem esperar o histórico completo.
+#    Cobre pedido.created/updated/deleted/canceled — os eventos que mudam
+#    peças abertas e por isso a régua (ativação/reativação/sem maleta).
+#
+# 2. Resync completo debounced (30s, como já era): continua rodando pra
+#    TODOS os eventos (inclusive os de fast path, como reconciliação) —
+#    é quem cobre revendedor.*/financeiro.*/venda.* (cadastro, sem campo
+#    equivalente no payload do webhook pra aplicar via fast path) e qualquer
+#    divergência que o fast path deixe passar.
 module Webhooks
   class JueriController < ApplicationController
     skip_before_action :verify_authenticity_token, raise: false
 
     DEBOUNCE_SECONDS = 30
+    EVENTOS_PEDIDO = %w[pedido.created pedido.updated pedido.deleted pedido.canceled].freeze
 
     def create
       account = Account.find_by(jueri_webhook_token: params[:token])
       return head :not_found unless account
 
       evento = params[:evento] || params[:event] || params.dig(:data, :evento)
+      payload = params.except(:controller, :action, :token, :jueri).to_unsafe_h
       # Payload completo no log (não em coluna própria — mesmo padrão dos
       # outros webhooks, ver Webhooks::BaileysController) pra investigar
       # mudança de formato da API sem precisar confiar nos campos aqui.
-      Rails.logger.info("[Webhooks::Jueri] account=#{account.id} evento=#{evento.inspect} payload=#{params.except(:controller, :action, :token).to_unsafe_h.to_json}")
+      Rails.logger.info("[Webhooks::Jueri] account=#{account.id} evento=#{evento.inspect} payload=#{payload.to_json}")
+
+      if EVENTOS_PEDIDO.include?(evento) && payload['fk_revendedor_id'].present?
+        JueriWebhookPedidoJob.perform_later(account.id, payload)
+      end
 
       debounce_key = "jueri_webhook_sync_#{account.id}"
       unless Rails.cache.read(debounce_key)
