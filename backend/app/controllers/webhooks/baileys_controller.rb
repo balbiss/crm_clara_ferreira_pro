@@ -115,9 +115,10 @@ module Webhooks
         end
 
         # Tratamento de fromMe (Humano do nosso lado enviou mensagem)
+        human_reply_via_phone = false
         if msg.dig(:key, :fromMe)
           baileys_msg_id = msg.dig(:key, :id)
-          # Se a mensagem já existe no banco, foi enviada pela IA — ignora o echo sem pausar a IA
+          # Se a mensagem já existe no banco, foi enviada pela IA/CRM — ignora o echo sem pausar a IA
           if baileys_msg_id.present? && Message.exists?(source_id: baileys_msg_id)
             next
           end
@@ -125,7 +126,11 @@ module Webhooks
           if inbox.ai_enabled && Rails.cache.read("ai_is_replying_#{inbox.id}_#{remote_jid}")
             next
           end
-          # Chegou até aqui: é intervenção humana real → pausa a IA
+          # Chegou até aqui: é intervenção humana real, respondida direto pelo
+          # celular (não pelo CRM) — precisa ser salva igual a qualquer outra
+          # mensagem, senão ela nunca aparece na conversa (antes o código dava
+          # `next` aqui e descartava a mensagem por completo).
+          human_reply_via_phone = true
           if inbox.ai_enabled
             Rails.logger.info("IA pausada para #{remote_jid} devido a intervenção humana (fromMe).")
             Rails.cache.write("ai_paused_#{inbox.id}_#{remote_jid}", Time.current.to_i)
@@ -147,7 +152,6 @@ module Webhooks
               end
             end
           end
-          next
         end
 
         # Extração inteligente do telefone e JID real (lid vs s.whatsapp.net)
@@ -259,13 +263,14 @@ module Webhooks
           conv.account = account
         end
 
-        # Save message
+        # Save message. Resposta humana feita direto pelo celular entra como
+        # 'User' (mesmo padrão da IA), o resto continua vindo do 'Contact'.
         message_record = Message.create!(
           account: conversation.account,
           conversation: conversation,
           text: text,
-          sender_type: 'Contact',
-          sender_id: contact.id,
+          sender_type: human_reply_via_phone ? 'User' : 'Contact',
+          sender_id: human_reply_via_phone ? nil : contact.id,
           source_id: source_id,
           status: :delivered
         )
@@ -352,7 +357,8 @@ module Webhooks
         message_record.rebroadcast
 
         # ===== MOTOR DE INTELIGÊNCIA ARTIFICIAL =====
-        if inbox.ai_enabled
+        # (nunca roda pra mensagem que já é a resposta humana via celular)
+        if inbox.ai_enabled && !human_reply_via_phone
           is_paused = Rails.cache.read("ai_paused_#{inbox.id}_#{remote_jid}")
 
           if is_paused
