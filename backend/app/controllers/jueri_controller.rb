@@ -41,6 +41,33 @@ class JueriController < ApplicationController
     render json: { message: 'Sincronização disparada. Acompanhe pelo log do worker ou confira /contacts em alguns instantes.' }, status: :accepted
   end
 
+  # GET /jueri/debug_recurso?recurso=contas_receber&per_page=3 — inspeciona
+  # a resposta crua de um recurso ainda não modelado no CRM (financeiro,
+  # venda, representante), pra descobrir os campos reais antes de desenhar
+  # o schema local. Temporário/diagnóstico, mesmo espírito do #debug acima.
+  RECURSOS_DEBUG = %w[contas_receber contas_pagar venda representante cliente].freeze
+
+  def debug_recurso
+    unless RECURSOS_DEBUG.include?(params[:recurso])
+      return render json: { error: 'recurso_invalido', recursos_validos: RECURSOS_DEBUG }, status: :unprocessable_entity
+    end
+
+    service = JueriApiService.new
+    per_page = (params[:per_page] || 3).to_i.clamp(1, 10)
+    data = case params[:recurso]
+           when 'contas_receber' then service.contas_receber(per_page: per_page, page: 1)
+           when 'contas_pagar' then service.contas_pagar(per_page: per_page, page: 1)
+           when 'venda' then service.vendas(per_page: per_page, page: 1)
+           when 'representante' then service.representantes(per_page: per_page, page: 1)
+           when 'cliente' then service.clientes(per_page: per_page, page: 1)
+           end
+    render json: data
+  rescue JueriApiService::NotConfiguredError => e
+    render json: { error: 'not_configured', message: e.message }, status: :unprocessable_entity
+  rescue JueriApiService::ApiError => e
+    render json: { error: 'jueri_api_error', message: e.message }, status: :bad_gateway
+  end
+
   # GET /jueri/debug_schema — diagnóstico pontual: confirma se a coluna
   # contacts.user_id tem algum DEFAULT gravado direto no Postgres (não
   # apareceria no schema.rb se alguém alterou via SQL fora de uma migration).

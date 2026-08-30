@@ -60,6 +60,28 @@ class JueriApiService
     get("/cliente", params)
   end
 
+  # ---- Venda --------------------------------------------------------------
+
+  def vendas(params = {})
+    get("/venda", params)
+  end
+
+  # ---- Representante --------------------------------------------------------
+
+  def representantes(params = {})
+    get("/representante", params)
+  end
+
+  # ---- Financeiro -----------------------------------------------------------
+
+  def contas_receber(params = {})
+    get("/financeiro/contas_receber", params)
+  end
+
+  def contas_pagar(params = {})
+    get("/financeiro/contas_pagar", params)
+  end
+
   # ---- Webhook ------------------------------------------------------------
 
   def webhooks
