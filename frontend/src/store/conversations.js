@@ -109,8 +109,8 @@ export const useConversationsStore = defineStore('conversations', {
       try {
         const response = await api.get('/conversations')
         this.conversations = response.data
-        if (this.conversations.length > 0 && !this.activeConversationId) {
-          this.activeConversationId = this.conversations[0].id
+        if (!this.activeConversationId) {
+          this.activeConversationId = this.sidebarFilteredConversations[0]?.id || null
         }
         this.setupWebSocket()
       } catch (error) {
@@ -192,11 +192,26 @@ export const useConversationsStore = defineStore('conversations', {
     setSidebarFilter(filterType) {
       this.sidebarFilter = filterType
       this.sidebarInboxId = null
+      this.reconcileActiveConversation()
     },
 
     setSidebarInboxId(inboxId) {
       this.sidebarInboxId = inboxId
       this.sidebarFilter = null
+      this.reconcileActiveConversation()
+    },
+
+    // Sem isso, ao trocar de filtro/caixa (ex: clicar numa caixa específica
+    // no menu) o painel da direita continuava mostrando a conversa que tinha
+    // sido selecionada automaticamente antes (a mais recente da conta
+    // inteira, escolhida em fetchConversations) mesmo que ela não pertença
+    // ao filtro atual — dava a impressão de "sempre cai na conversa errada"
+    // ao recarregar a página numa rota filtrada.
+    reconcileActiveConversation() {
+      const stillVisible = this.sidebarFilteredConversations.some(c => c.id === this.activeConversationId)
+      if (!stillVisible) {
+        this.activeConversationId = this.sidebarFilteredConversations[0]?.id || null
+      }
     },
 
     setSortFilters({ status, sortBy, type }) {
