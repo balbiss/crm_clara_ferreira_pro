@@ -87,11 +87,6 @@ const isAtrasada = (contact) => contact.status === 'atrasada' || (daysInCycle(co
 // "Tempo de Revenda" (revendedoras-ativas-criterios.md) = nº de meses DISTINTOS
 // com baixa de pedido — não é "desde o 1º pedido" (uma revendedora que já
 // vendeu há anos mas sumiu meses no meio não deve contar como revenda contínua).
-const tempoRevendaLabel = (contact) => {
-  const meses = contact.tempo_revenda_meses
-  if (!meses) return '...'
-  return meses === 1 ? '1 mês' : `${meses} meses`
-}
 
 const brl = (v) => {
   const n = parseFloat(v)
@@ -112,6 +107,13 @@ const agentsById = computed(() => {
   return map
 })
 const responsavelNome = (contact) => agentsById.value[contact.user_id] || null
+
+// "Carteira" = time de vendas do Jueri (campo "gerente" no cadastro do
+// revendedor, sincronizado em custom_attributes.gerente_jueri_nome) —
+// diferente do responsável direto no CRM (Contact#user_id), que é quem
+// realmente atende. Pedido do cliente: essa coluna mostra o time, não o
+// responsável.
+const carteiraNome = (contact) => contact.custom_attributes?.gerente_jueri_nome || null
 
 const responsavelOptions = computed(() => [
   { value: 'all', label: 'Todos os responsáveis' },
@@ -352,14 +354,13 @@ onMounted(async () => {
           <tr>
             <th v-if="isFullPortfolio" class="cell-check"><input type="checkbox" :checked="allVisibleSelected" @click.stop="toggleSelectAllVisible" /></th>
             <th>Revendedora</th>
+            <th>Nível</th>
             <th>Etapa</th>
+            <th>Próxima tarefa</th>
             <th>Dias com maleta</th>
             <th>Peças em aberto</th>
-            <th>Tempo de revenda</th>
-            <th>1º Pedido</th>
-            <th>Próxima tarefa</th>
             <th>Alerta</th>
-            <th>Responsável</th>
+            <th>Carteira</th>
             <th>Ação</th>
           </tr>
         </thead>
@@ -371,24 +372,24 @@ onMounted(async () => {
             <td class="cell-name">
               <div class="row-avatar">{{ (c.name || c.first_name || '?').charAt(0).toUpperCase() }}</div>
               <span>{{ c.name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Sem nome' }}</span>
+            </td>
+            <td>
               <span
                 v-if="c.nivel"
                 class="nivel-badge"
                 :style="{ color: nivelInfo(c.nivel).color, backgroundColor: nivelInfo(c.nivel).bg }"
-                :title="`Nível: ${nivelInfo(c.nivel).nome}`"
               >{{ nivelInfo(c.nivel).emoji }} {{ nivelInfo(c.nivel).nome }}</span>
+              <span v-else>...</span>
             </td>
             <td><span class="stage-badge" :class="stageBadgeClass(c.status)">{{ stageLabel(c.status) }}</span></td>
+            <td class="cell-tarefa">{{ proximaTarefa(c) || '—' }}</td>
             <td>{{ daysInCycle(c) !== null ? daysInCycle(c) + ' dias' : '...' }}</td>
             <td>{{ c.pecas_abertas_atual ?? '...' }}</td>
-            <td>{{ tempoRevendaLabel(c) }}</td>
-            <td>{{ formatDate(c.primeiro_pedido_em) || '...' }}</td>
-            <td class="cell-tarefa">{{ proximaTarefa(c) || '—' }}</td>
             <td>
               <span v-if="isAtrasada(c)" class="alerta-badge"><AlertTriangle class="icon-xxs" /> Atrasada</span>
               <span v-else class="alerta-ok">Em dia</span>
             </td>
-            <td>{{ responsavelNome(c) || 'Não atribuído' }}</td>
+            <td>{{ carteiraNome(c) || 'Sem time' }}</td>
             <td @click.stop>
               <button
                 class="btn-start-conversation"
