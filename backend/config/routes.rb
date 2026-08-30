@@ -16,6 +16,7 @@ Rails.application.routes.draw do
       get :queue
     end
   end
+  get 'pedidos/pendentes', to: 'pedidos#pendentes'
   resources :round_robin_groups, only: %i[index create update destroy]
   resources :pipelines, only: %i[index create update destroy] do
     resources :pipeline_stages, only: %i[create]

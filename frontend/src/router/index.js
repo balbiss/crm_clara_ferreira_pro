@@ -52,6 +52,11 @@ const router = createRouter({
           component: () => import('../views/AtacadoView.vue')
         },
         {
+          path: 'pedidos-pendentes',
+          name: 'pedidos_pendentes',
+          component: () => import('../views/PedidosPendentes.vue')
+        },
+        {
           path: 'tarefas',
           name: 'tarefas',
           component: () => import('../views/TarefasView.vue')
