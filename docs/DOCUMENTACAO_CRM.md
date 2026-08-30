@@ -52,6 +52,8 @@ Endpoint manual: `POST /jueri/sync-now` (só diretoria) força uma sync fora do 
 
 **Rate limit do Jueri**: ~300 chamadas em rajada antes de 429 — por isso o sync separa "busca em lote" (barato) de `find_revendedor` individual (caro, só pra quem está cruzando o limiar agora).
 
+**Bug encontrado e corrigido (2026-08-30): correntes duplicadas do `JueriSyncJob`.** `config/initializers/recurring_jobs.rb` agenda `JueriSyncJob.set(wait: 2.minutes).perform_later` a **cada boot** do backend/worker, sem checar se já existe uma corrente recorrente rodando — como o próprio job se reagenda pra sempre (`ensure ... perform_later`), cada deploy empilhava uma corrente nova e independente. Depois de vários deploys seguidos numa mesma sessão, isso fez o job rodar a cada 1-2min (em vez de a cada 30min) e disparar 429 em cascata na API do Jueri — mesma classe do incidente antigo do `JueriReconciliarPedidosAbertosJob`. Corrigido com um lock (`Rails.cache.write(..., unless_exist: true, expires_in: 30.minutes)`) que colapsa todas as correntes duplicadas pra só uma executar de verdade por ciclo.
+
 **`Pedido#data_acerto`** (2026-08-30) — a Jueri manda esse campo já no payload do pedido desde a criação (ex: pedido aberto em 29/08 já vem com `data_acerto` 28/09, o prazo padrão da maleta) — não é preenchido só depois do acerto acontecer de verdade. Persistido em `persistir_pedidos`, exposto em `GET /contacts` como `data_prevista_acerto` por revendedora (mínimo entre os pedidos abertos) e mostrado na coluna "Previsão de acerto" de `RevendedorasAtivas.vue`.
 
 ## 6. Times de vendas (hierarquia Jueri) — feature 2026-08-07
