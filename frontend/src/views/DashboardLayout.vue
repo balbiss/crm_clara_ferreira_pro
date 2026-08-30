@@ -649,6 +649,19 @@ const saveReorder = async () => {
           </div>
           <div class="settings-menu" v-show="isConversasOpen">
             <router-link to="/conversas" class="nav-item sub-item" exact-active-class="active"><MessageCircle class="icon-sm" /> Inbox de chat</router-link>
+            <router-link
+              v-for="inbox in inboxesStore.inboxes"
+              :key="inbox.id"
+              :to="`/conversas/inbox/${inbox.id}`"
+              class="nav-item sub-item inbox-sub-item"
+              exact-active-class="active"
+            >
+              <span
+                class="inbox-status-dot"
+                :class="{ connected: inbox.connected === true, disconnected: inbox.connected === false }"
+              ></span>
+              {{ inbox.name }}
+            </router-link>
             <router-link to="/chat-equipe" class="nav-item sub-item" exact-active-class="active">
               <Users class="icon-sm" /> Chat da Equipe
               <span v-if="internalChatStore.totalUnread > 0" class="nav-unread-badge">{{ internalChatStore.totalUnread }}</span>
@@ -1313,6 +1326,23 @@ const saveReorder = async () => {
         opacity: 1;
         font-weight: 500;
       }
+    }
+
+    .inbox-sub-item {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .inbox-status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: #9ca3af;
+
+      &.connected { background: #10b981; }
+      &.disconnected { background: #ef4444; }
     }
   }
 
