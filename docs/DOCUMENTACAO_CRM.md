@@ -1,6 +1,6 @@
 # CRM Clara Ferreira Acessórios — Documentação Geral
 
-> Documento vivo — atualizado a cada mudança relevante de arquitetura ou regra de negócio. Última atualização: 2026-08-07.
+> Documento vivo — atualizado a cada mudança relevante de arquitetura ou regra de negócio. Última atualização: 2026-08-30.
 
 ## 1. O que é
 
@@ -10,7 +10,7 @@ CRM de relacionamento para revendedoras de joias/semijoias no modelo consignado.
 
 - **Backend**: Ruby on Rails 8 (API mode), PostgreSQL, Devise + Devise-JWT (auth), ActionCable (tempo real), Solid Queue (jobs em background)
 - **Frontend**: Vue 3 (`<script setup>`), Pinia, Vue Router 4, Axios
-- **WhatsApp**: Baileys (não-oficial, self-hosted) — API oficial (Meta Cloud API) ainda não implementada, ver seção 8
+- **WhatsApp**: dois provedores coexistindo por caixa de entrada — Baileys (não-oficial, self-hosted) e WAHA (não-oficial, self-hosted, WEBJS/whatsapp-web.js) — ver seção 8. API oficial (Meta Cloud API) ainda não implementada
 - **Storage de arquivos**: MinIO (S3-compatível, self-hosted) — ver seção 7
 - **Deploy**: Coolify (self-host, `2.24.96.245:8000`) — repo monorepo `github.com/balbiss/crm_clara_ferreira_pro`, branch `master`, pastas `backend/` e `frontend/`
 
@@ -63,6 +63,14 @@ No CRM:
 - Tela `Configurações > Times de Vendas` (`requiresFullPortfolio` — gerente + diretoria) pra gerenciar quem vê cada time
 - `visible_contacts_scope`/`visible_conversations_scope`/`visible_tarefas_scope` (nos controllers) expandidos: consultor vê o que é responsável direto (`Contact#user_id`) **OU** o que pertence a um time que ele tem acesso (`custom_attributes['gerente_jueri_id']` do Contact IN os times do usuário)
 
+### 6.1 Atribuição em massa de carteira (2026-08-30)
+
+"Gerenciar acesso" (seção acima) só controla **visibilidade** — não atribui ninguém como responsável de fato. Pra isso existe uma ação separada:
+
+- `POST /sales_teams/:id/assign_unassigned { user_id }` (`SalesTeamsController#assign_unassigned`) — atribui `Contact#user_id` em massa pro consultor escolhido, usando o mesmo vínculo `custom_attributes['gerente_jueri_id'] == team.jueri_lider_id`.
+- **Só preenche quem está com `user_id: nil`** — nunca sobrescreve uma atribuição manual já feita antes. Coerente com a decisão de produto de que atribuição é sempre manual (seção 9), só que em lote em vez de um por um.
+- Cada time devolve `unassigned_contacts_count` (contagem ao vivo) — a tela `Configurações > Times de Vendas` mostra esse número no botão "Atribuir carteira (N)" e desabilita quando chega a zero.
+
 ## 7. Storage de arquivos (MinIO)
 
 Anexos (fotos, áudio, documentos do WhatsApp e do chat interno) usam `ActiveStorage` com serviço `:minio` (S3-compatível, self-hosted no Coolify) em produção — **nunca `:local`**, porque o disco do container é apagado a cada redeploy.
@@ -71,23 +79,57 @@ URLs de anexo usam `rails_storage_proxy_url` (não `rails_blob_url`) em todo lug
 
 **Broadcast em tempo real de anexo**: mensagens do WhatsApp são criadas (`Message.create!`) ANTES da mídia terminar de baixar — o primeiro broadcast via ActionCable sai sem `attachmentUrl`. `Message#rebroadcast` é chamado explicitamente depois que o anexo termina de processar, e o frontend faz merge (não descarta) mensagens repetidas por id.
 
-## 8. WhatsApp (Baileys)
+## 8. WhatsApp (Baileys + WAHA)
+
+`Inbox#provider` decide qual API usar (`baileys`, `waha`, `instagram`) e `Inbox#messaging_service` despacha pro service certo (`WhatsappBaileysService` / `WhatsappWahaService` / `InstagramMessagingService`) — os três implementam a mesma interface pública (`create_connection`, `send_message`, `send_presence_update`, `fetch_profile_picture_url`, `fetch_qr_code`, `connected?`, `delete_connection`, `resolve_jid`), então nenhum código que envia mensagem deveria falar com um service concreto diretamente — sempre `inbox.messaging_service.*`. **Lição aprendida (2026-08-30)**: 3 lugares hardcoded pra `WhatsappBaileysService` (jobs de follow-up/agendado, notificação de agente) quebravam silenciosamente pra qualquer inbox não-Baileys.
+
+Duas caixas de WhatsApp podem coexistir na mesma conta, cada uma com seu provider — na criação de caixa nova, **WAHA vem marcado como recomendado/padrão**, Baileys continua disponível como opção manual.
+
+### 8.1 Baileys
 
 `WhatsappBaileysService` fala com uma API Baileys self-hosted (Coolify Service, não Application — ver infra). `connected?` confia **só** no cache escrito pelo webhook `connection.update` — nunca inferir conexão por outro meio (já teve bug de falso-positivo).
 
-Inboxes têm botão **Reconectar** (reabre QR sem apagar a caixa) e **Desconectar** (desloga a sessão sem apagar histórico — `Inbox has_many :conversations, dependent: :nullify`, apagar caixa nunca apaga conversa/mensagem). Banner global no CRM quando um canal cai.
+### 8.2 WAHA
 
-API oficial do WhatsApp (Meta Cloud API) **ainda não implementada** — decisão é manter as duas em paralelo quando a empresa tiver conta Meta verificada + número dedicado. Arquitetura seguiria o mesmo padrão do canal Instagram (novo `provider` em `Inbox`, novo service, novo webhook controller).
+`WhatsappWahaService` fala com uma instância WAHA self-hosted (engine WEBJS/whatsapp-web.js). Diferenças importantes em relação ao Baileys:
 
-## 9. Decisões de produto importantes (não óbvias pelo código)
+- **Formato de JID**: `{digits}@c.us` (WAHA/WEBJS), não `@s.whatsapp.net` (Baileys).
+- **Identificação da caixa no webhook**: `POST /webhooks/waha?inbox_id=X` — por query param, não por número de telefone (Baileys usa `?phone=`).
+- **QR code buscado ao vivo**: `GET /api/{session}/auth/qr` na hora (devolve PNG, convertido pra data URL base64) — não depende de cache alimentado por webhook como o Baileys. `connected?` também é checagem ao vivo (`GET /api/sessions/{session}`, status `WORKING`).
+- **`@lid` (identificador de privacidade do WhatsApp)**: em algumas conversas o `from`/chat id vem como `{numero_fantasma}@lid` em vez do telefone real — sem tratar isso, o contato nasce com nome/telefone errados (os próprios dígitos do lid, que não existem como número). O webhook resolve isso chamando `GET /api/contacts?session=X&contactId={lid}`, que devolve o contato de verdade (`id` no formato `@c.us`, `name`/`pushname`). O `jid` salvo no Contact continua sendo o `@lid` (é o que a WAHA espera pra mandar mensagem de volta pro mesmo chat) — só telefone/nome usam o valor resolvido.
+- **Endpoints de mídia confirmados**: `sendText`, `sendImage`, `sendVideo` (dedicado), `sendVoice` (áudio/PTT), `sendFile` (documentos), `startTyping`/`stopTyping`. GIF e figurinha não têm endpoint na tier CORE.
 
-- **Atribuição de responsável é manual** (gerente decide quem cuida de quem) — não existe rodízio automático de leads novos. A exceção é o vínculo por time de vendas (seção 6), que reflete a hierarquia real do Jueri, não um sorteio.
-- Deletar uma caixa de entrada (WhatsApp) **nunca** apaga conversas/mensagens — só desvincula.
+### 8.3 Regra geral: `source_id` é obrigatório em toda mensagem enviada pelo CRM
+
+Sempre que uma mensagem é criada porque o CRM mandou pra fora (resposta do agente, IA, follow-up, mensagem agendada, encerramento), o `id` retornado por `messaging_service.send_message(...)` **precisa** ser salvo como `Message#source_id`. Motivo: o WhatsApp ecoa de volta toda mensagem enviada (evento `fromMe: true` no webhook) — sem o `source_id` batendo, esse eco não encontra a mensagem original e é tratado como "intervenção humana pelo celular", criando uma **segunda mensagem duplicada** (sem `sender_id`, sem foto do agente) e ainda pausando a IA à toa.
+
+Duas armadilhas reais já encontradas nesse fluxo (2026-08-30):
+1. `messages_controller#create` (o caminho principal de resposta do agente) nunca salvava `source_id` nenhum — corrigido.
+2. Na WAHA, o campo `id` da resposta de `sendText`/`sendImage`/etc vem como **objeto aninhado** (`{fromMe, remote, id, _serialized}`), não como string — pegar o objeto inteiro (em vez de `id._serialized`) também quebra a comparação, mesmo com o `source_id` sendo "salvo".
+
+### 8.4 Gestão de caixa (comum aos dois providers)
+
+Inboxes têm botão **Reconectar** (reabre QR sem apagar a caixa) e **Desconectar** (desloga a sessão sem apagar histórico — `Inbox has_many :conversations, dependent: :nullify`, apagar caixa nunca apaga conversa/mensagem). Banner global no CRM quando um canal cai. `phone_number` é único por conta pra `baileys`/`waha` (validação no model) — duas caixas com o mesmo número disputariam a mesma sessão externa e só uma receberia webhook de verdade.
+
+API oficial do WhatsApp (Meta Cloud API) **ainda não implementada** — arquitetura seguiria o mesmo padrão (novo `provider` em `Inbox`, novo service, novo webhook controller).
+
+## 9. Conversas e mensagens
+
+- **"Apagar conversa" ≠ "Apagar contato"** (dois botões distintos no menu ⋮ do painel de contato, adicionado 2026-08-30). "Apagar conversa" (`DELETE /conversations/:id`) apaga só o histórico de mensagens daquela conversa — o `Contact` (cadastro, notas, pedidos, tags, posição no pipeline) continua intacto. "Apagar contato" (`DELETE /contacts/:id`) apaga o `Contact` inteiro e tudo que depende dele em cascata (`dependent: :destroy` em conversations/notes/pipeline_cards/pedidos/reseller_phones/lifecycle_events/tarefas/contact_tags) — **se a revendedora ainda tiver pedido aberto no Jueri, ela volta na próxima sincronização como um contato novo, sem nada do histórico apagado.**
+- Balão de mensagem enviada mostra a **foto de perfil do agente** (`User#avatar_url`) em vez de só a inicial — serializado em três lugares que precisam ficar em sincronia: histórico da conversa (`ConversationsController#format_conversation`), resposta imediata (`MessagesController#create`) e broadcast em tempo real (`Message#broadcast_to_conversation`).
+- Menu lateral (Comunicações) lista cada caixa de entrada como subitem, com um ponto de status (verde/vermelho), levando pra `/conversas/inbox/:inboxId` — rota e filtro (`sidebarInboxId` na store) já existiam, só não estavam expostos.
+- **Gotcha do filtro de caixa**: ao trocar de filtro/caixa, a conversa ativa (painel da direita) precisa ser reconciliada pro novo filtro (`reconcileActiveConversation` na store) — sem isso, o auto-seleção da conversa mais recente da conta inteira (que roda sempre que não há nenhuma selecionada, ex: depois de um F5) ignorava o filtro e abria uma conversa de outra caixa sem nenhuma mensagem visível ali.
+
+## 10. Decisões de produto importantes (não óbvias pelo código)
+
+- **Atribuição de responsável é manual** (gerente decide quem cuida de quem) — não existe rodízio automático de leads novos. A exceção é o vínculo por time de vendas (seção 6), que reflete a hierarquia real do Jueri, não um sorteio — mesmo a atribuição em massa (seção 6.1) só preenche quem está sem responsável, nunca sobrescreve.
+- Deletar uma caixa de entrada (WhatsApp) **nunca** apaga conversas/mensagens — só desvincula. "Apagar conversa" (seção 9) também preserva o cadastro da revendedora — só "Apagar contato" é destrutivo de verdade.
 - Status Resgate/Negativado/Descadastrada nunca reativam sozinhos mesmo com pedido novo — só manual.
 
-## 10. Pendências conhecidas
+## 11. Pendências conhecidas
 
 - Fase 1 do Agendamento (Acertos): faltam fórmulas de "Qtd. Peças → Nº de horários" e "Dias com Maleta → Data Acerto", só a Clara pode fornecer
 - Verificação de assinatura do webhook do Jueri (`HTTP_SIGNATURE`) não implementada
 - API oficial do WhatsApp (seção 8)
-- Nenhum usuário do CRM ainda vinculado aos times de vendas (feature pronta, falta configuração manual da Clara)
+- WAHA: fluxo de conexão/envio testado ponta a ponta com número real; recebimento de mídia (foto/áudio/vídeo) via WAHA ainda não validado com um arquivo real (só o parsing do payload foi corrigido)
+- Nenhum usuário do CRM ainda vinculado aos times de vendas por "Gerenciar acesso" (visibilidade) — a atribuição de responsável (seção 6.1) é a peça que estava faltando pra isso ser útil na prática
