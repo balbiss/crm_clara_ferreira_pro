@@ -51,15 +51,23 @@ const daysInCycle = (t) => {
   return days >= 0 ? days : null
 }
 
-const responsavelOptions = computed(() => {
-  const ids = new Set(tarefas.value.map(t => t.user_id).filter(Boolean))
-  return [{ value: 'all', label: 'Todos os responsáveis' }, ...[...ids].map(id => ({ value: id, label: agentsById.value[id] || `Usuário #${id}` }))]
-})
+// Antes só listava responsáveis que já tinham alguma tarefa (quase ninguém,
+// já que a maioria das tarefas nasce "Não atribuído" — mesmo achado da
+// atribuição de carteira: quase nenhum Contact#user_id preenchido ainda).
+// Lista todos os agentes de verdade + opção "Não atribuído", mesmo padrão já
+// usado no filtro de responsável de RevendedorasAtivas.vue.
+const responsavelOptions = computed(() => [
+  { value: 'all', label: 'Todos os responsáveis' },
+  { value: 'none', label: 'Não atribuído' },
+  ...(convStore.agents || []).map(a => ({ value: a.id, label: `${a.first_name || ''} ${a.last_name || ''}`.trim() })),
+])
 
 const filteredTasks = computed(() => {
   let list = tarefas.value
 
-  if (responsavelFilter.value !== 'all') {
+  if (responsavelFilter.value === 'none') {
+    list = list.filter(t => !t.user_id)
+  } else if (responsavelFilter.value !== 'all') {
     list = list.filter(t => t.user_id === responsavelFilter.value)
   }
 
