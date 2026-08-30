@@ -86,6 +86,7 @@ Rails.application.routes.draw do
   get  'jueri/debug/:id', to: 'jueri#debug_show'
   post 'jueri/sync-now',  to: 'jueri#sync_now'
   post 'jueri/reconciliar_pedidos/:contact_id', to: 'jueri#reconciliar_pedidos'
+  post 'jueri/reconciliar_pedidos_abertos', to: 'jueri#reconciliar_pedidos_abertos'
   get  'jueri/debug_schema', to: 'jueri#debug_schema'
   get  'jueri/debug_recurso', to: 'jueri#debug_recurso'
   get  'jueri/debug_pedido/:id', to: 'jueri#debug_pedido'

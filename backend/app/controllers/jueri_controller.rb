@@ -110,6 +110,21 @@ class JueriController < ApplicationController
     render json: { error: 'not_configured', message: e.message }, status: :unprocessable_entity
   end
 
+  # POST /jueri/reconciliar_pedidos_abertos — varredura completa (assíncrona,
+  # background) de TODOS os pedidos "Aberto" da conta contra o Jueri, pra
+  # limpar pedidos-fantasma antigos (excluídos no Jueri antes do fix do
+  # webhook pedido.deleted). Leva minutos (ritmo lento de propósito, ver
+  # JueriReconciliarPedidosAbertosJob) — resultado sai no log do worker.
+  def reconciliar_pedidos_abertos
+    unless JueriApiService.configured?
+      return render json: { error: 'not_configured', message: 'JUERI_API_TOKEN/JUERI_CLIENTE_SISTEMA não configurados.' }, status: :unprocessable_entity
+    end
+
+    total_abertos = current_user.account.pedidos.where(status_id: Pedido::STATUS_ABERTO).count
+    JueriReconciliarPedidosAbertosJob.perform_later(current_user.account.id)
+    render json: { message: "Varredura disparada em background pra #{total_abertos} pedidos abertos. Acompanhe pelo log do worker (leva alguns minutos)." }, status: :accepted
+  end
+
   # GET /jueri/debug_schema — diagnóstico pontual: confirma se a coluna
   # contacts.user_id tem algum DEFAULT gravado direto no Postgres (não
   # apareceria no schema.rb se alguém alterou via SQL fora de uma migration).
