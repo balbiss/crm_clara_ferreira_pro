@@ -113,8 +113,11 @@ class JueriController < ApplicationController
   # POST /jueri/reconciliar_pedidos_abertos — varredura completa (assíncrona,
   # background) de TODOS os pedidos "Aberto" da conta contra o Jueri, pra
   # limpar pedidos-fantasma antigos (excluídos no Jueri antes do fix do
-  # webhook pedido.deleted). Leva minutos (ritmo lento de propósito, ver
-  # JueriReconciliarPedidosAbertosJob) — resultado sai no log do worker.
+  # webhook pedido.deleted). Roda em lotes pequenos, bem espaçados (ver
+  # JueriReconciliarPedidosAbertosJob) — pode levar bem mais de 1h pra
+  # terminar a base inteira, de propósito (rate limit do Jueri é por conta,
+  # já tomou 429 em cascata numa primeira tentativa mais rápida). Resultado
+  # sai aos poucos no log do worker.
   def reconciliar_pedidos_abertos
     unless JueriApiService.configured?
       return render json: { error: 'not_configured', message: 'JUERI_API_TOKEN/JUERI_CLIENTE_SISTEMA não configurados.' }, status: :unprocessable_entity
@@ -122,7 +125,7 @@ class JueriController < ApplicationController
 
     total_abertos = current_user.account.pedidos.where(status_id: Pedido::STATUS_ABERTO).count
     JueriReconciliarPedidosAbertosJob.perform_later(current_user.account.id)
-    render json: { message: "Varredura disparada em background pra #{total_abertos} pedidos abertos. Acompanhe pelo log do worker (leva alguns minutos)." }, status: :accepted
+    render json: { message: "Varredura disparada em background pra #{total_abertos} pedidos abertos, em lotes pequenos e espaçados — pode levar bem mais de 1h no total. Acompanhe pelo log do worker." }, status: :accepted
   end
 
   # GET /jueri/debug_schema — diagnóstico pontual: confirma se a coluna
