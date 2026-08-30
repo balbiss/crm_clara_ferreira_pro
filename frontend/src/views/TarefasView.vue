@@ -57,6 +57,36 @@ const filteredTasks = computed(() => {
   return list
 })
 
+// Lista/checklist tipo agenda, agrupada por vencimento_em (pedido explícito
+// do cliente: "saber quais são as tarefas de hoje, atrasadas, e de amanhã").
+// Tarefa criada pelo ReguaAutoAdvanceJob sempre nasce com vencimento_em =
+// agora (já vencida no instante em que aparece — é uma régua reativa, não
+// agendada com antecedência), por isso a maioria cai em "Atrasadas"/"Hoje".
+// "Amanhã" existe pra tarefas manuais criadas com prazo futuro
+// (TarefasController#create, gerente/diretoria) e pro dia seguinte virar
+// "Hoje" sozinho sem precisar recarregar a tela numa data errada.
+const startOfDay = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x }
+const todayStart = computed(() => startOfDay(new Date()))
+const tomorrowStart = computed(() => { const d = new Date(todayStart.value); d.setDate(d.getDate() + 1); return d })
+const dayAfterTomorrowStart = computed(() => { const d = new Date(tomorrowStart.value); d.setDate(d.getDate() + 1); return d })
+
+const taskGroups = computed(() => {
+  const groups = { atrasadas: [], hoje: [], amanha: [], depois: [] }
+  filteredTasks.value.forEach(t => {
+    const venc = t.vencimento_em ? new Date(t.vencimento_em) : null
+    if (!venc || venc < todayStart.value) groups.atrasadas.push(t)
+    else if (venc < tomorrowStart.value) groups.hoje.push(t)
+    else if (venc < dayAfterTomorrowStart.value) groups.amanha.push(t)
+    else groups.depois.push(t)
+  })
+  return [
+    { key: 'atrasadas', label: 'Atrasadas', items: groups.atrasadas },
+    { key: 'hoje', label: 'Hoje', items: groups.hoje },
+    { key: 'amanha', label: 'Amanhã', items: groups.amanha },
+    { key: 'depois', label: 'Mais adiante', items: groups.depois }
+  ].filter(g => g.items.length > 0)
+})
+
 const openContact = (contact) => contact && router.push(`/contatos/${contact.id}`)
 
 const isStartingConversation = ref(null)
@@ -124,28 +154,36 @@ onMounted(async () => {
       </select>
     </div>
 
-    <div v-if="!isLoading && filteredTasks.length > 0" class="tasks-list">
-      <div v-for="t in filteredTasks" :key="t.id" class="task-card" :class="'priority-' + t.prioridade">
-        <div class="task-header" @click="openContact(t.contact)">
-          <div class="row-avatar">{{ (t.contact?.name || '?').charAt(0).toUpperCase() }}</div>
-          <div class="task-info">
-            <span class="task-name">{{ t.contact?.name || 'Sem nome' }}</span>
-            <span class="task-title">{{ t.titulo }}</span>
+    <div v-if="!isLoading && filteredTasks.length > 0" class="agenda">
+      <div v-for="group in taskGroups" :key="group.key" class="agenda-group">
+        <h2 class="agenda-group-title" :class="'group-' + group.key">
+          {{ group.label }}
+          <span class="agenda-group-count">{{ group.items.length }}</span>
+        </h2>
+        <div class="tasks-list">
+          <div v-for="t in group.items" :key="t.id" class="task-row" :class="'priority-' + t.prioridade">
+            <div class="task-header" @click="openContact(t.contact)">
+              <div class="row-avatar">{{ (t.contact?.name || '?').charAt(0).toUpperCase() }}</div>
+              <div class="task-info">
+                <span class="task-name">{{ t.contact?.name || 'Sem nome' }}</span>
+                <span class="task-title">{{ t.titulo }}</span>
+              </div>
+              <span class="priority-badge">{{ PRIORITY_LABELS[t.prioridade] }}</span>
+            </div>
+            <ul class="task-checklist">
+              <li v-for="(item, idx) in (t.descricao || '').split('\n')" :key="idx">{{ item }}</li>
+            </ul>
+            <div class="task-footer">
+              <span>{{ agentsById[t.user_id] || 'Não atribuído' }}</span>
+              <span v-if="daysInCycle(t) !== null">{{ daysInCycle(t) }} dias em aberto</span>
+              <button class="whatsapp-btn" :disabled="isStartingConversation === t.contact?.id" @click="startConversation(t.contact)" title="Iniciar conversa no WhatsApp">
+                <MessageCircle class="icon-xs" />
+              </button>
+              <button class="complete-btn" :disabled="isCompleting === t.id" @click="completeTask(t)">
+                <Check class="icon-xs" /> {{ isCompleting === t.id ? 'Concluindo...' : 'Concluir' }}
+              </button>
+            </div>
           </div>
-          <span class="priority-badge">{{ PRIORITY_LABELS[t.prioridade] }}</span>
-        </div>
-        <ul class="task-checklist">
-          <li v-for="(item, idx) in (t.descricao || '').split('\n')" :key="idx">{{ item }}</li>
-        </ul>
-        <div class="task-footer">
-          <span>{{ agentsById[t.user_id] || 'Não atribuído' }}</span>
-          <span v-if="daysInCycle(t) !== null">{{ daysInCycle(t) }} dias em aberto</span>
-          <button class="whatsapp-btn" :disabled="isStartingConversation === t.contact?.id" @click="startConversation(t.contact)" title="Iniciar conversa no WhatsApp">
-            <MessageCircle class="icon-xs" />
-          </button>
-          <button class="complete-btn" :disabled="isCompleting === t.id" @click="completeTask(t)">
-            <Check class="icon-xs" /> {{ isCompleting === t.id ? 'Concluindo...' : 'Concluir' }}
-          </button>
         </div>
       </div>
     </div>
@@ -215,14 +253,48 @@ onMounted(async () => {
   font-size: 0.82rem;
 }
 
-.tasks-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: 0.65rem;
-  align-items: start;
+.agenda-group {
+  margin-bottom: 1.75rem;
+
+  &:last-child { margin-bottom: 0; }
 }
 
-.task-card {
+.agenda-group-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin: 0 0 0.6rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border-color);
+
+  &.group-atrasadas { color: #ef4444; }
+  &.group-hoje { color: var(--primary); }
+}
+
+.agenda-group-count {
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.1rem 0.5rem;
+  border-radius: 20px;
+
+  .group-atrasadas & { background: #fee2e2; color: #991b1b; }
+  .group-hoje & { background: var(--input-focus, #fce7ea); color: var(--primary); }
+}
+
+.tasks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.task-row {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-left: 4px solid var(--border-color);
