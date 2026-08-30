@@ -99,7 +99,13 @@ class WhatsappWahaService
     return nil unless res.is_a?(Net::HTTPSuccess)
 
     parsed = JSON.parse(res.body) rescue {}
-    parsed['id'] || parsed.dig('_data', 'id', '_serialized')
+    # "id" vem como objeto aninhado ({fromMe, remote, id, _serialized, ...}),
+    # não como string — precisa do "_serialized" pra bater com o formato que
+    # o webhook manda de volta no eco (payload[:id], usado como source_id).
+    # Pegar o Hash inteiro aqui quebrava silenciosamente a deduplicação do
+    # eco: toda mensagem enviada pelo CRM virava duplicada quando o
+    # WhatsApp ecoava ela de volta (fromMe: true sem source_id correspondente).
+    parsed.dig('id', '_serialized') || parsed.dig('_data', 'id', '_serialized')
   rescue => e
     Rails.logger.error("Waha send_message error: #{e.message}")
     nil
