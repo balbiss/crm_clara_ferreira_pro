@@ -101,6 +101,16 @@ const formatDate = (iso) => {
   return d.toLocaleDateString('pt-BR')
 }
 
+// Próximo agendamento e última interação vêm prontos do backend (proximo_agendamento_em
+// / ultima_interacao_em), já com hora — diferente de formatDate (só data), aqui mostra
+// data + hora curta.
+const formatDateTime = (iso) => {
+  if (!iso) return null
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  return `${d.toLocaleDateString('pt-BR')} ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+}
+
 const agentsById = computed(() => {
   const map = {}
   ;(convStore.agents || []).forEach(a => { map[a.id] = `${a.first_name || ''} ${a.last_name || ''}`.trim() })
@@ -359,6 +369,9 @@ onMounted(async () => {
             <th>Próxima tarefa</th>
             <th>Dias com maleta</th>
             <th>Peças em aberto</th>
+            <th>Valor em aberto</th>
+            <th>Próximo agendamento</th>
+            <th>Última interação</th>
             <th>Alerta</th>
             <th>Carteira</th>
             <th>Ação</th>
@@ -385,6 +398,9 @@ onMounted(async () => {
             <td class="cell-tarefa">{{ proximaTarefa(c) || '—' }}</td>
             <td>{{ daysInCycle(c) !== null ? daysInCycle(c) + ' dias' : '...' }}</td>
             <td>{{ c.pecas_abertas_atual ?? '...' }}</td>
+            <td>{{ brl(c.valor_aberto) || '—' }}</td>
+            <td>{{ formatDateTime(c.proximo_agendamento_em) || '—' }}</td>
+            <td>{{ formatDateTime(c.ultima_interacao_em) || '—' }}</td>
             <td>
               <span v-if="isAtrasada(c)" class="alerta-badge"><AlertTriangle class="icon-xxs" /> Atrasada</span>
               <span v-else class="alerta-ok">Em dia</span>

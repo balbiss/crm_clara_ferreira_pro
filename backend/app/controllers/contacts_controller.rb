@@ -41,11 +41,21 @@ class ContactsController < ApplicationController
                                  .group(:contact_id).count("DISTINCT DATE_TRUNC('month', data_baixa)")
     primeiro_pedido_em = Pedido.where(contact_id: contact_ids).group(:contact_id).minimum(:data_criacao)
 
+    # "Próximo agendamento" e "Última interação" (RevendedorasAtivas.vue, colunas
+    # pedidas no briefing seção 28.1) — mesmo padrão de agregação em 1 query,
+    # sem N+1. Agendamento é opcional por revendedora (Agendamento#contact_id
+    # nullable), por isso o where já filtra os que têm vínculo.
+    proximos_agendamentos = Agendamento.where(contact_id: contact_ids).where('inicio_em >= ?', Time.current)
+                                        .group(:contact_id).minimum(:inicio_em)
+    ultimas_interacoes = Conversation.where(contact_id: contact_ids).group(:contact_id).maximum(:last_activity_at)
+
     json = contacts_arr.map do |c|
       c.as_json(include: :reseller_phones).merge(
         'valor_aberto' => valores_abertos[c.id].to_f,
         'tempo_revenda_meses' => tempo_revenda_meses[c.id] || 0,
-        'primeiro_pedido_em' => primeiro_pedido_em[c.id]
+        'primeiro_pedido_em' => primeiro_pedido_em[c.id],
+        'proximo_agendamento_em' => proximos_agendamentos[c.id],
+        'ultima_interacao_em' => ultimas_interacoes[c.id]
       )
     end
 
