@@ -1,7 +1,7 @@
 <script setup>
-import { ref, onMounted, computed, onUnmounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Search, ChevronDown, Activity, AtSign, Plus, X, Edit2 } from 'lucide-vue-next'
+import { Activity, AtSign, Phone, Plus, X, Edit2, ExternalLink } from 'lucide-vue-next'
 import api from '../api'
 import Swal from 'sweetalert2'
 import EditContactModal from '../components/EditContactModal.vue'
@@ -11,13 +11,30 @@ const router = useRouter()
 const contact = ref(null)
 const isLoading = ref(true)
 
-const activeTab = ref('Atributos')
-const tabs = ['Atributos', 'Histórico', 'Notas', 'Mesclar']
+// Notas/Biografia é a área principal dessa tela (pedido explícito do
+// cliente) — fica como primeira aba, aberta por padrão.
+const activeTab = ref('Notas')
+const tabs = ['Notas', 'Cadastro', 'Informações', 'Histórico', 'Mesclar']
 const isEditModalOpen = ref(false)
 const closeEditModal = () => {
   isEditModalOpen.value = false
   fetchContact()
 }
+
+// Telefone sem "+55" — o link "abrir no Jueri" já deixa claro que é um
+// cadastro brasileiro, redundante repetir o DDI aqui.
+const formatPhoneDisplay = (phone) => {
+  if (!phone) return null
+  return phone.replace(/^\+?55/, '').trim() || phone
+}
+
+// URL do próprio Jueri (cadastro de revendedor). Dados sincronizados do
+// Jueri não são mais editáveis por aqui — quem precisar mudar algo faz
+// direto no Jueri, e esse link abre o cadastro certo numa aba nova.
+const jueriCadastroUrl = computed(() => {
+  const id = contact.value?.id_jueri
+  return id ? `https://claraferreira.jueri.com.br/sis/cadastro/revendedor/${id}` : null
+})
 
 // Fetch Contact
 const fetchContact = async () => {
@@ -25,6 +42,7 @@ const fetchContact = async () => {
   try {
     const response = await api.get(`/contacts/${route.params.id}`)
     contact.value = response.data
+    bioDraft.value = contact.value.bio || ''
   } catch (error) {
     console.error('Error fetching contact:', error)
     Swal.fire({ icon: 'error', title: 'Erro', text: 'Contato não encontrado.' })
@@ -36,76 +54,26 @@ const fetchContact = async () => {
 
 onMounted(() => {
   fetchContact()
-  document.addEventListener('click', closeDropdown)
 })
 
-onUnmounted(() => {
-  document.removeEventListener('click', closeDropdown)
-})
-
-const updateContact = async () => {
+// Biografia — junto com Notas, é a área principal da tela (pedido do
+// cliente). Salva sozinha, sem precisar do resto do formulário de edição
+// (que foi removido — dados sincronizados do Jueri não são mais editáveis
+// por aqui, ver jueriCadastroUrl acima).
+const bioDraft = ref('')
+const isSavingBio = ref(false)
+const saveBio = async () => {
+  if (!contact.value) return
+  isSavingBio.value = true
   try {
-    await api.put(`/contacts/${contact.value.id}`, {
-      contact: {
-        first_name: contact.value.first_name,
-        last_name: contact.value.last_name,
-        email: contact.value.email,
-        phone: contact.value.phone,
-        city: contact.value.city,
-        country: contact.value.country,
-        bio: contact.value.bio,
-        company_name: contact.value.company_name,
-        temperature: contact.value.temperature,
-        source: contact.value.source,
-        intention: contact.value.intention,
-        name: `${contact.value.first_name || ''} ${contact.value.last_name || ''}`.trim() || contact.value.name
-      }
-    })
-    
-    Swal.fire({
-      icon: 'success',
-      title: 'Sucesso',
-      text: 'Contato atualizado com sucesso!',
-      timer: 1500,
-      showConfirmButton: false
-    })
+    await api.put(`/contacts/${contact.value.id}`, { contact: { bio: bioDraft.value } })
+    contact.value.bio = bioDraft.value
+    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Biografia salva!', showConfirmButton: false, timer: 2000 })
   } catch (error) {
-    console.error('Error updating contact:', error)
-    Swal.fire({
-      icon: 'error',
-      title: 'Erro',
-      text: 'Não foi possível atualizar o contato.'
-    })
-  }
-}
-
-const deleteContact = async () => {
-  const result = await Swal.fire({
-    title: 'Tem certeza?',
-    text: "Excluir permanentemente este contato. Esta ação é irreversível.",
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonColor: '#ef4444',
-    cancelButtonColor: '#6b7280',
-    confirmButtonText: 'Sim, excluir',
-    cancelButtonText: 'Cancelar'
-  })
-
-  if (result.isConfirmed) {
-    try {
-      await api.delete(`/contacts/${contact.value.id}`)
-      Swal.fire({
-        icon: 'success',
-        title: 'Excluído!',
-        text: 'O contato foi excluído.',
-        timer: 1500,
-        showConfirmButton: false
-      })
-      router.push('/contatos')
-    } catch (error) {
-      console.error('Error deleting contact:', error)
-      Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível excluir o contato.' })
-    }
+    console.error('Erro ao salvar biografia:', error)
+    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Erro ao salvar biografia.', showConfirmButton: false, timer: 3000 })
+  } finally {
+    isSavingBio.value = false
   }
 }
 
@@ -132,56 +100,9 @@ const getAvatarStyle = (name) => {
   }
 }
 
-// Country Selector Logic
-const showCountryDropdown = ref(false)
-const searchCountryQuery = ref('')
-
-const countriesList = [
-  { code: 'AF', name: 'Afghanistan' },
-  { code: 'AX', name: 'Aland Islands' },
-  { code: 'AL', name: 'Albania' },
-  { code: 'DZ', name: 'Algeria' },
-  { code: 'AD', name: 'Andorra' },
-  { code: 'AO', name: 'Angola' },
-  { code: 'AI', name: 'Anguilla' },
-  { code: 'AQ', name: 'Antarctica' },
-  { code: 'AG', name: 'Antigua and Barbuda' },
-  { code: 'AR', name: 'Argentina' },
-  { code: 'AM', name: 'Armenia' },
-  { code: 'AW', name: 'Aruba' },
-  { code: 'AU', name: 'Australia' },
-  { code: 'AT', name: 'Austria' },
-  { code: 'AZ', name: 'Azerbaijan' },
-  { code: 'BS', name: 'Bahamas' },
-  { code: 'BR', name: 'Brazil' },
-  { code: 'CA', name: 'Canada' },
-  { code: 'PT', name: 'Portugal' },
-  { code: 'US', name: 'United States' }
-]
-
-const filteredCountries = computed(() => {
-  if (!searchCountryQuery.value) return countriesList
-  return countriesList.filter(c => 
-    c.name.toLowerCase().includes(searchCountryQuery.value.toLowerCase()) || 
-    c.code.toLowerCase().includes(searchCountryQuery.value.toLowerCase())
-  )
-})
-
-const selectCountry = (country) => {
-  contact.value.country_code = country.code
-  showCountryDropdown.value = false
-  searchCountryQuery.value = ''
-}
-
-const closeDropdown = () => {
-  if (showCountryDropdown.value) {
-    showCountryDropdown.value = false
-  }
-}
-
 // Cadastro completo vindo do Jueri (mesmos campos exibidos na aba "Dados" de
-// Conversas.vue) — a aba "Atributos" aqui só mostrava um texto fixo antes,
-// sem nunca renderizar contact.custom_attributes de verdade.
+// Conversas.vue) — mostrado só leitura na aba "Cadastro" (edição de dado
+// sincronizado do Jueri não é mais permitida por aqui, ver jueriCadastroUrl).
 const dadosFields = [
   { key: 'cpf', label: 'CPF', source: 'contact' },
   { key: 'birth_date', label: 'Data de Nascimento', source: 'contact', format: 'date' },
@@ -202,13 +123,40 @@ const dadosFields = [
   { key: 'observacao_interna_jueri', label: 'Observação Interna (Jueri)', source: 'attr' },
   { key: 'data_inativacao_jueri', label: 'Data de Inativação (Jueri)', source: 'attr', format: 'date' },
 ]
+// "2026-11-01" sem hora é interpretado como meia-noite UTC — em GMT-3 isso
+// volta pro dia anterior no toLocaleDateString. Forçando T00:00:00 (sem Z)
+// o JS trata como horário local, sem esse deslocamento de 1 dia (era o bug
+// da data de nascimento aparecendo 1 dia a menos).
 const getDadoValue = (f) => {
   if (!contact.value) return null
   const raw = f.source === 'attr' ? contact.value.custom_attributes?.[f.key] : contact.value[f.key]
   if (!raw) return null
-  return f.format === 'date' ? new Date(raw).toLocaleDateString('pt-BR') : raw
+  if (f.format !== 'date') return raw
+  const d = new Date(String(raw).includes('T') ? raw : `${raw}T00:00:00`)
+  return Number.isNaN(d.getTime()) ? raw : d.toLocaleDateString('pt-BR')
 }
 const dadosPreenchidos = computed(() => dadosFields.filter(f => getDadoValue(f)))
+
+// "Informações" (antes "Atributos") mostra só campo LIVRE, criado pela
+// própria equipe — os campos acima (dadosFields) já são sincronizados do
+// Jueri e têm sua própria aba ("Cadastro"), não devem aparecer duplicados
+// aqui. Mesma lista de chaves reservadas do EditContactModal.
+const RESERVED_CUSTOM_KEYS = [
+  'venda', 'proximo_agendamento', 'limite_inicial', 'dia_fechamento', 'data_agendamento',
+  'obs_fechamento', 'dia_pf_fechamento', 'horario_fechamento', 'atraso', 'observacao_mes',
+  'meta', 'desafio_combinado', 'como_chegar_meta',
+  'instagram', 'id_jueri', 'origem',
+  'gerente_jueri_id', 'gerente_jueri_nome', 'supervisor_nome',
+  'rg', 'profissao', 'razao_social', 'nome_fantasia', 'cnpj',
+  'observacao_jueri', 'observacao_interna_jueri', 'data_inativacao_jueri',
+  'pedidos', 'telefones_adicionais'
+]
+const informacoesPersonalizadas = computed(() => {
+  const custom = contact.value?.custom_attributes || {}
+  return Object.keys(custom)
+    .filter(k => !RESERVED_CUSTOM_KEYS.includes(k) && custom[k])
+    .map(k => ({ key: k, value: custom[k] }))
+})
 
 const newNote = ref('')
 const selectedNote = ref(null)
@@ -293,7 +241,7 @@ const removeTag = async (tagId) => {
       <div class="header-left">
         <router-link to="/contatos" class="breadcrumb-link">Contatos</router-link>
         <span class="breadcrumb-separator">&gt;</span>
-        <span class="breadcrumb-current">{{ contact.first_name || contact.name }}</span>
+        <span class="breadcrumb-current">{{ contact.name }}</span>
       </div>
       <div class="header-actions">
         <button class="btn-secondary">Bloquear contato</button>
@@ -305,12 +253,13 @@ const removeTag = async (tagId) => {
       <!-- Left Pane -->
       <div class="left-pane">
         <div class="profile-header">
-          <div class="avatar-large" :style="getAvatarStyle(contact.first_name || contact.name)" v-if="!contact.avatar_url">
-            {{ getInitials(contact.first_name || contact.name) }}
+          <div class="avatar-large" :style="getAvatarStyle(contact.name)" v-if="!contact.avatar_url">
+            {{ getInitials(contact.name) }}
           </div>
           <img :src="contact.avatar_url" alt="Avatar" class="avatar-large" style="object-fit: cover;" v-else />
-          <h2 class="profile-name">{{ contact.first_name || contact.name }} {{ contact.last_name || '' }}</h2>
+          <h2 class="profile-name">{{ contact.name }}</h2>
           <div class="profile-meta">
+            <div class="meta-item"><Phone class="icon-xs" /> {{ formatPhoneDisplay(contact.phone) || 'Sem telefone' }}</div>
             <div class="meta-item"><AtSign class="icon-xs" /> {{ contact.email || 'Sem e-mail' }}</div>
             <div class="meta-item"><Activity class="icon-xs" /> Criado há pouco • Última atividade há pouco</div>
           </div>
@@ -347,77 +296,11 @@ const removeTag = async (tagId) => {
           </div>
         </div>
 
-        <div class="form-section">
-          <h4 class="form-title">Alterar detalhes do contato</h4>
-          <div class="form-grid">
-            <input type="text" v-model="contact.first_name" placeholder="Digite o nome" class="form-input" />
-            <input type="text" v-model="contact.last_name" placeholder="Digite o sobrenome" class="form-input" />
-            
-            <input type="email" v-model="contact.email" placeholder="Digite o endereço de e-mail" class="form-input" />
-            
-            <div class="phone-input-group">
-              <div class="country-selector-wrapper">
-                <div class="country-selector" @click.stop="showCountryDropdown = !showCountryDropdown">
-                  {{ contact.country_code || 'BR' }} <ChevronDown class="icon-xs" />
-                </div>
-                
-                <div class="country-dropdown-menu" v-if="showCountryDropdown" @click.stop>
-                  <div class="country-search-wrapper">
-                    <Search class="icon-xs search-icon-sm" />
-                    <input type="text" v-model="searchCountryQuery" placeholder="Pesquisar..." />
-                  </div>
-                  <div class="country-list">
-                    <div 
-                      class="country-item" 
-                      v-for="c in filteredCountries" 
-                      :key="c.code"
-                      @click="selectCountry(c)"
-                    >
-                      <span class="c-code">{{ c.code }}</span>
-                      <span class="c-name">{{ c.name }}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <input type="text" v-model="contact.phone" placeholder="+55 99999999999" class="form-input phone-input" />
-            </div>
-            
-            <input type="text" v-model="contact.city" placeholder="Digite o nome da cidade" class="form-input" />
-            <select v-model="contact.country" class="form-input">
-              <option value="" disabled>Selecione o país</option>
-              <option value="Brasil">Brasil</option>
-              <option value="Portugal">Portugal</option>
-              <option value="EUA">EUA</option>
-            </select>
-            
-            <input type="text" v-model="contact.bio" placeholder="Digite uma biografia" class="form-input" />
-            <input type="text" v-model="contact.company_name" placeholder="Digite o nome da empresa" class="form-input" />
-            
-            <select v-model="contact.temperature" class="form-input">
-              <option value="" disabled>Selecione a Temperatura</option>
-              <option value="Quente">Quente</option>
-              <option value="Morno">Morno</option>
-              <option value="Frio">Frio</option>
-            </select>
-
-            <select v-model="contact.source" class="form-input">
-              <option value="" disabled>Mídia de Origem</option>
-              <option value="WhatsApp API">WhatsApp API</option>
-              <option value="Facebook">Facebook</option>
-              <option value="Instagram">Instagram</option>
-              <option value="Jueri">Jueri (sincronização)</option>
-              <option value="Indicação">Indicação</option>
-            </select>
-          </div>
-          
-          <button class="btn-update" @click="updateContact">Atualizar contato</button>
-        </div>
-
-        <div class="danger-zone">
-          <h4 class="form-title">Excluir contato</h4>
-          <p class="danger-text">Excluir permanentemente este contato. Esta ação é irreversível</p>
-          <button class="btn-danger" @click="deleteContact">Excluir contato</button>
-        </div>
+        <!-- Dados sincronizados do Jueri não são mais editáveis por aqui —
+             quem precisar mudar algo faz direto no cadastro do Jueri. -->
+        <a v-if="jueriCadastroUrl" :href="jueriCadastroUrl" target="_blank" rel="noopener" class="jueri-link-btn">
+          <ExternalLink class="icon-xs" /> Abrir cadastro no Jueri
+        </a>
       </div>
 
       <!-- Right Pane -->
@@ -434,8 +317,35 @@ const removeTag = async (tagId) => {
           </button>
         </div>
         <div class="tab-content">
-          <!-- Tab Atributos: cadastro completo sincronizado do Jueri -->
-          <div v-show="activeTab === 'Atributos'" class="attrs-tab">
+          <!-- Tab Notas: área principal da tela, junto com a Biografia -->
+          <div v-show="activeTab === 'Notas'" class="notas-tab">
+            <div class="bio-section">
+              <h4 class="bio-title">Biografia</h4>
+              <textarea v-model="bioDraft" placeholder="Particularidades da revendedora: preferências, histórico, coisas pra lembrar no próximo atendimento..." rows="3"></textarea>
+              <button class="btn-primary" style="margin-top: 0.6rem;" @click="saveBio" :disabled="isSavingBio || bioDraft === (contact.bio || '')">
+                {{ isSavingBio ? 'Salvando...' : 'Salvar biografia' }}
+              </button>
+            </div>
+
+            <div class="notes-input-area" style="margin-top: 1.75rem;">
+              <textarea v-model="newNote" placeholder="Adicione uma nota sobre este contato..." rows="3"></textarea>
+              <button class="btn-primary" @click="saveNote" :disabled="!newNote.trim()">Salvar Nota</button>
+            </div>
+
+            <div class="notes-list-compact" v-if="contact.notes && contact.notes.length > 0" style="margin-top: 1.5rem;">
+              <div class="note-list-item" v-for="note in contact.notes" :key="note.id" @click="openNote(note)">
+                <div class="note-content-row">
+                  <span class="note-author">{{ note.user ? (note.user.first_name || note.user.name) : 'Usuário' }}</span>
+                  <span class="note-preview-inline">- {{ note.content }}</span>
+                </div>
+                <span class="note-date">{{ new Date(note.created_at).toLocaleDateString('pt-BR') }}</span>
+              </div>
+            </div>
+            <p class="empty-state-text" v-else style="margin-top: 1rem;">Nenhuma nota encontrada.</p>
+          </div>
+
+          <!-- Tab Cadastro: dados sincronizados do Jueri, só leitura -->
+          <div v-show="activeTab === 'Cadastro'" class="attrs-tab">
             <div class="attrs-list" v-if="dadosPreenchidos.length > 0">
               <div class="attr-row" v-for="f in dadosPreenchidos" :key="f.key">
                 <span class="attr-label">{{ f.label }}</span>
@@ -445,9 +355,25 @@ const removeTag = async (tagId) => {
             <p class="empty-state-text" v-else>
               Nenhum dado cadastral disponível ainda. Revendedoras sincronizadas do Jueri recebem esses dados automaticamente — se essa revendedora já existia antes da sincronização, aguarde o próximo ciclo automático.
             </p>
+            <a v-if="jueriCadastroUrl" :href="jueriCadastroUrl" target="_blank" rel="noopener" class="attrs-edit-btn">
+              <ExternalLink class="icon-xs" /> Editar no Jueri
+            </a>
+          </div>
+
+          <!-- Tab Informações: campos livres, criados pela equipe (não vem do Jueri) -->
+          <div v-show="activeTab === 'Informações'" class="attrs-tab">
+            <div class="attrs-list" v-if="informacoesPersonalizadas.length > 0">
+              <div class="attr-row" v-for="attr in informacoesPersonalizadas" :key="attr.key">
+                <span class="attr-label">{{ attr.key }}</span>
+                <span class="attr-value">{{ attr.value }}</span>
+              </div>
+            </div>
+            <p class="empty-state-text" v-else>
+              Nenhum campo personalizado ainda. Use "Adicionar/editar campos" pra criar informações que não existem no Jueri (ex: hobby, preferência de contato).
+            </p>
             <button class="attrs-edit-btn" @click="isEditModalOpen = true"><Edit2 class="icon-xs" /> Adicionar/editar campos</button>
           </div>
-          
+
           <!-- Tab Histórico -->
           <div v-show="activeTab === 'Histórico'" class="history-tab">
             <div class="history-item">
@@ -469,26 +395,7 @@ const removeTag = async (tagId) => {
             </div>
             <p v-else class="empty-state-text" style="margin-top: 1rem;">Nenhuma conversa registrada.</p>
           </div>
-          
-          <!-- Tab Notas -->
-          <div v-show="activeTab === 'Notas'">
-            <div class="notes-input-area">
-              <textarea v-model="newNote" placeholder="Adicione uma nota sobre este contato..." rows="3"></textarea>
-              <button class="btn-primary" @click="saveNote" :disabled="!newNote.trim()">Salvar Nota</button>
-            </div>
-            
-            <div class="notes-list-compact" v-if="contact.notes && contact.notes.length > 0" style="margin-top: 1.5rem;">
-              <div class="note-list-item" v-for="note in contact.notes" :key="note.id" @click="openNote(note)">
-                <div class="note-content-row">
-                  <span class="note-author">{{ note.user ? (note.user.first_name || note.user.name) : 'Usuário' }}</span>
-                  <span class="note-preview-inline">- {{ note.content }}</span>
-                </div>
-                <span class="note-date">{{ new Date(note.created_at).toLocaleDateString('pt-BR') }}</span>
-              </div>
-            </div>
-            <p class="empty-state-text" v-else style="margin-top: 1rem;">Nenhuma nota encontrada.</p>
-          </div>
-          
+
           <!-- Tab Mesclar -->
           <div v-show="activeTab === 'Mesclar'">
             <p class="empty-state-text">
@@ -753,22 +660,53 @@ const removeTag = async (tagId) => {
   }
 }
 
-.form-section {
-  margin-bottom: 2.5rem;
-}
-
-.form-title {
-  font-size: 0.95rem;
+.jueri-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.82rem;
   font-weight: 600;
-  color: #1f2937;
-  margin-bottom: 1rem;
+  color: #ba5e72;
+  background: rgba(186, 94, 114, 0.07);
+  border: 1px solid rgba(186, 94, 114, 0.25);
+  border-radius: 6px;
+  text-decoration: none;
+  width: fit-content;
+
+  &:hover { background: rgba(186, 94, 114, 0.14); }
 }
 
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+.bio-section {
+  .bio-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 0.75rem;
+  }
+
+  textarea {
+    width: 100%;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    padding: 0.75rem;
+    font-family: inherit;
+    resize: vertical;
+    outline: none;
+    font-size: 0.95rem;
+    background: #f9fafb;
+
+    &:focus {
+      border-color: #d49ba7;
+      box-shadow: 0 0 0 2px rgba(212, 155, 167, 0.2);
+      background: white;
+    }
+  }
+}
+
+.notas-tab {
+  text-align: left;
 }
 
 .form-input {
@@ -785,135 +723,6 @@ const removeTag = async (tagId) => {
   &:focus { box-shadow: 0 0 0 2px #ffd9ec; border-color: transparent; }
 }
 
-.phone-input-group {
-  display: flex;
-  gap: 0.5rem;
-  
-  .country-selector-wrapper {
-    position: relative;
-    width: 100px;
-  }
-
-  .country-selector {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.75rem;
-    background: #f9fafb;
-    border: 1px solid #e5e7eb;
-    border-radius: 6px;
-    font-size: 0.85rem;
-    color: #1f2937;
-    cursor: pointer;
-    user-select: none;
-  }
-
-  .country-dropdown-menu {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    margin-top: 4px;
-    width: 250px;
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 6px;
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-    z-index: 10;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  .country-search-wrapper {
-    display: flex;
-    align-items: center;
-    padding: 0.5rem 0.75rem;
-    border-bottom: 1px solid #e5e7eb;
-    background: #ffffff;
-
-    .search-icon-sm {
-      color: #9ca3af;
-      margin-right: 0.5rem;
-    }
-
-    input {
-      border: none;
-      background: transparent;
-      outline: none;
-      font-size: 0.85rem;
-      color: #1f2937;
-      width: 100%;
-      &::placeholder { color: #9ca3af; }
-    }
-  }
-
-  .country-list {
-    max-height: 200px;
-    overflow-y: auto;
-    
-    .country-item {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.5rem 0.75rem;
-      cursor: pointer;
-      font-size: 0.85rem;
-      
-      &:hover { background: #f3f4f6; }
-      
-      .c-code {
-        font-weight: 600;
-        color: #1f2937;
-        min-width: 20px;
-      }
-      
-      .c-name {
-        color: #6b7280;
-      }
-    }
-  }
-  
-  .phone-input {
-    flex: 1;
-  }
-}
-
-.btn-update {
-  background: #ba5e72;
-  color: white;
-  padding: 0.6rem 1.2rem;
-  border-radius: 6px;
-  border: none;
-  font-weight: 500;
-  font-size: 0.85rem;
-  cursor: pointer;
-  
-  &:hover { background: #ba5e72; }
-}
-
-.danger-zone {
-  border-top: 1px solid #e5e7eb;
-  padding-top: 2rem;
-
-  .danger-text {
-    font-size: 0.85rem;
-    color: #4b5563;
-    margin-bottom: 1rem;
-  }
-
-  .btn-danger {
-    background: #ef4444;
-    color: white;
-    padding: 0.6rem 1.2rem;
-    border-radius: 6px;
-    border: none;
-    font-weight: 500;
-    font-size: 0.85rem;
-    cursor: pointer;
-    
-    &:hover { background: #dc2626; }
-  }
-}
 
 /* RIGHT PANE */
 .right-pane {
@@ -1233,9 +1042,4 @@ const removeTag = async (tagId) => {
   }
 }
 
-@media (max-width: 500px) {
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
-}
 </style>

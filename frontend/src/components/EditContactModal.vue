@@ -132,11 +132,6 @@
               <label>Descrição</label>
               <textarea v-model="formData.bio" placeholder="Insira a descrição do contato" rows="3"></textarea>
             </div>
-
-            <div class="form-group">
-              <label>Nome da empresa vinculada</label>
-              <input type="text" v-model="formData.company_name" placeholder="Ex: Victória Cosméticos" autocomplete="off" />
-            </div>
           </div>
 
           <div class="form-section">
@@ -153,13 +148,14 @@
                 <label v-if="index === 0">Valor</label>
                 <input type="text" v-model="attr.value" placeholder="Ex: Sim, 2 cachorros" autocomplete="off" />
               </div>
-              <button type="button" @click="formData.customAttributesArray.splice(index, 1)" class="btn-cancel" style="padding: 10px; height: 38px; border-color: #ef4444; color: #ef4444; display: flex; align-items: center; justify-content: center;" title="Remover">
+              <button v-if="canRemoveCustomField" type="button" @click="formData.customAttributesArray.splice(index, 1)" class="btn-cancel" style="padding: 10px; height: 38px; border-color: #ef4444; color: #ef4444; display: flex; align-items: center; justify-content: center;" title="Remover (só diretoria)">
                 Remover
               </button>
             </div>
-            <button type="button" @click="formData.customAttributesArray.push({key: '', value: ''})" style="background: none; border: none; color: #d49ba7; cursor: pointer; font-weight: 500; font-size: 0.9rem; padding: 0; margin-top: 5px;">
+            <button v-if="canAddCustomField" type="button" @click="formData.customAttributesArray.push({key: '', value: ''})" style="background: none; border: none; color: #d49ba7; cursor: pointer; font-weight: 500; font-size: 0.9rem; padding: 0; margin-top: 5px;">
               + Adicionar novo atributo
             </button>
+            <p v-else style="font-size: 0.8rem; color: #9ca3af; margin: 4px 0 0;">Só gerente ou superior pode criar campos novos — você pode editar os valores acima.</p>
           </div>
 
           <div class="form-section">
@@ -229,7 +225,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { useConversationsStore } from '../store/conversations'
-import { isFullPortfolio as isFullPortfolioRole } from '../config/roles'
+import { isFullPortfolio as isFullPortfolioRole, isCriticalConfig } from '../config/roles'
 import Swal from 'sweetalert2'
 
 const props = defineProps({
@@ -246,6 +242,12 @@ const store = useConversationsStore()
 // campo se quem enviar não for full_portfolio, isso aqui é só a UI.
 const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
 const isFullPortfolio = computed(() => isFullPortfolioRole(currentUser))
+
+// Atributos personalizados: qualquer usuário atualiza o VALOR de um campo já
+// existente, mas só gerente+ pode criar campo novo, e só diretoria (admin)
+// pode excluir — regra pedida explicitamente pra essa área não virar bagunça.
+const canAddCustomField = computed(() => isFullPortfolioRole(currentUser))
+const canRemoveCustomField = computed(() => isCriticalConfig(currentUser))
 
 onMounted(() => {
   if (isFullPortfolio.value && !store.agents.length) store.fetchAgents()

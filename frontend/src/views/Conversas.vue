@@ -235,9 +235,20 @@ const principalFields = [
 ]
 const getAttr = (key) => store.activeConversation?.contact?.custom_attributes?.[key]
 
+// "2026-11-01" sem hora é interpretado como meia-noite UTC — em GMT-3 isso
+// volta pro dia anterior no toLocaleDateString. Forçando T00:00:00 (sem Z)
+// o JS trata como horário local, sem esse deslocamento de 1 dia.
 const formatDate = (iso) => {
   if (!iso) return null
-  return new Date(iso).toLocaleDateString('pt-BR')
+  const d = new Date(iso.includes('T') ? iso : `${iso}T00:00:00`)
+  if (Number.isNaN(d.getTime())) return iso
+  return d.toLocaleDateString('pt-BR')
+}
+
+// Telefone sem o "+55" — já tem indicação de país (bandeira BR) ao lado.
+const formatPhoneDisplay = (phone) => {
+  if (!phone) return null
+  return phone.replace(/^\+?55/, '').trim() || phone
 }
 const formatDateTime = (iso) => {
   if (!iso) return null
@@ -1066,13 +1077,13 @@ onUnmounted(() => {
 
         <div class="contact-attributes">
           <div class="attr-row">
-            <Mail class="icon-xs" />
-            <span>{{ store.activeConversation.contact.email || 'Indisponível' }}</span>
+            <Phone class="icon-xs" />
+            <span>{{ formatPhoneDisplay(store.activeConversation.contact.phone) || 'Indisponível' }}</span>
+            <Copy class="icon-xs action-icon" v-if="store.activeConversation.contact.phone" />
           </div>
           <div class="attr-row">
-            <Phone class="icon-xs" />
-            <span>{{ store.activeConversation.contact.phone || 'Indisponível' }}</span>
-            <Copy class="icon-xs action-icon" v-if="store.activeConversation.contact.phone" />
+            <Mail class="icon-xs" />
+            <span>{{ store.activeConversation.contact.email || 'Indisponível' }}</span>
           </div>
           <div class="attr-row">
             <Users class="icon-xs" />
@@ -1233,10 +1244,6 @@ onUnmounted(() => {
         <div class="lead-field">
           <span class="lf-label">Endereço</span>
           <span class="lf-value" :class="{ empty: !enderecoCompleto }">{{ enderecoCompleto || '...' }}</span>
-        </div>
-        <div class="lead-field">
-          <span class="lf-label">Empresa vinculada</span>
-          <span class="lf-value" :class="{ empty: !store.activeConversation.contact.company_name }">{{ store.activeConversation.contact.company_name || '...' }}</span>
         </div>
         <div class="lead-field" v-for="tel in (store.activeConversation.contact.reseller_phones || [])" :key="'tel-' + tel.id">
           <span class="lf-label">{{ tel.label || 'Telefone adicional' }}</span>
