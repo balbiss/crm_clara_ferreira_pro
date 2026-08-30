@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useConversationsStore } from '../store/conversations'
 import ConversationFilterPopover from '../components/ConversationFilterPopover.vue'
 import ConversationSortPopover from '../components/ConversationSortPopover.vue'
@@ -56,6 +56,7 @@ import TransferModal from '../components/TransferModal.vue'
 
 const store = useConversationsStore()
 const route = useRoute()
+const router = useRouter()
 
 // Título da lista por filtro de rota (espelha os labels usados no menu lateral
 // em DashboardLayout.vue — antes mostrava o param cru capitalizado, ex:
@@ -337,6 +338,18 @@ const lastMessageAt = computed(() => {
   return msgs[msgs.length - 1].timestamp
 })
 const activeTagsCount = computed(() => store.activeConversation?.tags?.length || 0)
+
+// Tooltip rápido do ícone (i) ao lado do nome — telefone/e-mail sem precisar
+// abrir nada, só passar o mouse.
+const contactQuickInfo = computed(() => {
+  const contact = store.activeConversation?.contact
+  if (!contact) return ''
+  const lines = []
+  if (contact.phone) lines.push(`Telefone: ${contact.phone}`)
+  if (contact.email) lines.push(`E-mail: ${contact.email}`)
+  if (contact.city) lines.push(`Cidade: ${contact.city}${contact.state ? '/' + contact.state : ''}`)
+  return lines.join('\n') || 'Sem informações adicionais'
+})
 
 // Linha do tempo de marcos de ciclo de vida (lifecycle_events) — Iniciada,
 // Churn e Reativação, na ordem em que aconteceram de verdade (histórico,
@@ -1015,7 +1028,7 @@ onUnmounted(() => {
               <button class="details-menu-item danger" @click="openDeleteModal(); isDetailsMenuOpen = false"><Trash2 class="icon-xs" /> Apagar contato</button>
             </div>
           </div>
-          <button class="icon-btn" @click="mobileView = 'chat'"><X class="icon-sm" /></button>
+          <button class="icon-btn details-close-mobile" @click="mobileView = 'chat'" title="Voltar pra conversa"><X class="icon-sm" /></button>
         </div>
       </div>
 
@@ -1026,8 +1039,8 @@ onUnmounted(() => {
         </div>
         <div class="contact-name-row">
           <h4>{{ store.activeConversation.contact.name }}</h4>
-          <Info class="icon-xs" />
-          <ExternalLink class="icon-xs" />
+          <Info class="icon-xs contact-quick-info" :title="contactQuickInfo" />
+          <ExternalLink class="icon-xs contact-open-profile" title="Abrir perfil completo" @click="router.push(`/contatos/${store.activeConversation.contact.id}`)" />
         </div>
 
         <div class="lead-badges" v-if="store.activeConversation.contact.id">
@@ -2439,6 +2452,15 @@ onUnmounted(() => {
     gap: 0.25rem;
   }
 
+  // O X só existe pra sair da tela de detalhes no mobile (onde as 3
+  // colunas viram telas cheias empilhadas) — no desktop as 3 colunas
+  // ficam lado a lado o tempo todo, então clicar nele não muda nada
+  // visível. Escondido aqui, reaparece via .details-close-mobile no
+  // media query mobile lá embaixo.
+  .details-close-mobile {
+    display: none;
+  }
+
   .details-menu-wrapper {
     position: relative;
   }
@@ -2547,6 +2569,7 @@ onUnmounted(() => {
     }
     
     .icon-xs { color: var(--text-muted); cursor: pointer; }
+    .contact-open-profile:hover, .contact-quick-info:hover { color: var(--primary); }
   }
 
   .lead-badges {
@@ -3310,6 +3333,10 @@ onUnmounted(() => {
 
   .chat-header .btn-details-mobile {
     display: flex;
+  }
+
+  .details-close-mobile {
+    display: flex !important;
   }
 
   /* Controla visibilidade pelo mobileView */
