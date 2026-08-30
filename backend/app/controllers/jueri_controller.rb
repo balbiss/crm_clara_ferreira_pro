@@ -81,6 +81,35 @@ class JueriController < ApplicationController
     render json: { error: 'jueri_api_error', message: e.message }, status: :bad_gateway
   end
 
+  # POST /jueri/reconciliar_pedidos/:contact_id — confere ao vivo, pedido por
+  # pedido, se os pedidos "Aberto" salvos localmente pra essa revendedora
+  # ainda existem de verdade no Jueri. Corrige o bug real encontrado
+  # 2026-08-30 (webhook pedido.deleted nunca tratado — pedido excluído no
+  # Jueri, ex: por "Unificar Pedidos", ficava Aberto aqui pra sempre,
+  # inflando a soma de peças). Um request por pedido aberto — só usar sob
+  # demanda pra 1 revendedora específica, nunca em massa pra toda a base
+  # (estouraria o rate limit do Jueri, ~300 chamadas em rajada).
+  def reconciliar_pedidos
+    contact = current_user.account.contacts.find(params[:contact_id])
+    service = JueriApiService.new
+    sync_service = JueriSyncService.new(account: current_user.account)
+    corrigidos = []
+
+    contact.pedidos.where(status_id: Pedido::STATUS_ABERTO).find_each do |pedido|
+      begin
+        service.find_pedido(pedido.jueri_pedido_id)
+      rescue JueriApiService::ApiError => e
+        next unless e.message.include?('404')
+        sync_service.sync_pedido_excluido({ 'id' => pedido.jueri_pedido_id })
+        corrigidos << pedido.jueri_pedido_id
+      end
+    end
+
+    render json: { contact_id: contact.id, pedidos_corrigidos: corrigidos, pecas_abertas_atual: contact.reload.pecas_abertas_atual }
+  rescue JueriApiService::NotConfiguredError => e
+    render json: { error: 'not_configured', message: e.message }, status: :unprocessable_entity
+  end
+
   # GET /jueri/debug_schema — diagnóstico pontual: confirma se a coluna
   # contacts.user_id tem algum DEFAULT gravado direto no Postgres (não
   # apareceria no schema.rb se alguém alterou via SQL fora de uma migration).

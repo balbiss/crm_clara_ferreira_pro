@@ -36,8 +36,14 @@ module Webhooks
       # mudança de formato da API sem precisar confiar nos campos aqui.
       Rails.logger.info("[Webhooks::Jueri] account=#{account.id} evento=#{evento.inspect} payload=#{payload.to_json}")
 
-      if EVENTOS_PEDIDO.include?(evento) && payload['fk_revendedor_id'].present?
-        JueriWebhookPedidoJob.perform_later(account.id, payload)
+      # pedido.deleted não precisa de fk_revendedor_id no payload — o job
+      # acha a revendedora pelo próprio Pedido já salvo localmente (ver
+      # JueriSyncService#sync_pedido_excluido). Os outros 3 eventos de
+      # pedido continuam exigindo fk_revendedor_id (payload completo).
+      if evento == 'pedido.deleted'
+        JueriWebhookPedidoJob.perform_later(account.id, payload, evento)
+      elsif EVENTOS_PEDIDO.include?(evento) && payload['fk_revendedor_id'].present?
+        JueriWebhookPedidoJob.perform_later(account.id, payload, evento)
       end
 
       debounce_key = "jueri_webhook_sync_#{account.id}"

@@ -173,6 +173,45 @@ class JueriSyncService
     resultado
   end
 
+  # Evento pedido.deleted (Jueri: "Unificar Pedidos" apaga os pedidos
+  # originais e cria um novo consolidado). Bug real encontrado (2026-08-30,
+  # PDF de modificações do cliente — "problema na contagem de peças"): esse
+  # evento NUNCA foi tratado de verdade — sync_pedido_evento_existente só
+  # sabe fazer upsert de um pedido que ainda existe no Jueri, e o payload de
+  # exclusão não traz um status confiável (cai no default "Aberto" de
+  # status_id_de/avisar_status_desconhecido) — o pedido excluído ficava
+  # "Aberto" pra sempre aqui, inflando a soma de peças em aberto pro resto
+  # da vida da revendedora. Não existe status "Excluído" em Pedido — trata
+  # como Cancelado (já é um dos STATUS_TERMINAIS_EXCLUIDOS, sai do
+  # open_at/recalculo de peças) em vez de criar um enum novo só pra isso.
+  def sync_pedido_excluido(jueri_payload)
+    resultado = { criados: 0, reativados: 0, atualizados: 0, sem_maleta: 0, pedidos_sincronizados: 0, erros: 0 }
+    jueri_pedido_id = (jueri_payload['id'] || jueri_payload[:id]).to_s
+    return resultado if jueri_pedido_id.blank?
+
+    pedido = @account.pedidos.find_by(jueri_pedido_id: jueri_pedido_id)
+    return resultado unless pedido # nunca chegou a ser sincronizado aqui, nada a fazer
+
+    contact = pedido.contact
+    pecas_antes = contact.pecas_abertas_atual
+
+    pedido.update!(status_id: Pedido::STATUS_CANCELADO, data_cancelamento: Date.current)
+    recalcular_snapshot(contact)
+    resultado[:atualizados] += 1
+
+    acima_do_limiar = contact.pecas_abertas_atual.to_i > @account.min_pecas_ativa
+    if !contact.desconsiderado? && !Contact::STATUS_OVERRIDE_PERMANENTE.include?(contact.status) &&
+       !acima_do_limiar && Contact::ACTIVE_STATUSES.include?(contact.status)
+      demover_para_sem_maleta(contact, pecas_antes, resultado)
+    end
+
+    resultado
+  rescue => e
+    Rails.logger.error("[JueriSyncService] sync_pedido_excluido falhou pra pedido #{jueri_pedido_id}: #{e.message}")
+    resultado[:erros] += 1
+    resultado
+  end
+
   private
 
   # Revendedora já é Contact: só grava ESTE pedido (upsert idempotente) e
