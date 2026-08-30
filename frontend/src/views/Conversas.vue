@@ -908,7 +908,8 @@ onUnmounted(() => {
           </div>
 
           <div class="msg-avatar agent-avatar" v-if="msg.senderType === 'agent'">
-            <span v-if="msg.agentName">{{ msg.agentName.charAt(0).toUpperCase() }}</span>
+            <img v-if="msg.agentAvatarUrl" :src="msg.agentAvatarUrl" />
+            <span v-else-if="msg.agentName">{{ msg.agentName.charAt(0).toUpperCase() }}</span>
             <span v-else>A</span>
           </div>
 

@@ -22,7 +22,7 @@ class MessagesController < ApplicationController
     end
 
     if message.save
-      if !is_private_msg && %w[baileys instagram].include?(conversation.inbox&.provider)
+      if !is_private_msg && %w[baileys waha instagram].include?(conversation.inbox&.provider)
         begin
           recipient = conversation.contact.channel_identifier
           conversation.inbox.messaging_service.send_message(recipient, message.text, message.attachment)
@@ -39,6 +39,7 @@ class MessagesController < ApplicationController
         timestamp: message.created_at.strftime('%H:%M'),
         status: message.status,
         agentName: current_user.first_name,
+        agentAvatarUrl: current_user.avatar_url,
         isPrivate: message.is_private,
         attachmentUrl: message.attachment.attached? ? Rails.application.routes.url_helpers.rails_storage_proxy_url(message.attachment, host: ENV['API_HOST'] || 'http://localhost:3000') : nil,
         attachmentType: message.attachment.attached? ? message.attachment.content_type : nil,

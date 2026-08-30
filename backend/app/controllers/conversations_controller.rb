@@ -373,6 +373,7 @@ class ConversationsController < ApplicationController
           timestamp: msg.created_at.iso8601,
           status: msg.status,
           agentName: msg.sender_type == 'User' ? (users_hash[msg.sender_id]&.first_name || 'Agente') : nil,
+          agentAvatarUrl: msg.sender_type == 'User' ? users_hash[msg.sender_id]&.avatar_url : nil,
           isPrivate: msg.is_private,
           attachmentUrl: msg.attachment.attached? ? Rails.application.routes.url_helpers.rails_storage_proxy_url(msg.attachment, host: ENV['API_HOST'] || 'http://localhost:3000') : nil,
           attachmentType: msg.attachment.attached? ? msg.attachment.content_type : nil
@@ -429,7 +430,8 @@ class ConversationsController < ApplicationController
             text:       closing_msg.text,
             timestamp:  closing_msg.created_at.iso8601,
             status:     'delivered',
-            agentName:  current_user.first_name
+            agentName:  current_user.first_name,
+            agentAvatarUrl: current_user.avatar_url
           }
         })
       rescue => e
