@@ -28,7 +28,15 @@ export const useConversationsStore = defineStore('conversations', {
       return state.conversations.find(c => c.id === state.activeConversationId) || null
     },
     sidebarFilteredConversations(state) {
-      let filtered = state.conversations
+      // "Iniciar conversa" (Minhas Revendedoras/Tarefas) cria a Conversation
+      // na hora pra permitir mensagem proativa (régua), mas isso não deveria
+      // virar item permanente na lista só por ter sido aberta — só entra na
+      // lista quem já trocou mensagem de verdade. A conversa que está aberta
+      // agora continua visível mesmo vazia (senão ela "some" da tela embaixo
+      // dela mesma enquanto o usuário ainda está digitando a primeira msg).
+      let filtered = state.conversations.filter(c =>
+        (c.messages && c.messages.length > 0) || c.id === state.activeConversationId
+      )
 
       // Sort Status filter
       if (state.sortStatus !== 'all') {
