@@ -14,7 +14,6 @@ const isLoading = ref(true)
 const allTabs = [
   { id: 'settings', name: 'Configurações' },
   { id: 'agents', name: 'Agentes' },
-  { id: 'hours', name: 'Horário de funcionamento' },
   { id: 'bot', name: 'Secretária Virtual' },
   { id: 'followup', name: 'Resgate (Follow-up)' }
 ]
@@ -30,31 +29,10 @@ const handlePromptGenerated = (generatedPrompt) => {
   inbox.value.ai_prompt = generatedPrompt
 }
 
-const defaultWorkingHours = [
-  { day: 1, name: 'Segunda-feira', open: true, start: '09:00', end: '18:00' },
-  { day: 2, name: 'Terça-feira', open: true, start: '09:00', end: '18:00' },
-  { day: 3, name: 'Quarta-feira', open: true, start: '09:00', end: '18:00' },
-  { day: 4, name: 'Quinta-feira', open: true, start: '09:00', end: '18:00' },
-  { day: 5, name: 'Sexta-feira', open: true, start: '09:00', end: '18:00' },
-  { day: 6, name: 'Sábado', open: false, start: '09:00', end: '13:00' },
-  { day: 0, name: 'Domingo', open: false, start: '09:00', end: '13:00' }
-]
-
 const fetchInbox = async () => {
   try {
     const response = await api.get(`/inboxes/${route.params.id}`)
     inbox.value = response.data
-    
-    // Initialize working hours if empty
-    if (!inbox.value.working_hours || inbox.value.working_hours.length === 0) {
-      inbox.value.working_hours = JSON.parse(JSON.stringify(defaultWorkingHours))
-    } else {
-      // Map names if they are missing
-      inbox.value.working_hours = inbox.value.working_hours.map(wh => {
-        const defaultWh = defaultWorkingHours.find(d => d.day === wh.day)
-        return { ...wh, name: defaultWh ? defaultWh.name : '' }
-      })
-    }
   } catch (error) {
     console.error('Failed to fetch inbox details:', error)
     router.push('/settings/inboxes')
@@ -123,9 +101,6 @@ const saveSettings = async () => {
         ai_enabled: inbox.value.ai_enabled,
         ai_name: inbox.value.ai_name,
         ai_prompt: inbox.value.ai_prompt,
-        working_hours_enabled: inbox.value.working_hours_enabled,
-        out_of_office_message: inbox.value.out_of_office_message,
-        working_hours: inbox.value.working_hours,
         followup_enabled: inbox.value.followup_enabled,
         followup_max_attempts: inbox.value.followup_max_attempts,
         followup_wait_time_minutes: inbox.value.followup_wait_time_minutes,
@@ -226,51 +201,6 @@ const saveSettings = async () => {
         </div>
       </div>
       
-      <!-- Tab Content: Horário de Funcionamento -->
-      <div class="tab-content" v-else-if="activeTab === 'hours'">
-        <div class="form-section" style="max-width: 100%">
-          
-          <div class="enable-hours-toggle">
-            <label class="toggle-switch">
-              <input type="checkbox" v-model="inbox.working_hours_enabled">
-              <span class="slider"></span>
-            </label>
-            <div>
-              <strong style="display: block; color: var(--text-main); font-size: 1rem; margin-bottom: 0.25rem;">Ativar horário de funcionamento</strong>
-              <p style="margin: 0; color: var(--text-muted); font-size: 0.85rem;">Se ativado, respostas automáticas fora do expediente serão enviadas.</p>
-            </div>
-          </div>
-
-          <div class="working-hours-list" v-if="inbox.working_hours_enabled">
-            <div class="day-row" v-for="day in inbox.working_hours" :key="day.day">
-              <div class="day-checkbox">
-                <input type="checkbox" :id="'day-'+day.day" v-model="day.open">
-                <label :for="'day-'+day.day">{{ day.name }}</label>
-              </div>
-              <div class="day-times" v-if="day.open">
-                <input type="time" class="time-input" v-model="day.start">
-                <span class="time-sep">até</span>
-                <input type="time" class="time-input" v-model="day.end">
-              </div>
-              <div class="day-closed" v-else>
-                Fechado
-              </div>
-            </div>
-
-            <div class="form-row" style="margin-top: 2rem;">
-              <div class="label-col" style="width: 100%">
-                <label>Mensagem de Ausência (Fora do Expediente)</label>
-                <textarea class="form-input" v-model="inbox.out_of_office_message" rows="4" placeholder="Ex: Nosso horário de atendimento é de segunda a sexta, das 09h às 18h. Responderemos em breve."></textarea>
-              </div>
-            </div>
-          </div>
-
-          <div class="form-actions">
-            <button class="btn-primary" @click="saveSettings">Salvar Horários</button>
-          </div>
-        </div>
-      </div>
-
       <!-- Tab Content: Secretária Virtual -->
       <div class="tab-content" v-else-if="activeTab === 'bot'">
         <div class="form-section" style="max-width: 100%">
@@ -760,75 +690,6 @@ const saveSettings = async () => {
   }
 }
 
-.working-hours-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.day-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1rem 1.5rem;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  background: var(--bg-tertiary);
-}
-
-.day-checkbox {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  width: 150px;
-  
-  input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
-    cursor: pointer;
-  }
-  
-  label {
-    font-weight: 500;
-    color: var(--text-main);
-    cursor: pointer;
-  }
-}
-
-.day-times {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  
-  .time-input {
-    padding: 0.5rem;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    background: var(--bg-primary);
-    color: var(--text-main);
-    font-family: inherit;
-    font-size: 0.9rem;
-    outline: none;
-    
-    &:focus {
-      border-color: var(--primary);
-    }
-  }
-  
-  .time-sep {
-    color: var(--text-muted);
-    font-size: 0.85rem;
-  }
-}
-
-.day-closed {
-  color: var(--text-muted);
-  font-size: 0.9rem;
-  font-style: italic;
-  width: 250px;
-  text-align: right;
-}
-
 .btn-magic-sm {
   display: flex;
   align-items: center;
@@ -860,21 +721,6 @@ const saveSettings = async () => {
 
   .label-col {
     width: 100%;
-  }
-
-  .day-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-
-  .day-checkbox {
-    width: 100%;
-  }
-
-  .day-closed {
-    width: 100%;
-    text-align: left;
   }
 
   .agent-item {
