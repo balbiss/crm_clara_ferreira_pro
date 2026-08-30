@@ -20,7 +20,24 @@ const isLoading = ref(true)
 const isCompleting = ref(null)
 const searchQuery = ref('')
 const responsavelFilter = ref('all')
+const priorityFilter = ref('all')
+const groupFilter = ref('all')
 const tarefas = ref([])
+
+const priorityOptions = [
+  { value: 'all', label: 'Todas as prioridades' },
+  { value: 'urgente', label: 'Urgente' },
+  { value: 'alta', label: 'Alta' },
+  { value: 'normal', label: 'Normal' },
+]
+
+const groupOptions = [
+  { value: 'all', label: 'Todas' },
+  { value: 'atrasadas', label: 'Atrasadas' },
+  { value: 'hoje', label: 'Hoje' },
+  { value: 'amanha', label: 'Amanhã' },
+  { value: 'depois', label: 'Mais adiante' },
+]
 
 const agentsById = computed(() => {
   const map = {}
@@ -44,6 +61,10 @@ const filteredTasks = computed(() => {
 
   if (responsavelFilter.value !== 'all') {
     list = list.filter(t => t.user_id === responsavelFilter.value)
+  }
+
+  if (priorityFilter.value !== 'all') {
+    list = list.filter(t => t.prioridade === priorityFilter.value)
   }
 
   if (searchQuery.value.trim()) {
@@ -84,8 +105,12 @@ const taskGroups = computed(() => {
     { key: 'hoje', label: 'Hoje', items: groups.hoje },
     { key: 'amanha', label: 'Amanhã', items: groups.amanha },
     { key: 'depois', label: 'Mais adiante', items: groups.depois }
-  ].filter(g => g.items.length > 0)
+  ]
+    .filter(g => groupFilter.value === 'all' || g.key === groupFilter.value)
+    .filter(g => g.items.length > 0)
 })
+
+const visibleTasksCount = computed(() => taskGroups.value.reduce((s, g) => s + g.items.length, 0))
 
 const openContact = (contact) => contact && router.push(`/contatos/${contact.id}`)
 
@@ -140,7 +165,7 @@ onMounted(async () => {
     <div class="page-header">
       <div class="title-block">
         <h1>Tarefas</h1>
-        <p>{{ filteredTasks.length }} tarefa{{ filteredTasks.length === 1 ? '' : 's' }} pendente{{ filteredTasks.length === 1 ? '' : 's' }}, geradas automaticamente pela régua do ciclo</p>
+        <p>{{ visibleTasksCount }} tarefa{{ visibleTasksCount === 1 ? '' : 's' }} pendente{{ visibleTasksCount === 1 ? '' : 's' }}, geradas automaticamente pela régua do ciclo</p>
       </div>
     </div>
 
@@ -152,6 +177,20 @@ onMounted(async () => {
       <select v-model="responsavelFilter" class="responsavel-select">
         <option v-for="opt in responsavelOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
       </select>
+      <select v-model="priorityFilter" class="responsavel-select">
+        <option v-for="opt in priorityOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+      </select>
+      <div class="stage-chips">
+        <button
+          v-for="opt in groupOptions"
+          :key="opt.value"
+          class="stage-chip"
+          :class="{ active: groupFilter === opt.value }"
+          @click="groupFilter = opt.value"
+        >
+          {{ opt.label }}
+        </button>
+      </div>
     </div>
 
     <div v-if="!isLoading && filteredTasks.length > 0" class="agenda">
@@ -251,6 +290,28 @@ onMounted(async () => {
   background: var(--bg-secondary);
   color: var(--text-main);
   font-size: 0.82rem;
+}
+
+.stage-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.stage-chip {
+  padding: 0.4rem 0.75rem;
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+
+  &:hover { background: var(--bg-hover); }
+  &.active { background: var(--primary-hover); border-color: var(--primary-hover); color: white; }
 }
 
 .agenda-group {
