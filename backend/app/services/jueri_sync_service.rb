@@ -540,6 +540,11 @@ class JueriSyncService
         data_criacao: parse_date(p['data_criacao']),
         data_baixa: parse_date(p['data_baixa']),
         data_cancelamento: parse_date(p['data_cancelamento']),
+        # "Previsão de acerto" (briefing seção 28.1) — a Jueri manda esse campo
+        # já no pedido criado (ex: pedido aberto em 29/08 vem com data_acerto
+        # 28/09, o prazo padrão da maleta), não é algo que só existe depois do
+        # acerto de verdade acontecer.
+        data_acerto: parse_date(p['data_acerto']),
         status_id: status_id_de(p),
         quantidade: (p['quantidade'] || 0).to_i,
         quantidade_antes_baixa: p['quantidade_antes_baixa'].presence&.to_i,
@@ -555,7 +560,7 @@ class JueriSyncService
       # (record_timestamps), listar de novo aqui gera "multiple assignments to
       # same column updated_at" no Postgres.
       Pedido.upsert_all(slice, unique_by: :jueri_pedido_id, update_only: %i[
-        contact_id data_criacao data_baixa data_cancelamento status_id
+        contact_id data_criacao data_baixa data_cancelamento data_acerto status_id
         quantidade quantidade_antes_baixa valor_total
       ])
     end

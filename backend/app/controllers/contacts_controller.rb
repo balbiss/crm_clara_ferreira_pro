@@ -48,6 +48,10 @@ class ContactsController < ApplicationController
     proximos_agendamentos = Agendamento.where(contact_id: contact_ids).where('inicio_em >= ?', Time.current)
                                         .group(:contact_id).minimum(:inicio_em)
     ultimas_interacoes = Conversation.where(contact_id: contact_ids).group(:contact_id).maximum(:last_activity_at)
+    # Previsão de acerto = a mais próxima entre os pedidos em aberto (uma
+    # revendedora com mais de uma maleta aberta acerta a que vence primeiro).
+    datas_previstas_acerto = Pedido.open_now.where(contact_id: contact_ids).where.not(data_acerto: nil)
+                                    .group(:contact_id).minimum(:data_acerto)
 
     json = contacts_arr.map do |c|
       c.as_json(include: :reseller_phones).merge(
@@ -55,7 +59,8 @@ class ContactsController < ApplicationController
         'tempo_revenda_meses' => tempo_revenda_meses[c.id] || 0,
         'primeiro_pedido_em' => primeiro_pedido_em[c.id],
         'proximo_agendamento_em' => proximos_agendamentos[c.id],
-        'ultima_interacao_em' => ultimas_interacoes[c.id]
+        'ultima_interacao_em' => ultimas_interacoes[c.id],
+        'data_prevista_acerto' => datas_previstas_acerto[c.id]
       )
     end
 

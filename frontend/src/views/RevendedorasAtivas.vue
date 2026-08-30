@@ -370,6 +370,7 @@ onMounted(async () => {
             <th>Dias com maleta</th>
             <th>Peças em aberto</th>
             <th>Valor em aberto</th>
+            <th>Previsão de acerto</th>
             <th>Próximo agendamento</th>
             <th>Última interação</th>
             <th>Alerta</th>
@@ -399,6 +400,7 @@ onMounted(async () => {
             <td>{{ daysInCycle(c) !== null ? daysInCycle(c) + ' dias' : '...' }}</td>
             <td>{{ c.pecas_abertas_atual ?? '...' }}</td>
             <td>{{ brl(c.valor_aberto) || '—' }}</td>
+            <td>{{ formatDate(c.data_prevista_acerto) || '—' }}</td>
             <td>{{ formatDateTime(c.proximo_agendamento_em) || '—' }}</td>
             <td>{{ formatDateTime(c.ultima_interacao_em) || '—' }}</td>
             <td>

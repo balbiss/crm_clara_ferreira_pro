@@ -52,6 +52,8 @@ Endpoint manual: `POST /jueri/sync-now` (só diretoria) força uma sync fora do 
 
 **Rate limit do Jueri**: ~300 chamadas em rajada antes de 429 — por isso o sync separa "busca em lote" (barato) de `find_revendedor` individual (caro, só pra quem está cruzando o limiar agora).
 
+**`Pedido#data_acerto`** (2026-08-30) — a Jueri manda esse campo já no payload do pedido desde a criação (ex: pedido aberto em 29/08 já vem com `data_acerto` 28/09, o prazo padrão da maleta) — não é preenchido só depois do acerto acontecer de verdade. Persistido em `persistir_pedidos`, exposto em `GET /contacts` como `data_prevista_acerto` por revendedora (mínimo entre os pedidos abertos) e mostrado na coluna "Previsão de acerto" de `RevendedorasAtivas.vue`.
+
 ## 6. Times de vendas (hierarquia Jueri) — feature 2026-08-07
 
 No Jueri, todo revendedor tem `fk_tipo_revendedor_id`: `2` = revendedora normal, `1` = **"revendedor líder"** (não é pessoa física — é o registro que representa um time/carteira, ex: "Vendas 1"..."Vendas 6", mas também pode ser o nome de uma pessoa real). Toda revendedora normal aponta pro seu líder via `fk_revendedor_gerente_id` (campo com nome legado — a UI do Jueri já chama de "líder"; existe também um `supervisor` que **não é usado** pra nada, não confundir).
