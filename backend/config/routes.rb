@@ -99,6 +99,7 @@ Rails.application.routes.draw do
   resources :sales_teams, only: [:index] do
     member do
       patch :members, action: :update_members
+      post :assign_unassigned
     end
   end
 

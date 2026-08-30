@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Users2, UserCircle2, X, Save, Check, Plus } from 'lucide-vue-next'
+import { Users2, UserCircle2, X, Save, Check, Plus, UserPlus } from 'lucide-vue-next'
 import api from '../../api'
 import Swal from 'sweetalert2'
 import { useAgentsStore } from '../../store/agents'
@@ -90,6 +90,49 @@ const saveMembers = async () => {
 }
 
 const availableAgents = computed(() => agentsStore.agents)
+
+// "Atribuir carteira" — separado de "Gerenciar acesso": aqui a gente
+// realmente atribui (Contact#user_id) as revendedoras do time que ainda
+// não têm responsável, pro consultor escolhido. Não sobrescreve quem já
+// tem responsável (atribuição manual anterior é preservada).
+const showAssignModal = ref(false)
+const assigningTeam = ref(null)
+const assignUserId = ref(null)
+const isAssigning = ref(false)
+
+const openAssignModal = (team) => {
+  assigningTeam.value = team
+  assignUserId.value = null
+  showAssignModal.value = true
+}
+
+const closeAssignModal = () => {
+  showAssignModal.value = false
+  assigningTeam.value = null
+}
+
+const confirmAssign = async () => {
+  if (!assigningTeam.value || !assignUserId.value) return
+  isAssigning.value = true
+  try {
+    const { data } = await api.post(`/sales_teams/${assigningTeam.value.id}/assign_unassigned`, {
+      user_id: assignUserId.value
+    })
+    const idx = teams.value.findIndex(t => t.id === data.team.id)
+    if (idx !== -1) teams.value[idx] = data.team
+    closeAssignModal()
+    Swal.fire({
+      toast: true, position: 'top-end', icon: 'success',
+      title: `${data.assigned_count} revendedora(s) atribuída(s)!`,
+      showConfirmButton: false, timer: 3500
+    })
+  } catch (error) {
+    console.error('Erro ao atribuir carteira:', error)
+    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Erro ao atribuir carteira.', showConfirmButton: false, timer: 3500 })
+  } finally {
+    isAssigning.value = false
+  }
+}
 </script>
 
 <template>
@@ -139,9 +182,21 @@ const availableAgents = computed(() => agentsStore.agents)
           </div>
         </div>
 
-        <button class="btn-manage" @click="openModal(team)">
-          <Plus class="icon-xs" /> Gerenciar acesso
-        </button>
+        <div class="team-actions">
+          <button class="btn-manage" @click="openModal(team)">
+            <Plus class="icon-xs" /> Gerenciar acesso
+          </button>
+          <button
+            class="btn-assign"
+            :class="{ 'btn-assign--empty': !team.unassigned_contacts_count }"
+            :disabled="!team.unassigned_contacts_count"
+            :title="team.unassigned_contacts_count ? `${team.unassigned_contacts_count} revendedora(s) sem responsável neste time` : 'Nenhuma revendedora sem responsável neste time'"
+            @click="openAssignModal(team)"
+          >
+            <UserPlus class="icon-xs" />
+            {{ team.unassigned_contacts_count ? `Atribuir carteira (${team.unassigned_contacts_count})` : 'Carteira já atribuída' }}
+          </button>
+        </div>
       </div>
     </div>
 
@@ -179,6 +234,48 @@ const availableAgents = computed(() => agentsStore.agents)
           <button class="btn-cancel" @click="closeModal">Cancelar</button>
           <button class="btn-primary" :disabled="isSaving" @click="saveMembers">
             <Save class="icon-sm" /> {{ isSaving ? 'Salvando...' : 'Salvar' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Atribuir carteira -->
+    <div v-if="showAssignModal" class="modal-overlay" @click.self="closeAssignModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div class="modal-header-info">
+            <div class="team-icon modal-icon" :class="{ 'team-icon--person': !isNamedTeam(assigningTeam?.nome || '') }">
+              <Users2 v-if="isNamedTeam(assigningTeam?.nome || '')" class="icon-sm" />
+              <UserCircle2 v-else class="icon-sm" />
+            </div>
+            <h2>Atribuir carteira — {{ assigningTeam?.nome }}</h2>
+          </div>
+          <button class="btn-icon" @click="closeAssignModal"><X class="icon-sm" /></button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-hint">
+            {{ assigningTeam?.unassigned_contacts_count }} revendedora(s) deste time ainda não têm responsável.
+            Escolha o consultor: elas passam a aparecer na carteira dele. Quem já tem responsável não é alterado.
+          </p>
+          <div class="user-list">
+            <label v-for="agent in availableAgents" :key="agent.id" class="user-row" :class="{ selected: assignUserId === agent.id }">
+              <input type="radio" :checked="assignUserId === agent.id" @change="assignUserId = agent.id" />
+              <div class="user-avatar">
+                <img v-if="agent.avatar_url" :src="agent.avatar_url" alt="" />
+                <span v-else :style="{ backgroundColor: colorFor(`${agent.first_name} ${agent.last_name}`) }" class="user-avatar-fallback">{{ initials(`${agent.first_name} ${agent.last_name}`) }}</span>
+              </div>
+              <div class="user-details">
+                <span class="user-name">{{ agent.first_name }} {{ agent.last_name }}</span>
+                <span class="user-role">{{ roleLabels[agent.role] || agent.role }}</span>
+              </div>
+              <Check v-if="assignUserId === agent.id" class="icon-sm check-icon" />
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-cancel" @click="closeAssignModal">Cancelar</button>
+          <button class="btn-primary" :disabled="isAssigning || !assignUserId" @click="confirmAssign">
+            <UserPlus class="icon-sm" /> {{ isAssigning ? 'Atribuindo...' : 'Atribuir' }}
           </button>
         </div>
       </div>
@@ -260,13 +357,32 @@ const availableAgents = computed(() => agentsStore.agents)
   display: flex; align-items: center; justify-content: center;
 }
 
-.btn-manage {
+.team-actions {
   margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.btn-manage {
   display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
   background: var(--bg-tertiary); color: var(--text-main); border: 1px solid var(--border-color);
   padding: 0.55rem 0.9rem; border-radius: 8px; cursor: pointer; font-size: 0.82rem; font-weight: 500;
   transition: background 0.15s;
   &:hover { background: var(--input-focus); color: var(--primary); border-color: var(--primary); }
+}
+
+.btn-assign {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+  background: rgba(16, 185, 129, 0.1); color: #059669; border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 0.55rem 0.9rem; border-radius: 8px; cursor: pointer; font-size: 0.82rem; font-weight: 500;
+  transition: background 0.15s;
+  &:hover:not(:disabled) { background: rgba(16, 185, 129, 0.18); }
+
+  &--empty, &:disabled {
+    background: var(--bg-tertiary); color: var(--text-muted); border-color: var(--border-color);
+    cursor: not-allowed;
+  }
 }
 
 .empty-state {
@@ -332,7 +448,7 @@ const availableAgents = computed(() => agentsStore.agents)
   &:hover { background: var(--bg-hover); }
   &.selected { background: var(--input-focus); border-color: rgba(212, 155, 167, 0.35); }
 
-  input[type="checkbox"] { display: none; }
+  input[type="checkbox"], input[type="radio"] { display: none; }
 
   .user-avatar {
     width: 30px; height: 30px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
