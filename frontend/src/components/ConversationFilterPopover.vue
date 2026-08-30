@@ -29,7 +29,8 @@ onMounted(() => {
 
 const attributes = [
   { value: 'status', label: 'Status' },
-  { value: 'assignee', label: 'Atendente' }
+  { value: 'assignee', label: 'Atendente' },
+  { value: 'sem_resposta', label: 'Sem resposta' }
 ]
 
 const operators = [
@@ -50,6 +51,15 @@ const getValuesForAttribute = (attr) => {
       // For a real app, this would be a dynamic list of users
       { value: 'João', label: 'João' },
       { value: 'unassigned', label: 'Não atribuído' }
+    ]
+  }
+  if (attr === 'sem_resposta') {
+    // "Sem resposta" = a última mensagem da conversa foi do cliente (ninguém
+    // da equipe/IA respondeu ainda) — não confundir com "não lida"
+    // (unread), que é sobre o agente ter visto ou não.
+    return [
+      { value: 'sim', label: 'Sim, aguardando resposta' },
+      { value: 'nao', label: 'Não, já foi respondida' }
     ]
   }
   return []

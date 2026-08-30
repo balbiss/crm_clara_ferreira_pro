@@ -81,6 +81,13 @@ export const useConversationsStore = defineStore('conversations', {
               actualValue = c.status;
             } else if (filter.attribute === 'assignee') {
               actualValue = c.assignee || 'unassigned';
+            } else if (filter.attribute === 'sem_resposta') {
+              // Última mensagem foi do cliente = ninguém da equipe/IA
+              // respondeu ainda. Diferente de "não lida" (unread), que é
+              // só sobre o agente ter aberto a conversa ou não.
+              const msgs = c.messages || []
+              const last = msgs[msgs.length - 1]
+              actualValue = last && last.senderType === 'contact' ? 'sim' : 'nao'
             }
             
             if (filter.operator === 'equal_to') {
