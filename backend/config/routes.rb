@@ -49,7 +49,7 @@ Rails.application.routes.draw do
   resources :tags
   get 'dashboard', to: 'dashboard#index'
   
-  resources :conversations, only: [:index, :show, :create, :update] do
+  resources :conversations, only: [:index, :show, :create, :update, :destroy] do
     resources :messages, only: [:index, :create]
     resources :scheduled_messages, only: [:index, :create, :destroy]
     resources :tags, only: [:index, :create, :destroy], controller: 'conversation_tags'

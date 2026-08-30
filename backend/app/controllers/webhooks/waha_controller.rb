@@ -7,11 +7,18 @@ module Webhooks
       return render json: { status: 'ignored' } unless inbox
 
       event = params[:event]
+      # params[:payload] chega como ActionController::Parameters aninhado —
+      # `payload[:_data].is_a?(Hash)` e `payload[:media].is_a?(Hash)` sempre
+      # davam falso sem essa conversão explícita (Parameters não é Hash),
+      # o que quebrava silenciosamente tanto o nome via notifyName quanto o
+      # download de mídia. to_unsafe_h converte tudo recursivamente.
+      raw_payload = params[:payload]
+      payload = raw_payload.respond_to?(:to_unsafe_h) ? raw_payload.to_unsafe_h.with_indifferent_access : (raw_payload || {}).with_indifferent_access
 
       if event == 'message.any'
-        handle_message(inbox, params[:payload] || {})
+        handle_message(inbox, payload)
       elsif event == 'session.status'
-        handle_session_status(inbox, params[:payload] || {})
+        handle_session_status(inbox, payload)
       end
 
       render json: { status: 'ok' }
@@ -95,14 +102,34 @@ module Webhooks
 
       return if Message.exists?(source_id: source_id)
 
-      contact_phone = chat_id.split('@').first
+      # "@lid" é o identificador de privacidade novo do WhatsApp — substitui o
+      # número de telefone real em algumas conversas (confirmado num teste
+      # real: sem isso o contato nascia com nome/telefone "+49444250742890",
+      # que não existe, são só os dígitos do lid). Resolve pro contato de
+      # verdade via GET /api/contacts antes de casar/criar o Contact.
+      resolved_number = nil
+      resolved_name = nil
+      if chat_id.end_with?('@lid')
+        resolved = WhatsappWahaService.new(inbox).resolve_contact(chat_id)
+        if resolved && resolved['id'].present?
+          resolved_number = resolved['id'].to_s.split('@').first
+          saved_name = resolved['name'].presence
+          # A WAHA devolve "name" == "number" quando não há nome salvo na
+          # agenda do WhatsApp conectado — nesse caso não serve como nome.
+          resolved_name = saved_name if saved_name.present? && saved_name != resolved['number']
+          resolved_name ||= resolved['pushname'].presence
+        end
+      end
+
+      contact_phone = resolved_number || chat_id.split('@').first
       contact_phone_formatted = contact_phone.match?(/\A\d+\z/) ? "+#{contact_phone}" : contact_phone
 
       account = inbox.account
 
       contact = Contact.find_by_any_phone(account.id, contact_phone_formatted)
       contact ||= Contact.create!(account_id: account.id, phone: contact_phone_formatted) do |c|
-        c.name = payload[:_data].is_a?(Hash) ? payload[:_data][:notifyName].presence : nil
+        c.name = resolved_name.presence
+        c.name ||= payload[:_data].is_a?(Hash) ? payload[:_data][:notifyName].presence : nil
         c.name ||= contact_phone_formatted
         c.jid = chat_id
         c.source = 'WhatsApp'

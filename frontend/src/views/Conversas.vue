@@ -50,6 +50,7 @@ import 'vue3-emoji-picker/css'
 import EditContactModal from '../components/EditContactModal.vue'
 import MergeContactModal from '../components/MergeContactModal.vue'
 import DeleteContactModal from '../components/DeleteContactModal.vue'
+import DeleteConversationModal from '../components/DeleteConversationModal.vue'
 import ScheduleMessageModal from '../components/ScheduleMessageModal.vue'
 import TransferModal from '../components/TransferModal.vue'
 
@@ -410,6 +411,7 @@ const formatMessageTime = (isoString) => {
 const isEditModalOpen = ref(false)
 const isMergeModalOpen = ref(false)
 const isDeleteModalOpen = ref(false)
+const isDeleteConversationModalOpen = ref(false)
 
 const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
 const isFilterPopoverOpen = ref(false)
@@ -450,6 +452,16 @@ const openDeleteModal = () => {
 const handleContactDeleted = () => {
   // Conversas store will automatically set activeConversationId to null
   // No extra action needed here unless we want to show a toast
+}
+
+const openDeleteConversationModal = () => {
+  if (store.activeConversation) {
+    isDeleteConversationModalOpen.value = true
+  }
+}
+
+const handleConversationDeleted = () => {
+  // Conversas store já limpa a conversa da lista e o activeConversationId
 }
 
 const focusMessageInput = () => {
@@ -998,6 +1010,7 @@ onUnmounted(() => {
             <div v-if="isDetailsMenuOpen" class="details-menu" @click.stop>
               <button class="details-menu-item" @click="openEditModal(); isDetailsMenuOpen = false"><Edit2 class="icon-xs" /> Editar contato</button>
               <button class="details-menu-item" @click="openMergeModal(); isDetailsMenuOpen = false"><GitMerge class="icon-xs" /> Mesclar contato</button>
+              <button class="details-menu-item danger" @click="openDeleteConversationModal(); isDetailsMenuOpen = false"><MessageCircle class="icon-xs" /> Apagar conversa</button>
               <button class="details-menu-item danger" @click="openDeleteModal(); isDetailsMenuOpen = false"><Trash2 class="icon-xs" /> Apagar contato</button>
             </div>
           </div>
@@ -1411,6 +1424,7 @@ onUnmounted(() => {
     <EditContactModal :isOpen="isEditModalOpen" :contact="store.activeConversation?.contact" @close="isEditModalOpen = false" />
     <MergeContactModal :isOpen="isMergeModalOpen" :contact="store.activeConversation?.contact" @close="isMergeModalOpen = false" />
     <DeleteContactModal :isOpen="isDeleteModalOpen" :contact="store.activeConversation?.contact" @close="isDeleteModalOpen = false" @deleted="handleContactDeleted" />
+    <DeleteConversationModal :isOpen="isDeleteConversationModalOpen" :conversation="store.activeConversation" @close="isDeleteConversationModalOpen = false" @deleted="handleConversationDeleted" />
     <TransferModal v-if="showTransferModal" :agents="store.agents" :currentAssigneeId="store.activeConversation?.assignee_id" @close="showTransferModal = false" @confirm="handleTransfer" />
     
     <ScheduleMessageModal 
@@ -1753,18 +1767,18 @@ onUnmounted(() => {
   }
 
   &.unread .conv-preview {
-    color: var(--primary-color, #20B2AA);
-    font-weight: 500;
+    color: #ef4444;
+    font-weight: 600;
   }
 
   .unread-badge {
     display: inline-block;
     width: 8px;
     height: 8px;
-    background-color: var(--primary-color, #20B2AA);
+    background-color: #ef4444;
     border-radius: 50%;
     margin-right: 6px;
-    box-shadow: 0 0 5px var(--primary-color, #20B2AA);
+    box-shadow: 0 0 5px #ef4444;
     animation: unread-pulse 2s infinite ease-in-out;
   }
 }
@@ -1773,17 +1787,17 @@ onUnmounted(() => {
   0% {
     transform: scale(0.9);
     opacity: 0.6;
-    box-shadow: 0 0 0 0 rgba(32, 178, 170, 0.4);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
   }
   50% {
     transform: scale(1.1);
     opacity: 1;
-    box-shadow: 0 0 0 4px rgba(32, 178, 170, 0);
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0);
   }
   100% {
     transform: scale(0.9);
     opacity: 0.6;
-    box-shadow: 0 0 0 0 rgba(32, 178, 170, 0);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
   }
 }
 

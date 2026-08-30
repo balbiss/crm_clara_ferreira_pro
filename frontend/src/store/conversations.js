@@ -279,6 +279,19 @@ export const useConversationsStore = defineStore('conversations', {
       }
     },
 
+    async deleteConversation(conversationId) {
+      try {
+        await api.delete(`/conversations/${conversationId}`)
+        this.conversations = this.conversations.filter(c => c.id !== conversationId)
+        if (this.activeConversationId === conversationId) {
+          this.activeConversationId = null
+        }
+      } catch (error) {
+        console.error('Error deleting conversation:', error)
+        throw error
+      }
+    },
+
     async addNote(contactId, content) {
       try {
         const response = await api.post(`/contacts/${contactId}/add_note`, { content })

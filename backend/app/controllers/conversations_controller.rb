@@ -148,6 +148,16 @@ class ConversationsController < ApplicationController
     end
   end
 
+  # DELETE /conversations/1 — apaga só o histórico de mensagens desta
+  # conversa (Message tem dependent: :destroy em Conversation). Diferente de
+  # "Apagar contato": o Contact (revendedora, notas, pedidos, tags) continua
+  # intacto, só a conversa some.
+  def destroy
+    conversation = visible_conversations_scope.find(params[:id])
+    conversation.destroy!
+    head :no_content
+  end
+
   def ai_status
     conversation = visible_conversations_scope.includes(:contact).find(params[:id])
     contact_jid = conversation.contact.channel_identifier

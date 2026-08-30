@@ -94,8 +94,13 @@ const qrLoading = ref(false)
 const qrConnected = ref(false)
 let qrPollInterval = null
 
+const isCreatingInbox = ref(false)
+
 const createInbox = async () => {
+  if (isCreatingInbox.value) return // evita criar duas caixas com duplo clique
+
   if (['baileys', 'waha'].includes(selectedProviderId.value)) {
+    isCreatingInbox.value = true
     try {
       const res = await api.post('/inboxes', {
         inbox: {
@@ -108,6 +113,8 @@ const createInbox = async () => {
       goToStep(3)
     } catch (e) {
       Swal.fire('Erro', 'Não foi possível salvar a caixa de entrada.', 'error')
+    } finally {
+      isCreatingInbox.value = false
     }
   } else {
     goToStep(3)
@@ -292,7 +299,7 @@ const goBack = () => {
                 <input type="text" v-model="newInbox.phone_number" placeholder="Por favor, insira o número de telefone do qual a mensagem será enviada" />
               </div>
 
-              <button class="btn-primary" style="margin-top: 1.5rem;" @click="createInbox">Criar canal do WhatsApp</button>
+              <button class="btn-primary" style="margin-top: 1.5rem;" :disabled="isCreatingInbox" @click="createInbox">{{ isCreatingInbox ? 'Criando...' : 'Criar canal do WhatsApp' }}</button>
             </template>
             <template v-else>
               <h3>Configurar Canal</h3>
@@ -680,6 +687,11 @@ const goBack = () => {
   transition: background-color 0.2s;
 
   &:hover { background: var(--primary-hover); }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 }
 
 

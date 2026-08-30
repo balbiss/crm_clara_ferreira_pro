@@ -6,6 +6,13 @@ class Inbox < ApplicationRecord
   has_many :users, through: :inbox_members, dependent: :destroy
 
   validate :followup_not_allowed_for_instagram
+  # Baileys e WAHA derivam o nome da sessão externa a partir do phone_number
+  # (ver WhatsappBaileysService/WhatsappWahaService) — duas caixas com o
+  # mesmo número acabam disputando a MESMA conexão/sessão externa, e só uma
+  # recebe o webhook de verdade (aconteceu de fato com um duplo clique na
+  # criação). Trava aqui, não só no frontend.
+  validates :phone_number, uniqueness: { scope: :account_id },
+                            if: -> { provider.in?(%w[baileys waha]) && phone_number.present? }
 
   def messaging_service
     case provider

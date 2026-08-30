@@ -115,6 +115,21 @@ class WhatsappWahaService
     false
   end
 
+  # Resolve um "@lid" (identificador de privacidade do WhatsApp, que substitui
+  # o número de telefone em algumas conversas) pro contato real por trás dele
+  # — devolve {id: "5591...@c.us", number:, name:, pushname:, ...} ou nil.
+  # Sem isso o número/nome que sobra no CRM é literalmente os dígitos do lid,
+  # que não têm relação nenhuma com o telefone de verdade da pessoa.
+  def resolve_contact(contact_id)
+    res = request(:get, "/api/contacts?session=#{@session}&contactId=#{CGI.escape(contact_id)}")
+    return nil unless res.is_a?(Net::HTTPSuccess)
+
+    JSON.parse(res.body)
+  rescue => e
+    Rails.logger.error("Waha resolve_contact error: #{e.message}")
+    nil
+  end
+
   def fetch_profile_picture_url(contact_id)
     contact_id = normalize_jid(contact_id)
     res = request(:get, "/api/contacts/profile-picture?session=#{@session}&contactId=#{CGI.escape(contact_id)}")
