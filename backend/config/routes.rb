@@ -87,6 +87,7 @@ Rails.application.routes.draw do
   post 'jueri/sync-now',  to: 'jueri#sync_now'
   get  'jueri/debug_schema', to: 'jueri#debug_schema'
   get  'jueri/debug_recurso', to: 'jueri#debug_recurso'
+  get  'jueri/debug_pedido/:id', to: 'jueri#debug_pedido'
 
   resources :inboxes do
     resources :members, controller: 'inbox_members', only: [:index, :create, :destroy]

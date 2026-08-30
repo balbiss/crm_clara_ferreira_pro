@@ -17,6 +17,17 @@ class JueriController < ApplicationController
     render json: { error: 'jueri_api_error', message: e.message }, status: :bad_gateway
   end
 
+  # GET /jueri/debug_pedido/:id — estado AO VIVO de um pedido específico no
+  # Jueri (bypassa o sync local, pra comparar contra o que está salvo aqui).
+  def debug_pedido
+    service = JueriApiService.new
+    render json: service.find_pedido(params[:id])
+  rescue JueriApiService::NotConfiguredError => e
+    render json: { error: 'not_configured', message: e.message }, status: :unprocessable_entity
+  rescue JueriApiService::ApiError => e
+    render json: { error: 'jueri_api_error', message: e.message }, status: :bad_gateway
+  end
+
   # GET /jueri/debug/:id — cadastro completo de um revendedor específico
   def debug_show
     service = JueriApiService.new
