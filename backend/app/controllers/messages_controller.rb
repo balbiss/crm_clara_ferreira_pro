@@ -25,7 +25,13 @@ class MessagesController < ApplicationController
       if !is_private_msg && %w[baileys waha instagram].include?(conversation.inbox&.provider)
         begin
           recipient = conversation.contact.channel_identifier
-          conversation.inbox.messaging_service.send_message(recipient, message.text, message.attachment)
+          external_id = conversation.inbox.messaging_service.send_message(recipient, message.text, message.attachment)
+          # Guarda o id retornado pela API como source_id — sem isso o eco
+          # dessa mesma mensagem (fromMe: true) que chega depois pelo webhook
+          # não encontra nenhum Message correspondente, e é tratado como
+          # intervenção humana via celular: cria uma SEGUNDA mensagem
+          # duplicada (sem sender_id, avatar genérico) e ainda pausa a IA à toa.
+          message.update_column(:source_id, external_id) if external_id.present?
         rescue StandardError => e
           Rails.logger.error("Failed to send message via #{conversation.inbox.provider}: #{e.message}")
         end
