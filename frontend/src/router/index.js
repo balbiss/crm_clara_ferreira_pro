@@ -121,24 +121,6 @@ const router = createRouter({
           component: () => import('../views/Calendario.vue')
         },
         {
-          path: 'segmentos',
-          name: 'segmentos',
-          component: () => import('../views/ComingSoon.vue'),
-          meta: { title: 'Segmentos', description: 'Segmentação de carteira — ainda não disponível.', requiresCriticalConfig: true }
-        },
-        {
-          path: 'listas',
-          name: 'listas',
-          component: () => import('../views/ComingSoon.vue'),
-          meta: { title: 'Listas', description: 'Listas salvas e filtros personalizados — ainda não disponível.', requiresFullPortfolio: true }
-        },
-        {
-          path: 'agente-ia',
-          name: 'agente_ia',
-          component: () => import('../views/ComingSoon.vue'),
-          meta: { title: 'Agente de IA', description: 'Configuração do assistente de IA — ainda não disponível.', requiresCriticalConfig: true }
-        },
-        {
           path: 'automacoes',
           name: 'automacoes',
           component: () => import('../views/ComingSoon.vue'),

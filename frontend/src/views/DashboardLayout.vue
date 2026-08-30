@@ -39,9 +39,7 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
-  Bot,
   Zap,
-  List,
   UserX,
   ListChecks,
   Plus,
@@ -737,21 +735,6 @@ const saveReorder = async () => {
         <router-link to="/calendario" class="nav-item">
           <CalendarDays class="icon" />
           <span>Calendário</span>
-        </router-link>
-
-        <router-link v-if="isCriticalConfig" to="/segmentos" class="nav-item">
-          <Badge class="icon" />
-          <span>Segmentos</span>
-        </router-link>
-
-        <router-link v-if="isFullPortfolio" to="/listas" class="nav-item">
-          <List class="icon" />
-          <span>Listas</span>
-        </router-link>
-
-        <router-link v-if="isCriticalConfig" to="/agente-ia" class="nav-item">
-          <Bot class="icon" />
-          <span>Agente de IA</span>
         </router-link>
 
         <router-link v-if="isCriticalConfig" to="/automacoes" class="nav-item">
