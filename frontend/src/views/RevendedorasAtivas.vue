@@ -597,11 +597,11 @@ onMounted(async () => {
   // width: 100% junto com "white-space: nowrap" nas células fazia o
   // navegador espremer as colunas pra caber na tela em vez de deixar a
   // barra de rolagem horizontal do .table-wrapper aparecer — cortava
-  // dado (ex: coluna "Carteira" sumia depois de "Alerta"). min-width:100%
-  // deixa a tabela crescer além da tela quando o conteúdo pede, sem
-  // perder o "preenche a largura toda" quando tudo cabe.
+  // dado (ex: coluna "Carteira" sumia depois de "Alerta"). width:
+  // max-content deixa a tabela crescer além da tela quando o conteúdo
+  // pede (aciona a rolagem) — sem min-width:100%, que forçava esticar e
+  // abrir vão entre colunas quando o conteúdo já era curto.
   width: max-content;
-  min-width: 100%;
   border-collapse: collapse;
   font-size: 0.85rem;
 
