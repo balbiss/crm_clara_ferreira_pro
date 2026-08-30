@@ -5,9 +5,12 @@ import { Activity, AtSign, Phone, Plus, X, Edit2, ExternalLink } from 'lucide-vu
 import api from '../api'
 import Swal from 'sweetalert2'
 import EditContactModal from '../components/EditContactModal.vue'
+import { useConversationsStore } from '../store/conversations'
+import { statusLabel } from '../constants/regua'
 
 const route = useRoute()
 const router = useRouter()
+const convStore = useConversationsStore()
 const contact = ref(null)
 const isLoading = ref(true)
 
@@ -36,6 +39,32 @@ const jueriCadastroUrl = computed(() => {
   return id ? `https://claraferreira.jueri.com.br/sis/cadastro/revendedor/${id}` : null
 })
 
+// Histórico de transferência de responsável e mudança de status (briefing
+// seção 22) — vem pronto em contact.contact_audit_events (Contact model
+// registra sozinho via callback, ver backend). from/to de "responsavel" são
+// ids de User em string — resolve nome pela lista de agentes da conta.
+const agentsById = computed(() => {
+  const map = {}
+  ;(convStore.agents || []).forEach(a => { map[a.id] = `${a.first_name || ''} ${a.last_name || ''}`.trim() })
+  return map
+})
+const agentName = (id) => id ? (agentsById.value[id] || `Usuário #${id}`) : 'Ninguém'
+
+const auditEvents = computed(() => {
+  return [...(contact.value?.contact_audit_events || [])].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+})
+
+const auditEventLabel = (e) => {
+  if (e.event_type === 'status') {
+    const from = e.from_value ? statusLabel(e.from_value) : 'Nenhum'
+    const to = e.to_value ? statusLabel(e.to_value) : 'Nenhum'
+    return `Status alterado de "${from}" para "${to}"`
+  }
+  return `Responsável alterado de "${agentName(e.from_value)}" para "${agentName(e.to_value)}"`
+}
+
+const auditEventAuthor = (e) => e.changed_by ? `${e.changed_by.first_name || ''} ${e.changed_by.last_name || ''}`.trim() : 'Sistema (sincronização automática)'
+
 // Fetch Contact
 const fetchContact = async () => {
   isLoading.value = true
@@ -54,6 +83,7 @@ const fetchContact = async () => {
 
 onMounted(() => {
   fetchContact()
+  if (!convStore.agents.length) convStore.fetchAgents()
 })
 
 // Biografia — junto com Notas, é a área principal da tela (pedido do
@@ -380,7 +410,15 @@ const removeTag = async (tagId) => {
               <span class="history-date">Data de Criação</span>
               <p>Contato adicionado ao CRM.</p>
             </div>
-            
+
+            <div v-if="auditEvents.length > 0">
+              <div class="history-item" v-for="e in auditEvents" :key="'audit-' + e.id">
+                <span class="history-date">{{ new Date(e.created_at).toLocaleDateString('pt-BR') }} às {{ new Date(e.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }}</span>
+                <p>{{ auditEventLabel(e) }}</p>
+                <p style="font-size: 0.78rem; color: var(--text-muted);">Por: {{ auditEventAuthor(e) }}</p>
+              </div>
+            </div>
+
             <div v-if="contact.conversations && contact.conversations.length > 0">
               <div class="history-item" v-for="conv in contact.conversations" :key="conv.id">
                 <span class="history-date">Conversa #{{ conv.id }} - {{ new Date(conv.created_at).toLocaleDateString() }}</span>

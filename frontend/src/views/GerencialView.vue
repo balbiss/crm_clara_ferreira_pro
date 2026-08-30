@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import api from '../api'
 import { useContactsStore } from '../store/contacts'
 import { useConversationsStore } from '../store/conversations'
 import { ACTIVE_STATUS_LABELS, INACTIVE_STATUS_LABELS, statusLabel } from '../constants/regua'
@@ -9,6 +10,7 @@ import { ACTIVE_STATUS_LABELS, INACTIVE_STATUS_LABELS, statusLabel } from '../co
 const contactsStore = useContactsStore()
 const convStore = useConversationsStore()
 const isLoading = ref(true)
+const tarefas = ref([])
 
 const agentsById = computed(() => {
   const map = {}
@@ -47,14 +49,40 @@ const inativasPorStatus = computed(() => {
   }))
 })
 
+// Tarefas atrasadas por consultor (briefing seção 24/28.5) — pra gerência
+// cobrar time. "Atrasada" aqui é vencimento_em no passado, mesmo critério de
+// TarefasView.vue (grupo "Atrasadas"), não o status de régua "atrasada".
+const tarefasAtrasadasPorConsultor = computed(() => {
+  const agora = Date.now()
+  const groups = {}
+  tarefas.value.forEach(t => {
+    if (!t.vencimento_em || new Date(t.vencimento_em).getTime() >= agora) return
+    const key = t.user_id || 'sem_responsavel'
+    if (!groups[key]) groups[key] = { id: key, nome: t.user_id ? (agentsById.value[t.user_id] || `Usuário #${t.user_id}`) : 'Não atribuído', total: 0 }
+    groups[key].total += 1
+  })
+  return Object.values(groups).sort((a, b) => b.total - a.total)
+})
+
 const maxAtivasPorConsultor = computed(() => Math.max(1, ...ativasPorConsultor.value.map(g => g.total)))
 const maxInativasPorStatus = computed(() => Math.max(1, ...inativasPorStatus.value.map(g => g.total)))
+const maxTarefasAtrasadas = computed(() => Math.max(1, ...tarefasAtrasadasPorConsultor.value.map(g => g.total)))
+
+const fetchTarefas = async () => {
+  try {
+    const { data } = await api.get('/tarefas', { params: { status: 'pendente' } })
+    tarefas.value = data
+  } catch (e) {
+    console.error('Erro ao buscar tarefas:', e)
+  }
+}
 
 onMounted(async () => {
   isLoading.value = true
   try {
     if (!contactsStore.isLoadedOnce) await contactsStore.fetchContacts()
     if (!convStore.agents.length) await convStore.fetchAgents()
+    await fetchTarefas()
   } finally {
     isLoading.value = false
   }
@@ -101,6 +129,20 @@ onMounted(async () => {
             <span class="bar-value">{{ g.total }}</span>
           </div>
         </div>
+      </div>
+
+      <div class="panel">
+        <h2>Tarefas atrasadas por consultor</h2>
+        <div v-if="tarefasAtrasadasPorConsultor.length" class="bar-list">
+          <div v-for="g in tarefasAtrasadasPorConsultor" :key="g.id" class="bar-row">
+            <span class="bar-label">{{ g.nome }}</span>
+            <div class="bar-track">
+              <div class="bar-fill danger" :style="{ width: (g.total / maxTarefasAtrasadas * 100) + '%' }"></div>
+            </div>
+            <span class="bar-value">{{ g.total }}</span>
+          </div>
+        </div>
+        <p v-else class="empty-text">Nenhuma tarefa atrasada.</p>
       </div>
     </div>
 
@@ -197,6 +239,7 @@ onMounted(async () => {
   transition: width 0.3s;
 
   &.muted { background: #9ca3af; }
+  &.danger { background: #dc2626; }
 }
 
 .bar-value {

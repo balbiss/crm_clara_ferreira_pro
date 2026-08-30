@@ -40,7 +40,12 @@ class SalesTeamsController < ApplicationController
     user = current_user.account.users.find_by(id: params[:user_id])
     return render json: { error: 'user_not_found', message: 'Usuário não encontrado.' }, status: :unprocessable_entity unless user
 
-    count = unassigned_scope(@sales_team).update_all(user_id: user.id)
+    # update_all não dispara callback de model (registrar_mudanca_responsavel
+    # em Contact ficaria sem registro) — itera com #update pra passar por lá.
+    count = 0
+    unassigned_scope(@sales_team).find_each do |c|
+      count += 1 if c.update(user_id: user.id)
+    end
 
     render json: { assigned_count: count, team: serialize(@sales_team) }
   end

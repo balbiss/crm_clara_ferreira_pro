@@ -57,6 +57,20 @@ class DashboardController < ApplicationController
       reagendar:    status_counts['reagendar'] || 0
     }
 
+    # Tarefas atrasadas por consultor (briefing seção 24/28.5) — só pra
+    # gerência/diretoria cobrar time; consultor já vê a própria lista atrasada
+    # em Tarefas.vue, não precisa dessa quebra por pessoa.
+    tarefas_atrasadas_por_consultor = if is_owner
+      counts = account.tarefas.vencidas.group(:user_id).count
+      counts.map do |user_id, total|
+        {
+          user_id: user_id,
+          nome: user_id ? account.users.find_by(id: user_id)&.then { |u| "#{u.first_name} #{u.last_name}".strip } : 'Não atribuído',
+          total: total
+        }
+      end.sort_by { |r| -r[:total] }
+    end
+
     pretensao_venda = %w[venda Venda VENDA].sum { |i| intention_counts[i] || 0 }
 
     # Batch conversations: 1 GROUP BY instead of 2 COUNTs
@@ -111,6 +125,7 @@ class DashboardController < ApplicationController
         carteira:        carteira,
         tarefas_do_dia:  tarefas_do_dia
       },
+      tarefas_atrasadas_por_consultor: tarefas_atrasadas_por_consultor,
       leads_by_source:      leads_by_source,
       today_assigned_leads: today_assigned_leads
     }

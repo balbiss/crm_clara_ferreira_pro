@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_30_230000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_30_240000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -77,6 +77,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_30_230000) do
     t.index ["contact_id"], name: "index_agendamentos_on_contact_id"
     t.index ["user_id", "inicio_em"], name: "index_agendamentos_on_user_id_and_inicio_em"
     t.index ["user_id"], name: "index_agendamentos_on_user_id"
+  end
+
+  create_table "contact_audit_events", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "changed_by_id"
+    t.bigint "contact_id", null: false
+    t.datetime "created_at", null: false
+    t.string "event_type", null: false
+    t.string "from_value"
+    t.string "to_value"
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "event_type"], name: "index_contact_audit_events_on_account_id_and_event_type"
+    t.index ["account_id"], name: "index_contact_audit_events_on_account_id"
+    t.index ["changed_by_id"], name: "index_contact_audit_events_on_changed_by_id"
+    t.index ["contact_id", "event_type", "created_at"], name: "idx_contact_audit_events_contact_type_time"
+    t.index ["contact_id"], name: "index_contact_audit_events_on_contact_id"
   end
 
   create_table "contact_tags", force: :cascade do |t|
@@ -673,6 +689,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_30_230000) do
   add_foreign_key "agendamentos", "accounts"
   add_foreign_key "agendamentos", "contacts"
   add_foreign_key "agendamentos", "users"
+  add_foreign_key "contact_audit_events", "accounts"
+  add_foreign_key "contact_audit_events", "contacts"
+  add_foreign_key "contact_audit_events", "users", column: "changed_by_id"
   add_foreign_key "contact_tags", "contacts"
   add_foreign_key "contact_tags", "tags"
   add_foreign_key "contacts", "accounts"

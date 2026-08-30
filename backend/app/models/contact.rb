@@ -10,6 +10,15 @@ class Contact < ApplicationRecord
   has_many :tarefas, dependent: :destroy
   has_many :contact_tags, dependent: :destroy
   has_many :tags, through: :contact_tags
+  has_many :contact_audit_events, dependent: :destroy
+
+  # Histórico de transferência de responsável e de mudança de status
+  # (briefing seção 22 + pendência da auditoria). Current.user é quem fez a
+  # mudança pela tela (nulo = sistema: sync do Jueri, régua automática).
+  # find_each/update_all NÃO disparam isso — mudanças em massa (bulk_assign,
+  # assign_unassigned) precisam iterar chamando #update pra passar por aqui.
+  after_update :registrar_mudanca_status, if: :saved_change_to_status?
+  after_update :registrar_mudanca_responsavel, if: :saved_change_to_user_id?
 
   BROADCAST_FIELDS = %w[name first_name last_name phone temperature status source intention user_id avatar_url].freeze
 
@@ -74,6 +83,16 @@ class Contact < ApplicationRecord
   scope :not_blacklisted, -> { where(desconsiderado: false) }
 
   private
+
+  def registrar_mudanca_status
+    from, to = saved_change_to_status
+    contact_audit_events.create!(account_id: account_id, changed_by_id: Current.user&.id, event_type: 'status', from_value: from, to_value: to)
+  end
+
+  def registrar_mudanca_responsavel
+    from, to = saved_change_to_user_id
+    contact_audit_events.create!(account_id: account_id, changed_by_id: Current.user&.id, event_type: 'responsavel', from_value: from&.to_s, to_value: to&.to_s)
+  end
 
   def track_regua_status_change
     return unless status_changed?

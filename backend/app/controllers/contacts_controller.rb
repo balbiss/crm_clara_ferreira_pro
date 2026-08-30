@@ -84,7 +84,7 @@ class ContactsController < ApplicationController
 
   # GET /contacts/1
   def show
-    @contact = Contact.includes(conversations: :messages, notes: :user, reseller_phones: {}, tags: {}).find(@contact.id)
+    @contact = Contact.includes(conversations: :messages, notes: :user, reseller_phones: {}, tags: {}, contact_audit_events: :changed_by).find(@contact.id)
     render json: @contact.as_json(include: {
       conversations: {
         include: :messages
@@ -93,7 +93,10 @@ class ContactsController < ApplicationController
         include: :user
       },
       reseller_phones: {},
-      tags: {}
+      tags: {},
+      contact_audit_events: {
+        include: { changed_by: { only: %i[id first_name last_name] } }
+      }
     })
   end
 
@@ -180,7 +183,12 @@ class ContactsController < ApplicationController
       return render json: { error: 'Consultor não encontrado nesta conta.' }, status: :unprocessable_entity
     end
 
-    updated = current_user.account.contacts.where(id: contact_ids).update_all(user_id: user_id)
+    # update_all não dispara callback de model (registrar_mudanca_responsavel
+    # em Contact ficaria sem registro) — itera com #update pra passar por lá.
+    updated = 0
+    current_user.account.contacts.where(id: contact_ids).find_each do |c|
+      updated += 1 if c.update(user_id: user_id)
+    end
     render json: { updated: updated }
   end
 

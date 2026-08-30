@@ -1,5 +1,17 @@
 class ApplicationController < ActionController::API
+  before_action :set_current_actor
+
   private
+
+  # Deixa Current.user disponível pra Contact#registrar_mudanca_* saber quem
+  # fez uma mudança de status/responsável, sem precisar passar isso por
+  # parâmetro em cada update. current_user vem do Devise/Warden e já está
+  # resolvido nesse ponto independente da ordem dos before_action de cada
+  # controller filho (authenticate_user! só bloqueia quando ausente, não é
+  # pré-requisito pra current_user existir).
+  def set_current_actor
+    Current.user = current_user
+  end
 
   # Três níveis de autorização usados pelos controllers filhos (briefing seção 30):
   #

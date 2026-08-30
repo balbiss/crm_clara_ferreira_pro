@@ -130,6 +130,14 @@ API oficial do WhatsApp (Meta Cloud API) **ainda não implementada** — arquite
 - Deletar uma caixa de entrada (WhatsApp) **nunca** apaga conversas/mensagens — só desvincula. "Apagar conversa" (seção 9) também preserva o cadastro da revendedora — só "Apagar contato" é destrutivo de verdade.
 - Status Resgate/Negativado/Descadastrada nunca reativam sozinhos mesmo com pedido novo — só manual.
 
+### 10.1 Histórico de auditoria (`ContactAuditEvent`, 2026-08-30)
+
+Toda mudança de `Contact#status` e `Contact#user_id` (responsável) fica registrada automaticamente via callback `after_update` no model (`Contact#registrar_mudanca_status`/`#registrar_mudanca_responsavel`) — não precisa ser chamado manualmente em cada lugar que muda esses campos. `changed_by` vem de `Current.user` (`ActiveSupport::CurrentAttributes`, setado em `ApplicationController`) — nulo significa mudança feita pelo sistema (sync do Jueri, régua automática), preenchido significa uma pessoa mudou pela tela.
+
+**Gotcha**: `update_all`/`update_columns` NÃO disparam callback de model — `bulk_assign` (ContactsController) e `assign_unassigned` (SalesTeamsController) foram convertidos de `update_all` pra um loop com `#update` justamente por causa disso (senão essas duas telas de atribuição em massa ficariam sem registro no histórico). Qualquer código novo que mude `status`/`user_id` em lote precisa do mesmo cuidado.
+
+Exposto em `GET /contacts/:id` como `contact_audit_events` (com `changed_by` embutido), mostrado na aba "Histórico" de `ContactDetails.vue`.
+
 ## 11. Pendências conhecidas
 
 - Fase 1 do Agendamento (Acertos): faltam fórmulas de "Qtd. Peças → Nº de horários" e "Dias com Maleta → Data Acerto", só a Clara pode fornecer
