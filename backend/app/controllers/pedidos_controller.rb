@@ -16,6 +16,7 @@ class PedidosController < ApplicationController
       .where(contact_id: visible_contacts_scope.select(:id))
       .includes(:contact)
       .order(data_criacao: :desc, id: :desc)
+    scope = scope.where(contact_id: params[:contact_id]) if params[:contact_id].present?
 
     total = scope.count
     pedidos = scope.offset((page - 1) * per_page).limit(per_page)
@@ -39,8 +40,13 @@ class PedidosController < ApplicationController
       contact_id: contact&.id,
       contact_name: contact&.name.presence || contact&.phone,
       quantidade: pedido.quantidade,
+      quantidade_antes_baixa: pedido.quantidade_antes_baixa,
       valor_total: pedido.valor_total,
-      data_criacao: pedido.data_criacao
+      status_id: pedido.status_id,
+      data_criacao: pedido.data_criacao,
+      data_baixa: pedido.data_baixa,
+      data_cancelamento: pedido.data_cancelamento,
+      updated_at: pedido.updated_at
     }
   end
 end
