@@ -356,9 +356,9 @@ onMounted(async () => {
             <th>Revendedora</th>
             <th>Nível</th>
             <th>Etapa</th>
-            <th>Próxima tarefa</th>
-            <th>Dias com maleta</th>
-            <th>Peças em aberto</th>
+            <th>Próxima</th>
+            <th>Dias</th>
+            <th>Peças</th>
             <th>Alerta</th>
             <th>Carteira</th>
             <th>Ação</th>
@@ -371,25 +371,26 @@ onMounted(async () => {
             </td>
             <td class="cell-name">
               <div class="row-avatar">{{ (c.name || c.first_name || '?').charAt(0).toUpperCase() }}</div>
-              <span>{{ c.name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Sem nome' }}</span>
+              <span :title="c.name">{{ c.name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Sem nome' }}</span>
             </td>
             <td>
               <span
                 v-if="c.nivel"
                 class="nivel-badge"
                 :style="{ color: nivelInfo(c.nivel).color, backgroundColor: nivelInfo(c.nivel).bg }"
-              >{{ nivelInfo(c.nivel).emoji }} {{ nivelInfo(c.nivel).nome }}</span>
+                :title="nivelInfo(c.nivel).nome"
+              >{{ nivelInfo(c.nivel).emoji }}</span>
               <span v-else>...</span>
             </td>
             <td><span class="stage-badge" :class="stageBadgeClass(c.status)">{{ stageLabel(c.status) }}</span></td>
-            <td class="cell-tarefa">{{ proximaTarefa(c) || '—' }}</td>
-            <td>{{ daysInCycle(c) !== null ? daysInCycle(c) + ' dias' : '...' }}</td>
+            <td class="cell-tarefa" :title="proximaTarefa(c) || ''">{{ proximaTarefa(c) || '—' }}</td>
+            <td>{{ daysInCycle(c) !== null ? daysInCycle(c) + 'd' : '...' }}</td>
             <td>{{ c.pecas_abertas_atual ?? '...' }}</td>
             <td>
               <span v-if="isAtrasada(c)" class="alerta-badge"><AlertTriangle class="icon-xxs" /> Atrasada</span>
               <span v-else class="alerta-ok">Em dia</span>
             </td>
-            <td>{{ carteiraNome(c) || 'Sem time' }}</td>
+            <td class="cell-carteira" :title="carteiraNome(c) || ''">{{ carteiraNome(c) || 'Sem time' }}</td>
             <td @click.stop>
               <button
                 class="btn-start-conversation"
@@ -607,11 +608,11 @@ onMounted(async () => {
 
   thead th {
     text-align: left;
-    padding: 0.75rem 1rem;
-    font-size: 0.72rem;
+    padding: 0.6rem 0.6rem;
+    font-size: 0.7rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.02em;
     color: var(--text-muted);
     background: var(--bg-tertiary);
     border-bottom: 1px solid var(--border-color);
@@ -629,34 +630,51 @@ onMounted(async () => {
   }
 
   td {
-    padding: 0.7rem 1rem;
+    padding: 0.55rem 0.6rem;
     color: var(--text-main);
     white-space: nowrap;
   }
 
+  // Colunas com texto que pode ser longo (nome, próxima tarefa, carteira)
+  // truncam com "..." + title (tooltip com o texto inteiro) em vez de
+  // empurrar a tabela pra mais longe ainda — é o que permite todo o resto
+  // caber na tela sem precisar rolar pro lado.
   .cell-name {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
+    gap: 0.5rem;
     font-weight: 600;
+    max-width: 150px;
+
+    span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
   }
 
   .nivel-badge {
     display: inline-flex;
     align-items: center;
-    gap: 0.2rem;
-    font-size: 0.68rem;
-    font-weight: 700;
-    padding: 0.15rem 0.5rem;
-    border-radius: 20px;
-    white-space: nowrap;
+    font-size: 0.9rem;
+    padding: 0.1rem;
+    cursor: help;
   }
 
   .cell-tarefa {
-    white-space: normal;
-    max-width: 220px;
+    max-width: 130px;
+    overflow: hidden;
+    text-overflow: ellipsis;
     font-size: 0.8rem;
     color: var(--text-muted);
+    cursor: help;
+  }
+
+  .cell-carteira {
+    max-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: help;
   }
 
   .row-avatar {
