@@ -54,12 +54,14 @@ class JueriController < ApplicationController
 
     service = JueriApiService.new
     per_page = (params[:per_page] || 3).to_i.clamp(1, 10)
+    extra = params.except(:controller, :action, :recurso, :per_page, :page).permit!.to_h
+    filtros = { per_page: per_page, page: 1 }.merge(extra)
     data = case params[:recurso]
-           when 'contas_receber' then service.contas_receber(per_page: per_page, page: 1)
-           when 'contas_pagar' then service.contas_pagar(per_page: per_page, page: 1)
-           when 'venda' then service.vendas(per_page: per_page, page: 1)
-           when 'representante' then service.representantes(per_page: per_page, page: 1)
-           when 'cliente' then service.clientes(per_page: per_page, page: 1)
+           when 'contas_receber' then service.contas_receber(filtros)
+           when 'contas_pagar' then service.contas_pagar(filtros)
+           when 'venda' then service.vendas(filtros)
+           when 'representante' then service.representantes(filtros)
+           when 'cliente' then service.clientes(filtros)
            end
     render json: data
   rescue JueriApiService::NotConfiguredError => e
