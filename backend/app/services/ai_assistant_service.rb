@@ -123,6 +123,14 @@ class AiAssistantService
 
     prompt = "#{base_prompt}\nSeu nome é #{@inbox.ai_name || 'Assistente'}. Você atende revendedoras de uma revenda consignada de joias e semijoias. Seja muito humana, empática e natural.\n[CONTEXTO TEMPORAL]: #{date_info} (Sempre use essa data e hora reais como base).\n[DADOS DA REVENDEDORA]: #{contact_info}#{labels_instruction}#{routing_instruction}"
 
+    # Base de Conhecimento (texto colado ou extraído de PDF pela equipe,
+    # Configurações da caixa > Secretária Virtual) — injetada direto no
+    # prompt (não é busca vetorial, o texto é moderado o suficiente pra
+    # caber inteiro sem precisar de RAG de verdade).
+    if @inbox.knowledge_base.present?
+      prompt += "\n\n[BASE DE CONHECIMENTO DA EMPRESA]: Use as informações abaixo para responder perguntas sobre a empresa, produtos, políticas etc. Se a resposta não estiver aqui, não invente — diga que vai verificar ou encaminhe para um humano.\n#{@inbox.knowledge_base}"
+    end
+
     # Contexto extra injetado por integrações (webhooks) — sem exigir config manual
     if @extra_context.present?
       prompt += "\n\n[CONTEXTO DA INTEGRAÇÃO]: #{@extra_context}"

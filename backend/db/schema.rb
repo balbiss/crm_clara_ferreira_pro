@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_13_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_30_220000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -215,6 +215,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_13_120000) do
     t.string "instagram_page_id"
     t.datetime "instagram_token_expires_at"
     t.string "instagram_username"
+    t.text "knowledge_base"
     t.string "name"
     t.text "out_of_office_message"
     t.string "phone_number"

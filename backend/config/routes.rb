@@ -98,6 +98,7 @@ Rails.application.routes.draw do
       get :status
       post :disconnect
       post :generate_prompt
+      post :extract_knowledge_base_pdf
     end
   end
 

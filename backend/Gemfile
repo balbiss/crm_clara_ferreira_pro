@@ -51,6 +51,9 @@ gem "stripe"
 # AI Integration
 gem "ruby-openai"
 
+# Extração de texto de PDF (Base de Conhecimento / RAG da Secretária Virtual)
+gem "pdf-reader"
+
 # Web Push Notifications (PWA)
 gem "webpush", "~> 1.1"
 

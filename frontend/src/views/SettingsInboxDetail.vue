@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ChevronLeft, Sparkles } from 'lucide-vue-next'
+import { ChevronLeft, Sparkles, Upload } from 'lucide-vue-next'
 import api from '../api'
 import Swal from 'sweetalert2'
 import PromptGeneratorModal from '../components/PromptGeneratorModal.vue'
@@ -15,6 +15,7 @@ const allTabs = [
   { id: 'settings', name: 'Configurações' },
   { id: 'agents', name: 'Agentes' },
   { id: 'bot', name: 'Secretária Virtual' },
+  { id: 'knowledge_base', name: 'Base de Conhecimento' },
   { id: 'followup', name: 'Resgate (Follow-up)' }
 ]
 // Follow-up não é permitido no Instagram (janela de 24h da Meta)
@@ -101,6 +102,7 @@ const saveSettings = async () => {
         ai_enabled: inbox.value.ai_enabled,
         ai_name: inbox.value.ai_name,
         ai_prompt: inbox.value.ai_prompt,
+        knowledge_base: inbox.value.knowledge_base,
         followup_enabled: inbox.value.followup_enabled,
         followup_max_attempts: inbox.value.followup_max_attempts,
         followup_wait_time_minutes: inbox.value.followup_wait_time_minutes,
@@ -112,6 +114,39 @@ const saveSettings = async () => {
     Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Configurações salvas!', showConfirmButton: false, timer: 3000 })
   } catch (error) {
     console.error('Error saving settings:', error)
+  }
+}
+
+// Base de Conhecimento — texto colado direto ou extraído de um PDF. O PDF
+// só extrai e devolve o texto (não salva sozinho): a equipe revisa (PDF às
+// vezes vem com sujeira de formatação/OCR) e salva de propósito pelo botão
+// normal da aba, igual ao "Gerar Prompt com IA".
+const knowledgeBaseFileInput = ref(null)
+const isUploadingPdf = ref(false)
+
+const triggerPdfUpload = () => knowledgeBaseFileInput.value?.click()
+
+const handlePdfUpload = async (event) => {
+  const file = event.target.files?.[0]
+  event.target.value = '' // permite selecionar o mesmo arquivo de novo depois
+  if (!file) return
+
+  isUploadingPdf.value = true
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    const { data } = await api.post(`/inboxes/${inbox.value.id}/extract_knowledge_base_pdf`, formData, {
+      headers: { 'Content-Type': undefined }
+    })
+    const separador = inbox.value.knowledge_base?.trim() ? '\n\n---\n\n' : ''
+    inbox.value.knowledge_base = (inbox.value.knowledge_base || '') + separador + data.text
+    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Texto extraído do PDF! Revise e clique em Salvar.', showConfirmButton: false, timer: 4000 })
+  } catch (error) {
+    console.error('Erro ao extrair PDF:', error)
+    const msg = error.response?.data?.error || 'Erro ao processar o PDF.'
+    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: msg, showConfirmButton: false, timer: 4000 })
+  } finally {
+    isUploadingPdf.value = false
   }
 }
 </script>
@@ -242,6 +277,35 @@ const saveSettings = async () => {
 
           <div class="form-actions" style="margin-top: 2rem;">
             <button class="btn-primary" @click="saveSettings">Salvar Configurações da IA</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Content: Base de Conhecimento -->
+      <div class="tab-content" v-else-if="activeTab === 'knowledge_base'">
+        <div class="form-section" style="max-width: 100%">
+          <div style="margin-bottom: 1.5rem">
+            <h3 style="margin: 0 0 0.5rem 0; font-size: 1.1rem; color: var(--text-main)">Base de Conhecimento</h3>
+            <p style="margin: 0; color: var(--text-muted); font-size: 0.9rem;">
+              Informações sobre a empresa (políticas, catálogo, perguntas frequentes etc.) que a Secretária Virtual consulta pra responder. Cole o texto direto ou envie um PDF — o texto extraído entra abaixo, revise antes de salvar.
+            </p>
+          </div>
+
+          <div class="form-row" style="margin-bottom: 1rem;">
+            <div class="label-col" style="width: 100%">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <label>Conteúdo</label>
+                <button class="btn-magic-sm" :disabled="isUploadingPdf" @click="triggerPdfUpload">
+                  <Upload class="icon-xs" /> {{ isUploadingPdf ? 'Extraindo...' : 'Enviar PDF' }}
+                </button>
+                <input ref="knowledgeBaseFileInput" type="file" accept="application/pdf" style="display: none" @change="handlePdfUpload" />
+              </div>
+              <textarea class="form-input" v-model="inbox.knowledge_base" rows="16" placeholder="Ex: Horário de atendimento, política de trocas, formas de pagamento, catálogo de produtos, perguntas frequentes..."></textarea>
+            </div>
+          </div>
+
+          <div class="form-actions" style="margin-top: 1rem;">
+            <button class="btn-primary" @click="saveSettings">Salvar Base de Conhecimento</button>
           </div>
         </div>
       </div>

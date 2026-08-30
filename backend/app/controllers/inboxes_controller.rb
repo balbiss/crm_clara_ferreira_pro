@@ -3,10 +3,10 @@ require_relative '../services/whatsapp_waha_service'
 
 class InboxesController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_inbox, only: %i[ show update destroy qr_code status disconnect generate_prompt ]
+  before_action :set_inbox, only: %i[ show update destroy qr_code status disconnect generate_prompt extract_knowledge_base_pdf ]
   # Corretores podem ler inboxes e ver status (para filtrar conversas por canal).
   # Apenas o dono gerencia: criar, editar, remover, escanear QR, desconectar, gerar prompt de IA.
-  before_action :require_owner!, only: %i[ create update destroy qr_code disconnect generate_prompt ]
+  before_action :require_owner!, only: %i[ create update destroy qr_code disconnect generate_prompt extract_knowledge_base_pdf ]
 
   def index
     @inboxes = current_user.account.inboxes
@@ -163,6 +163,33 @@ class InboxesController < ApplicationController
     end
   end
 
+  # POST /inboxes/:id/extract_knowledge_base_pdf { file: <upload> }
+  # Só extrai o texto e devolve — não salva sozinho. O usuário revisa (PDF
+  # às vezes vem com sujeira de OCR/formatação) e salva de propósito pela
+  # aba normal, igual ao fluxo de "Gerar Prompt com IA".
+  def extract_knowledge_base_pdf
+    file = params[:file]
+    return render json: { error: 'Nenhum arquivo enviado.' }, status: :unprocessable_entity unless file
+
+    unless file.content_type == 'application/pdf' || file.original_filename.to_s.downcase.end_with?('.pdf')
+      return render json: { error: 'Envie um arquivo PDF.' }, status: :unprocessable_entity
+    end
+
+    reader = PDF::Reader.new(file.tempfile.path)
+    texto = reader.pages.map(&:text).join("\n\n").strip
+
+    if texto.blank?
+      return render json: { error: 'Não consegui extrair texto desse PDF (pode ser um PDF escaneado/imagem, sem texto real).' }, status: :unprocessable_entity
+    end
+
+    render json: { text: texto }
+  rescue PDF::Reader::MalformedPDFError, PDF::Reader::UnsupportedFeatureError => e
+    render json: { error: "PDF inválido ou não suportado: #{e.message}" }, status: :unprocessable_entity
+  rescue StandardError => e
+    Rails.logger.error("Erro ao extrair PDF da base de conhecimento: #{e.message}")
+    render json: { error: 'Erro ao processar o PDF.' }, status: :unprocessable_entity
+  end
+
   private
     def webhook_url_for(inbox)
       host = ENV.fetch('API_HOST', 'http://localhost:3000')
@@ -177,6 +204,6 @@ class InboxesController < ApplicationController
     end
 
     def inbox_params
-      params.require(:inbox).permit(:name, :provider, :phone_number, :api_url, :api_key, :bot_prompt, :ai_enabled, :ai_name, :ai_prompt, :ai_temperature, :working_hours_enabled, :out_of_office_message, :followup_enabled, :followup_max_attempts, :followup_wait_time_minutes, :followup_send_closing_message, :followup_closing_message, :round_robin_group_id, working_hours: [:day, :open, :start, :end])
+      params.require(:inbox).permit(:name, :provider, :phone_number, :api_url, :api_key, :bot_prompt, :ai_enabled, :ai_name, :ai_prompt, :ai_temperature, :knowledge_base, :working_hours_enabled, :out_of_office_message, :followup_enabled, :followup_max_attempts, :followup_wait_time_minutes, :followup_send_closing_message, :followup_closing_message, :round_robin_group_id, working_hours: [:day, :open, :start, :end])
     end
 end
