@@ -201,7 +201,7 @@ const saveSettings = async () => {
               <label>Provedor de API</label>
             </div>
             <div class="input-col api-provider-row">
-              <input type="text" class="form-input disabled-input" :value="inbox.provider.charAt(0).toUpperCase() + inbox.provider.slice(1)" disabled />
+              <input type="text" class="form-input disabled-input" :value="inbox.provider === 'waha' ? 'WAHA' : (inbox.provider.charAt(0).toUpperCase() + inbox.provider.slice(1))" disabled />
               <button class="btn-outline">Converter</button>
             </div>
           </div>

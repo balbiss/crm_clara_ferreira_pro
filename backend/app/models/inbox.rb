@@ -10,6 +10,7 @@ class Inbox < ApplicationRecord
   def messaging_service
     case provider
     when 'instagram' then InstagramMessagingService.new(self)
+    when 'waha' then WhatsappWahaService.new(self)
     else WhatsappBaileysService.new(self)
     end
   end

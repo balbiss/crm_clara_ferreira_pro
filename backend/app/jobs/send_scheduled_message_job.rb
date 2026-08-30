@@ -18,16 +18,16 @@ class SendScheduledMessageJob < ApplicationJob
       return
     end
 
-    baileys_service = WhatsappBaileysService.new(inbox)
+    messaging_service = inbox.messaging_service
     remote_jid = conversation.contact.jid || conversation.contact.phone
 
     begin
       attachment_to_send = scheduled_message.attachment.attached? ? scheduled_message.attachment : nil
-      
-      # Enviar via Baileys API
-      baileys_id = baileys_service.send_message(remote_jid, scheduled_message.text, attachment_to_send)
 
-      if baileys_id
+      # Enviar via Baileys ou WAHA, o que estiver ativo nesse inbox
+      message_id = messaging_service.send_message(remote_jid, scheduled_message.text, attachment_to_send)
+
+      if message_id
         # Criar a mensagem local no banco
         message = Message.create!(
           account: conversation.account,
@@ -35,7 +35,7 @@ class SendScheduledMessageJob < ApplicationJob
           text: scheduled_message.text,
           sender_type: 'User',
           sender_id: conversation.user_id,
-          source_id: baileys_id.presence || "scheduled_#{SecureRandom.hex(8)}",
+          source_id: message_id.presence || "scheduled_#{SecureRandom.hex(8)}",
           status: :delivered
         )
 

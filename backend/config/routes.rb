@@ -110,6 +110,7 @@ Rails.application.routes.draw do
 
   namespace :webhooks do
     post 'baileys',              to: 'baileys#create'
+    post 'waha',                 to: 'waha#create'
     post 'stripe',               to: 'stripe#create'
     get  'instagram',            to: 'instagram#verify'
     post 'instagram',            to: 'instagram#create'

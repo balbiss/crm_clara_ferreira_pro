@@ -1,4 +1,5 @@
 require_relative '../services/whatsapp_baileys_service'
+require_relative '../services/whatsapp_waha_service'
 
 class InboxesController < ApplicationController
   before_action :authenticate_user!
@@ -20,13 +21,12 @@ class InboxesController < ApplicationController
     @inbox = current_user.account.inboxes.build(inbox_params)
 
     if @inbox.save
-      if @inbox.provider == 'baileys'
-        webhook_url = "#{ENV.fetch('API_HOST', 'http://localhost:3000')}/webhooks/baileys"
-        service = WhatsappBaileysService.new(@inbox)
-        # Attempt to create the connection in the external Baileys API
-        service.create_connection(webhook_url) rescue StandardError
+      if %w[baileys waha].include?(@inbox.provider)
+        service = @inbox.messaging_service
+        # Tenta criar a conexão na API externa (Baileys ou WAHA, dependendo do provider)
+        service.create_connection(webhook_url_for(@inbox)) rescue StandardError
       end
-      
+
       render json: @inbox, status: :created
     else
       render json: @inbox.errors, status: :unprocessable_entity
@@ -42,19 +42,19 @@ class InboxesController < ApplicationController
   end
 
   def qr_code
-    baileys = WhatsappBaileysService.new(@inbox)
-    qr = baileys.fetch_qr_code
-    
-    if qr.nil?
-      status = Rails.cache.read("inbox:#{@inbox.id}:status")
-      unless %w[connecting open].include?(status)
-        baileys.delete_connection rescue nil
-        sleep 0.5
-        webhook_url = "#{ENV.fetch('API_HOST', 'http://localhost:3000')}/webhooks/baileys"
-        baileys.create_connection(webhook_url) rescue nil
-        sleep 2.0
-        qr = baileys.fetch_qr_code
-      end
+    service = @inbox.messaging_service
+    qr = service.fetch_qr_code
+
+    # Só recria a conexão do zero se realmente não há QR disponível E a caixa
+    # não está conectada — evita derrubar uma sessão já funcionando só porque
+    # o modal de QR foi aberto (a WAHA, por exemplo, não devolve QR quando já
+    # autenticada, o que faria esse fallback disparar à toa sem essa checagem).
+    if qr.nil? && !service.connected?
+      service.delete_connection rescue nil
+      sleep 0.5
+      service.create_connection(webhook_url_for(@inbox)) rescue nil
+      sleep 2.0
+      qr = service.fetch_qr_code
     end
 
     if qr
@@ -164,6 +164,14 @@ class InboxesController < ApplicationController
   end
 
   private
+    def webhook_url_for(inbox)
+      host = ENV.fetch('API_HOST', 'http://localhost:3000')
+      case inbox.provider
+      when 'waha' then "#{host}/webhooks/waha?inbox_id=#{inbox.id}"
+      else "#{host}/webhooks/baileys"
+      end
+    end
+
     def set_inbox
       @inbox = current_user.account.inboxes.find(params.expect(:id))
     end

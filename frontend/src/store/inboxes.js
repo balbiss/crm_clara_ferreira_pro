@@ -12,7 +12,7 @@ export const useInboxesStore = defineStore('inboxes', {
 
   getters: {
     disconnectedInboxes: (state) =>
-      state.inboxes.filter(i => ['baileys', 'instagram'].includes(i.provider) && i.connected === false)
+      state.inboxes.filter(i => ['baileys', 'waha', 'instagram'].includes(i.provider) && i.connected === false)
   },
 
   actions: {
@@ -30,7 +30,7 @@ export const useInboxesStore = defineStore('inboxes', {
           const oldInbox = this.inboxes.find(i => i.id === newInbox.id)
           return {
             ...newInbox,
-            connected: oldInbox && oldInbox.connected !== undefined ? oldInbox.connected : (['baileys', 'instagram'].includes(newInbox.provider) ? undefined : null)
+            connected: oldInbox && oldInbox.connected !== undefined ? oldInbox.connected : (['baileys', 'waha', 'instagram'].includes(newInbox.provider) ? undefined : null)
           }
         })
 
@@ -38,7 +38,7 @@ export const useInboxesStore = defineStore('inboxes', {
 
         // Busca os status do Baileys/Instagram em background
         this.inboxes.forEach(inbox => {
-          if (['baileys', 'instagram'].includes(inbox.provider)) {
+          if (['baileys', 'waha', 'instagram'].includes(inbox.provider)) {
             this.checkStatus(inbox.id)
           }
         })
@@ -70,7 +70,7 @@ export const useInboxesStore = defineStore('inboxes', {
       if (pollTimer) return
       pollTimer = setInterval(() => {
         this.inboxes.forEach(inbox => {
-          if (['baileys', 'instagram'].includes(inbox.provider)) {
+          if (['baileys', 'waha', 'instagram'].includes(inbox.provider)) {
             this.checkStatus(inbox.id)
           }
         })

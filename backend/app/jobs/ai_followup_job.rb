@@ -4,7 +4,7 @@ class AiFollowupJob < ApplicationJob
   def perform
     # Encontra inboxes com followup ativado (defensivo: Instagram nunca deve
     # rodar follow-up automático, mesmo que a validação do model seja contornada)
-    Inbox.where(followup_enabled: true, provider: 'baileys').find_each do |inbox|
+    Inbox.where(followup_enabled: true, provider: %w[baileys waha]).find_each do |inbox|
       process_inbox(inbox)
     end
   end
@@ -74,22 +74,22 @@ class AiFollowupJob < ApplicationJob
       followup_text = response.dig("choices", 0, "message", "content")
       
       if followup_text.present?
-        # Enviar via Baileys
-        baileys_service = WhatsappBaileysService.new(inbox)
+        # Enviar via Baileys ou WAHA, o que estiver ativo nesse inbox
+        messaging_service = inbox.messaging_service
         remote_jid = conversation.contact.jid || conversation.contact.phone
-        baileys_id = baileys_service.send_message(remote_jid, followup_text)
+        message_id = messaging_service.send_message(remote_jid, followup_text)
 
-        # Salvar mensagem usando o ID do Baileys como source_id, para que o
-        # eco (fromMe) desta mensagem seja reconhecido no webhook e não seja
-        # confundido com intervenção humana (o que pausava a IA e aplicava
-        # a tag agente_off sem atribuir a nenhum corretor).
+        # Salvar mensagem usando o ID retornado pela API como source_id, para
+        # que o eco (fromMe) desta mensagem seja reconhecido no webhook e não
+        # seja confundido com intervenção humana (o que pausava a IA e
+        # aplicava a tag agente_off sem atribuir a nenhum corretor).
         Message.create!(
           account: conversation.account,
           conversation: conversation,
           text: followup_text,
           sender_type: 'User',
           sender_id: nil, # Indica que foi o bot
-          source_id: baileys_id.presence || "followup_#{SecureRandom.hex(8)}",
+          source_id: message_id.presence || "followup_#{SecureRandom.hex(8)}",
           status: :delivered
         )
 
@@ -111,9 +111,9 @@ class AiFollowupJob < ApplicationJob
     # Enviar mensagem de encerramento se configurado
     if inbox.followup_send_closing_message? && inbox.followup_closing_message.present?
       begin
-        baileys_service = WhatsappBaileysService.new(inbox)
+        messaging_service = inbox.messaging_service
         remote_jid = conversation.contact.jid || conversation.contact.phone
-        baileys_id = baileys_service.send_message(remote_jid, inbox.followup_closing_message)
+        message_id = messaging_service.send_message(remote_jid, inbox.followup_closing_message)
 
         Message.create!(
           account: conversation.account,
@@ -121,7 +121,7 @@ class AiFollowupJob < ApplicationJob
           text: inbox.followup_closing_message,
           sender_type: 'User',
           sender_id: nil,
-          source_id: baileys_id.presence || "closing_#{SecureRandom.hex(8)}",
+          source_id: message_id.presence || "closing_#{SecureRandom.hex(8)}",
           status: :delivered
         )
       rescue StandardError => e

@@ -176,8 +176,8 @@ onUnmounted(() => {
               <div class="inbox-details">
                 <h3>{{ inbox.name }}</h3>
                 <div class="provider-row">
-                  <span class="provider">{{ inbox.provider === 'instagram' ? 'Instagram' : 'WhatsApp' }} - {{ inbox.provider.charAt(0).toUpperCase() + inbox.provider.slice(1) }}</span>
-                  <span v-if="['baileys', 'instagram'].includes(inbox.provider)" class="status-badge" :class="{
+                  <span class="provider">{{ inbox.provider === 'instagram' ? 'Instagram' : 'WhatsApp' }} - {{ inbox.provider === 'waha' ? 'WAHA' : (inbox.provider.charAt(0).toUpperCase() + inbox.provider.slice(1)) }}</span>
+                  <span v-if="['baileys', 'waha', 'instagram'].includes(inbox.provider)" class="status-badge" :class="{
                     connected: inbox.connected === true,
                     disconnected: inbox.connected === false,
                     loading: inbox.connected === undefined
@@ -191,7 +191,7 @@ onUnmounted(() => {
             
             <div class="inbox-actions">
               <button
-                v-if="inbox.provider === 'baileys' && inbox.connected === false"
+                v-if="['baileys', 'waha'].includes(inbox.provider) && inbox.connected === false"
                 class="icon-btn btn-reconnect"
                 title="Reconectar"
                 @click="openReconnectModal(inbox)"
@@ -200,7 +200,7 @@ onUnmounted(() => {
                 Reconectar
               </button>
               <button
-                v-if="['baileys', 'instagram'].includes(inbox.provider) && inbox.connected === true"
+                v-if="['baileys', 'waha', 'instagram'].includes(inbox.provider) && inbox.connected === true"
                 class="icon-btn btn-disconnect"
                 title="Desconectar"
                 @click="disconnectInbox(inbox)"
@@ -249,7 +249,7 @@ onUnmounted(() => {
           </div>
 
           <div v-else class="qr-unavailable">
-            <p>⚠️ A API Baileys não está acessível neste momento.</p>
+            <p>⚠️ A API não está acessível neste momento.</p>
             <p class="small-text">Verifique se a API está rodando e tente novamente em instantes.</p>
           </div>
         </div>

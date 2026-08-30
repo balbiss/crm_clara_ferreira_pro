@@ -21,14 +21,15 @@ class AgentNotificationService
 
     # Notificação vai sempre pro celular do corretor via WhatsApp, independente
     # do canal de onde veio o lead (ex: conversa do Instagram não tem "telefone").
-    inbox = @conversation.account.inboxes.find_by(provider: 'baileys')
+    # Aceita tanto Baileys quanto WAHA — qualquer caixa de WhatsApp ativa serve.
+    inbox = @conversation.account.inboxes.where(provider: %w[baileys waha]).first
     return unless inbox.present?
 
-    baileys = WhatsappBaileysService.new(inbox)
+    whatsapp = inbox.messaging_service
     # resolve_jid testa com e sem o nono dígito brasileiro
     # se a API falhar, cai no fallback e usa o número direto
-    jid = baileys.resolve_jid(@agent.phone) || @agent.phone
-    baileys.send_message(jid, build_message)
+    jid = whatsapp.resolve_jid(@agent.phone) || @agent.phone
+    whatsapp.send_message(jid, build_message)
   rescue => e
     Rails.logger.error("AgentNotificationService whatsapp error: #{e.message}")
   end
