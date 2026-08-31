@@ -62,8 +62,18 @@ class FlowRunnerService
       true
     when 'options'
       handle_id = match_option_handle(node, text)
-      flow_run.update!(status: 'running')
-      new(flow_run).call(node.key, handle: handle_id)
+      if handle_id
+        flow_run.update!(status: 'running')
+        new(flow_run).call(node.key, handle: handle_id)
+      else
+        # Achado num teste real: sem esse "senão", uma resposta que não bate
+        # com nenhuma opção fazia o call cair num handle inexistente e
+        # encerrar o FlowRun silenciosamente — a resposta CERTA mandada
+        # logo depois não tinha mais fluxo esperando pra reagir a ela.
+        # Continua esperando (status já é waiting_reply, não muda).
+        runner = new(flow_run)
+        runner.send(:send_message_text, 'Não entendi. Responda com o número da opção ou o texto dela.')
+      end
       true
     else
       false
@@ -76,12 +86,15 @@ class FlowRunnerService
   def self.match_option_handle(node, text)
     options = node.data['options'] || []
     normalized = text.to_s.strip.downcase
-    return nil if options.blank?
+    return nil if options.blank? || normalized.blank?
 
     by_number = normalized.match?(/\A\d+\z/) ? options[normalized.to_i - 1] : nil
+    # Direção certa: o texto da opção CONTÉM o que a pessoa respondeu (ex:
+    # respondeu "quero" pra opção "Sim, quero") — checado errado antes (o
+    # contrário), confirmado num teste real que "Quero" não batia com nada.
     match = by_number ||
       options.find { |o| o['label'].to_s.strip.downcase == normalized } ||
-      options.find { |o| normalized.include?(o['label'].to_s.strip.downcase) && o['label'].to_s.present? }
+      options.find { |o| o['label'].to_s.present? && o['label'].to_s.strip.downcase.include?(normalized) }
     match && match['id']
   end
 
@@ -232,27 +245,34 @@ class FlowRunnerService
   end
 
   def send_media(node)
-    url = node.data['url']
-    return if url.blank?
-
     caption = interpolate(node.data['caption'].to_s)
     recipient = @contact.channel_identifier
     media_type = node.data['media_type'].presence || 'document'
+    url = node.data['url']
+    return if !node.media.attached? && url.blank?
 
     Rails.cache.write("ai_is_replying_#{@conversation.inbox_id}_#{recipient}", true, expires_in: 20.seconds)
-
     messaging_service = @conversation.inbox.messaging_service
-    external_id = messaging_service.respond_to?(:send_media_by_url) ? messaging_service.send_media_by_url(recipient, url, media_type, caption) : nil
+
+    # Upload direto reaproveita o mesmo caminho que já manda anexo de
+    # verdade (Message#attachment) — mais confiável do que URL externa, que
+    # deu 500 na WAHA num teste real (nem toda instância baixa por URL).
+    external_id = if node.media.attached?
+      messaging_service.send_message(recipient, caption, node.media)
+    elsif messaging_service.respond_to?(:send_media_by_url)
+      messaging_service.send_media_by_url(recipient, url, media_type, caption)
+    end
 
     msg = Message.create!(
       account_id: @conversation.account_id,
       conversation: @conversation,
-      text: caption.presence || "[#{media_type}] #{url}",
+      text: caption.presence || "[#{media_type}]",
       sender_type: 'User',
       sender_id: nil,
       source_id: external_id.presence || "flow_#{@flow.id}_#{SecureRandom.hex(8)}",
       status: :sent
     )
+    msg.attachment.attach(node.media.blob) if node.media.attached?
     msg.rebroadcast
   end
 

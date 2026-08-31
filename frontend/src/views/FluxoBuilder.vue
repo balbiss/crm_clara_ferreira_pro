@@ -9,7 +9,7 @@ import {
   ArrowLeft, Undo2, Redo2, Save, ZoomIn, ZoomOut, Maximize, X,
   Zap, MessageCircle, HelpCircle, Image, Video, Mic, FileText,
   MousePointerClick, LayoutList, GitFork, Clock, OctagonX,
-  Tag, TagIcon, UserCheck, Variable, Webhook, Plus, Trash2
+  Tag, TagIcon, UserCheck, Variable, Webhook, Plus, Trash2, UploadCloud
 } from '@lucide/vue'
 import api from '../api'
 import TriggerNode from '../components/flow-nodes/TriggerNode.vue'
@@ -111,7 +111,10 @@ const backendToVueFlow = (data) => {
     id: n.key,
     type: n.node_type,
     position: n.position && n.position.x !== undefined ? n.position : { x: 100, y: 100 },
-    data: n.data || {}
+    // media_url vem à parte (é derivado do anexo de verdade, não é campo
+    // livre como o resto de `data`) mas junta aqui pra MediaNode conseguir
+    // mostrar preview sem precisar de uma segunda fonte de dado.
+    data: { ...(n.data || {}), media_url: n.media_url || null }
   }))
 
   edges.value = (data.edges || []).map(e => ({
@@ -203,6 +206,42 @@ const removeOption = (optionId) => {
   pushHistory()
 }
 
+// ---- Upload de mídia (nó "Enviar mídia") — upload direto do computador
+// em vez de colar link externo (achado num teste real: link externo deu
+// 500 na WAHA, upload reaproveita o mesmo caminho de anexo já confiável).
+const isUploadingMedia = ref(false)
+const uploadMediaError = ref('')
+
+const uploadMedia = async (event) => {
+  const file = event.target.files?.[0]
+  if (!file || !selectedNode.value) return
+
+  isUploadingMedia.value = true
+  uploadMediaError.value = ''
+  const nodeId = selectedNode.value.id
+  const form = new FormData()
+  form.append('file', file)
+
+  try {
+    // A instância do axios (../api) fixa Content-Type: application/json
+    // por padrão pra todo mundo -- precisa anular aqui (undefined, não
+    // "multipart/form-data" sem boundary) pra deixar o próprio axios
+    // montar o header certo com boundary a partir do FormData.
+    const { data } = await api.post(`/flows/${flow.id}/nodes/${nodeId}/media`, form, {
+      headers: { 'Content-Type': undefined }
+    })
+    const node = findNode(nodeId)
+    if (node) node.data = { ...node.data, media_url: data.media_url }
+    saveNow()
+  } catch (e) {
+    console.error('Erro ao enviar mídia:', e)
+    uploadMediaError.value = 'Não deu pra enviar o arquivo.'
+  } finally {
+    isUploadingMedia.value = false
+    event.target.value = ''
+  }
+}
+
 onNodesChange(() => { scheduleAutosave() })
 onEdgesChange(() => { scheduleAutosave() })
 
@@ -255,7 +294,12 @@ const saveGraph = async () => {
   saveStatus.value = 'saving'
   try {
     await api.put(`/flows/${flow.id}/graph`, {
-      nodes: nodes.value.map(n => ({ key: n.id, node_type: n.type, position: n.position, data: n.data })),
+      nodes: nodes.value.map(n => {
+        // media_url é derivado do anexo de verdade (ver upload), não um
+        // campo pra persistir dentro de data — tira antes de mandar.
+        const { media_url, ...rest } = n.data || {}
+        return { key: n.id, node_type: n.type, position: n.position, data: rest }
+      }),
       edges: edges.value.map(e => ({ source_key: e.source, target_key: e.target, source_handle: e.sourceHandle || null, target_handle: e.targetHandle || null }))
     })
     saveStatus.value = 'saved'
@@ -446,10 +490,26 @@ const varHintLabels = computed(() => ['nome', 'telefone', 'email'].map(v => `{{$
               <option value="document">Documento</option>
             </select>
           </div>
+
           <div class="form-group">
-            <label>URL do arquivo</label>
+            <label>Arquivo</label>
+            <div v-if="selectedNode.data.media_url" class="media-preview">
+              <img v-if="selectedNode.data.media_type === 'image'" :src="selectedNode.data.media_url" alt="preview" />
+              <span v-else class="media-preview-file">Arquivo enviado ✓</span>
+            </div>
+            <label class="btn-upload">
+              <UploadCloud class="icon-sm" />
+              {{ isUploadingMedia ? 'Enviando...' : (selectedNode.data.media_url ? 'Trocar arquivo' : 'Enviar do computador') }}
+              <input type="file" style="display: none" :disabled="isUploadingMedia" @change="uploadMedia" />
+            </label>
+            <p v-if="uploadMediaError" class="hint" style="color: #ef4444">{{ uploadMediaError }}</p>
+          </div>
+
+          <div class="form-group">
+            <label>ou URL do arquivo (alternativa, menos confiável)</label>
             <input class="form-input" :value="selectedNode.data.url" placeholder="https://..." @input="updateSelectedData({ url: $event.target.value })" />
           </div>
+
           <div class="form-group">
             <label>Legenda (opcional)</label>
             <input class="form-input" :value="selectedNode.data.caption" @input="updateSelectedData({ caption: $event.target.value })" />
@@ -815,6 +875,40 @@ const varHintLabels = computed(() => ['nome', 'telefone', 'email'].map(v => `{{$
   background: transparent;
   color: var(--text-muted);
   font-size: 0.8rem;
+  cursor: pointer;
+
+  &:hover { border-color: var(--primary, #d49ba7); color: var(--primary, #d49ba7); }
+}
+
+.media-preview {
+  margin-bottom: 0.5rem;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+
+  img { display: block; width: 100%; max-height: 160px; object-fit: cover; }
+
+  .media-preview-file {
+    display: block;
+    padding: 0.75rem;
+    font-size: 0.8rem;
+    color: #059669;
+    background: var(--bg-tertiary);
+  }
+}
+
+.btn-upload {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.55rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+  color: var(--text-main);
+  font-size: 0.8rem;
+  font-weight: 600;
   cursor: pointer;
 
   &:hover { border-color: var(--primary, #d49ba7); color: var(--primary, #d49ba7); }

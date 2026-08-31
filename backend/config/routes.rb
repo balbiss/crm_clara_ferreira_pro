@@ -109,6 +109,7 @@ Rails.application.routes.draw do
       post :duplicate
       put :graph
     end
+    post 'nodes/:key/media', to: 'flow_nodes#upload_media', as: :upload_flow_node_media
   end
 
   resources :sales_teams, only: [:index] do

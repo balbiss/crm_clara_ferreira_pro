@@ -19,7 +19,9 @@ const label = computed(() => LABELS[props.data.media_type] || 'Enviar mídia')
       <span>{{ label }}</span>
     </div>
     <div class="node-body">
-      <p v-if="data.url">{{ data.url }}</p>
+      <img v-if="data.media_type === 'image' && data.media_url" :src="data.media_url" class="node-thumb" alt="preview" />
+      <p v-else-if="data.media_url">Arquivo enviado ✓</p>
+      <p v-else-if="data.url">{{ data.url }}</p>
       <p v-else class="node-empty">Clique pra definir o arquivo...</p>
       <p v-if="data.caption" class="node-sub">"{{ data.caption }}"</p>
     </div>
@@ -75,5 +77,6 @@ const label = computed(() => LABELS[props.data.media_type] || 'Enviar mídia')
   p { margin: 0; }
   .node-empty { color: var(--text-muted); font-style: italic; }
   .node-sub { color: var(--text-muted); font-size: 0.75rem; margin-top: 0.35rem; }
+  .node-thumb { width: 100%; max-height: 100px; object-fit: cover; border-radius: 6px; }
 }
 </style>

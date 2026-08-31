@@ -120,10 +120,16 @@ class FlowsController < ApplicationController
     }
   end
 
+  def node_media_url(node)
+    return nil unless node.media.attached?
+
+    Rails.application.routes.url_helpers.rails_storage_proxy_url(node.media, host: ENV['API_HOST'] || 'http://localhost:3000')
+  end
+
   def serialize_full(flow)
     serialize_summary(flow).merge(
       flow_nodes_count: flow.flow_nodes.count,
-      nodes: flow.flow_nodes.map { |n| { key: n.key, node_type: n.node_type, position: n.position, data: n.data } },
+      nodes: flow.flow_nodes.map { |n| { key: n.key, node_type: n.node_type, position: n.position, data: n.data, media_url: node_media_url(n) } },
       edges: flow.flow_edges.map { |e| { source_key: e.source_key, target_key: e.target_key, source_handle: e.source_handle, target_handle: e.target_handle } }
     )
   end

@@ -10,6 +10,13 @@
 class FlowNode < ApplicationRecord
   belongs_to :flow
 
+  # Arquivo do nó "Enviar mídia" quando enviado por upload direto (em vez de
+  # colar uma URL externa) — mesmo padrão de Message#attachment. Achado num
+  # teste real: mandar por URL externa deu 500 na WAHA (não é confiável),
+  # upload direto reaproveita o caminho que já funciona de verdade
+  # (WhatsappWahaService#send_message com anexo, base64).
+  has_one_attached :media
+
   # Alguns tipos do prompt original viraram data.subtype dentro de um único
   # node_type (ex: 4 "enviar mídia" e "botões"/"lista" viram send_media/
   # options com um campo dentro; "verificar X" do prompt vira condition com
