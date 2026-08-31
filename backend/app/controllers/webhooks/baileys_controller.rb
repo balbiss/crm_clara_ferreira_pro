@@ -217,10 +217,17 @@ module Webhooks
         # adicional já vinculado (briefing seção 7: revendedora pode falar por vários
         # números, não pode virar lead duplicado).
         contact = Contact.find_by_any_phone(account.id, contact_phone_formatted)
-        contact ||= Contact.create!(account_id: account.id, phone: contact_phone_formatted) do |c|
-          c.name = msg[:pushName] || msg['pushName'] || contact_phone_formatted
-          c.jid = contact_jid
-          c.source = 'WhatsApp'
+        contact ||= begin
+          Contact.create!(account_id: account.id, phone: contact_phone_formatted) do |c|
+            c.name = msg[:pushName] || msg['pushName'] || contact_phone_formatted
+            c.jid = contact_jid
+            c.source = 'WhatsApp'
+          end
+        rescue ActiveRecord::RecordNotUnique
+          # 2+ webhooks pro mesmo chat processados em paralelo (mesma corrida
+          # já vista de verdade no controller da WAHA, ver
+          # idx_contacts_account_jid_unique) — quem perdeu busca de novo.
+          Contact.find_by_any_phone(account.id, contact_phone_formatted) || Contact.find_by(account_id: account.id, jid: contact_jid)
         end
 
         # Ignora contatos bloqueados

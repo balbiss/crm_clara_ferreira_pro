@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_31_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_31_020000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -148,6 +148,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_31_010000) do
     t.index ["account_id", "desconsiderado"], name: "index_contacts_on_account_id_and_desconsiderado"
     t.index ["account_id", "id_jueri"], name: "index_contacts_on_account_id_and_id_jueri", unique: true
     t.index ["account_id", "instagram_id"], name: "index_contacts_on_account_id_and_instagram_id"
+    t.index ["account_id", "jid"], name: "idx_contacts_account_jid_unique", unique: true, where: "(jid IS NOT NULL)"
     t.index ["account_id", "jid"], name: "index_contacts_on_account_id_and_jid"
     t.index ["account_id", "nivel"], name: "index_contacts_on_account_id_and_nivel"
     t.index ["account_id", "source"], name: "idx_contacts_account_source"

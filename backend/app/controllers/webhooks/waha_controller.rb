@@ -2,6 +2,21 @@ module Webhooks
   class WahaController < ApplicationController
     skip_before_action :verify_authenticity_token, raise: false
 
+    # _data.type de eventos de PROTOCOLO do WhatsApp Business (handshake de
+    # privacidade, placeholder de conteúdo, etc.) — nunca é mensagem de
+    # verdade. Lista curada a partir de eventos reais vistos em produção
+    # (2026-08-31); se aparecer um tipo novo desse tipo no futuro, some
+    # da lista de "Arquivo não suportado ou vazio" e precisa ser adicionado aqui.
+    TIPOS_SISTEMA_SEM_CONTEUDO = %w[
+      notification_template
+      biz_content_placeholder
+      e2e_notification
+      gp2
+      call_log
+      ciphertext
+      protocol
+    ].freeze
+
     def create
       inbox = Inbox.find_by(id: params[:inbox_id], provider: 'waha')
       return render json: { status: 'ignored' } unless inbox
@@ -102,6 +117,21 @@ module Webhooks
 
       return if Message.exists?(source_id: source_id)
 
+      # Notificações internas do protocolo do WhatsApp Business (negociação
+      # de privacidade, cartão de contato, placeholder de conteúdo biz) —
+      # não são mensagem nenhuma, mas a WAHA repassa pro webhook igual (visto
+      # ao vivo em 2026-08-31: 3-4 desses chegaram em menos de 1s pro mesmo
+      # chat, sem texto nem mídia real, e viravam "📎 Arquivo não suportado
+      # ou vazio" na tela — além de terem disparado uma corrida que criou
+      # Contact duplicado, ver migração idx_contacts_account_jid_unique).
+      # Só ignora quando não tem NENHUM conteúdo de verdade (texto/mídia) —
+      # uma mensagem real desses tipos nunca cairia aqui.
+      tipo_evento = payload[:_data].is_a?(Hash) ? payload[:_data][:type] : nil
+      if payload[:body].to_s.blank? && !payload[:hasMedia] && TIPOS_SISTEMA_SEM_CONTEUDO.include?(tipo_evento)
+        Rails.logger.info("[Webhooks::Waha] evento de sistema sem conteúdo ignorado (tipo=#{tipo_evento.inspect}) chat_id=#{chat_id}")
+        return
+      end
+
       # "@lid" é o identificador de privacidade novo do WhatsApp — substitui o
       # número de telefone real em algumas conversas (confirmado num teste
       # real: sem isso o contato nascia com nome/telefone "+49444250742890",
@@ -127,12 +157,19 @@ module Webhooks
       account = inbox.account
 
       contact = Contact.find_by_any_phone(account.id, contact_phone_formatted)
-      contact ||= Contact.create!(account_id: account.id, phone: contact_phone_formatted) do |c|
-        c.name = resolved_name.presence
-        c.name ||= payload[:_data].is_a?(Hash) ? payload[:_data][:notifyName].presence : nil
-        c.name ||= contact_phone_formatted
-        c.jid = chat_id
-        c.source = 'WhatsApp'
+      contact ||= begin
+        Contact.create!(account_id: account.id, phone: contact_phone_formatted) do |c|
+          c.name = resolved_name.presence
+          c.name ||= payload[:_data].is_a?(Hash) ? payload[:_data][:notifyName].presence : nil
+          c.name ||= contact_phone_formatted
+          c.jid = chat_id
+          c.source = 'WhatsApp'
+        end
+      rescue ActiveRecord::RecordNotUnique
+        # 2+ webhooks pro mesmo chat processados em paralelo (visto ao vivo,
+        # ver idx_contacts_account_jid_unique) — quem perdeu a corrida busca
+        # de novo em vez de duplicar.
+        Contact.find_by_any_phone(account.id, contact_phone_formatted) || Contact.find_by(account_id: account.id, jid: chat_id)
       end
 
       if contact.status == 'blocked'
