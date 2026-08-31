@@ -169,11 +169,22 @@ class FlowRunnerService
   def run_action(node)
     case node.data['action_type']
     when 'add_tag'
+      # Na CONVERSA, não na revendedora — é onde a tela de conversa mostra
+      # "Adicionar etiqueta" de verdade (achado num teste real: a pessoa
+      # não achava a etiqueta porque eu tava aplicando no lugar errado).
+      # Mesmo padrão que a tag "agente_off" já usa em Webhooks::WahaController,
+      # inclusive o broadcast pra atualizar a tela sem precisar recarregar.
       tag = @conversation.account.tags.find_by(name: node.data['tag_name'])
-      @contact.tags << tag if tag && !@contact.tags.include?(tag)
+      if tag && !@conversation.tags.include?(tag)
+        @conversation.tags << tag
+        broadcast_tags
+      end
     when 'remove_tag'
       tag = @conversation.account.tags.find_by(name: node.data['tag_name'])
-      @contact.tags.delete(tag) if tag
+      if tag && @conversation.tags.include?(tag)
+        @conversation.tags.delete(tag)
+        broadcast_tags
+      end
     when 'assign_agent'
       user = @conversation.account.users.find_by(id: node.data['agent_id'])
       @contact.update!(user_id: user.id) if user
@@ -187,6 +198,14 @@ class FlowRunnerService
     end
   rescue StandardError => e
     Rails.logger.error("FlowRunnerService ação '#{node.data['action_type']}' falhou: #{e.message}")
+  end
+
+  def broadcast_tags
+    ActionCable.server.broadcast("conversations_channel_#{@conversation.account_id}", {
+      event: 'conversation_tags_updated',
+      conversation_id: @conversation.id,
+      tags: @conversation.tags.map { |t| { id: t.id, name: t.name, color: t.color } }
+    })
   end
 
   # Mesmo padrão de PipelineTriggerRunnerService#send_webhook.
