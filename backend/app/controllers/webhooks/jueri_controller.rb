@@ -44,6 +44,8 @@ module Webhooks
         JueriWebhookPedidoJob.perform_later(account.id, payload, evento)
       elsif EVENTOS_PEDIDO.include?(evento) && payload['fk_revendedor_id'].present?
         JueriWebhookPedidoJob.perform_later(account.id, payload, evento)
+      elsif evento == 'revendedor.created'
+        notificar_novo_cadastro(account, payload)
       end
 
       debounce_key = "jueri_webhook_sync_#{account.id}"
@@ -53,6 +55,39 @@ module Webhooks
       end
 
       head :ok
+    end
+
+    private
+
+    # Avisa dono/gerente (pedido do cliente: só esses dois perfis, não
+    # consultor/financeiro) quando entra revendedora nova no Jueri. O nome do
+    # campo "quem cadastrou" no payload ainda não foi confirmado contra um
+    # evento real (não achamos nos logs — provavelmente rotacionados por
+    # deploy) — tenta as chaves mais prováveis (mesmo padrão do campo
+    # "vendedor" já visto no payload de pedido) com fallback silencioso.
+    # Payload completo já fica no log logo acima, então dá pra ajustar o
+    # nome certo da chave assim que um evento real passar por aqui.
+    def notificar_novo_cadastro(account, payload)
+      revendedor = payload['revendedor'].is_a?(Hash) ? payload['revendedor'] : payload
+      nome = revendedor['nome'].presence || 'Revendedora sem nome'
+      cadastrado_por = payload['usuario'].presence || payload['criado_por'].presence ||
+        payload.dig('revendedor', 'usuario').presence || 'não identificado'
+
+      mensagem = "#{nome} — cadastrado por #{cadastrado_por}"
+
+      Notification.create!(
+        account: account,
+        audience: 'owner_level',
+        title: 'Novo cadastro no Jueri',
+        message: mensagem,
+        link: '/carteira'
+      )
+
+      account.users.where(role: User::OWNER_LEVEL_ROLES).find_each do |user|
+        WebPushService.notify(user, title: 'Novo cadastro no Jueri', body: mensagem, url: '/carteira', tag: 'jueri-revendedor-created')
+      end
+    rescue StandardError => e
+      Rails.logger.error("[Webhooks::Jueri] falha ao notificar revendedor.created: #{e.message}")
     end
   end
 end

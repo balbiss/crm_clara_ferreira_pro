@@ -3,8 +3,9 @@ class NotificationsController < ApplicationController
 
   def index
     # Retorna notificações não lidas e as 5 últimas lidas
-    unread = current_user.account.notifications.where(read_at: nil).order(created_at: :desc)
-    read = current_user.account.notifications.where.not(read_at: nil).order(created_at: :desc).limit(5)
+    scope = current_user.account.notifications.visible_to(current_user)
+    unread = scope.where(read_at: nil).order(created_at: :desc)
+    read = scope.where.not(read_at: nil).order(created_at: :desc).limit(5)
     
     render json: {
       unread: unread,
@@ -14,12 +15,12 @@ class NotificationsController < ApplicationController
   end
 
   def mark_all_read
-    current_user.account.notifications.where(read_at: nil).update_all(read_at: Time.current)
+    current_user.account.notifications.visible_to(current_user).where(read_at: nil).update_all(read_at: Time.current)
     render json: { message: 'Todas marcadas como lidas' }
   end
 
   def mark_as_read
-    notification = current_user.account.notifications.find(params[:id])
+    notification = current_user.account.notifications.visible_to(current_user).find(params[:id])
     notification.update(read_at: Time.current)
     render json: { message: 'Marcada como lida' }
   end

@@ -52,6 +52,8 @@ Endpoint manual: `POST /jueri/sync-now` (só diretoria) força uma sync fora do 
 
 **Rate limit do Jueri**: ~300 chamadas em rajada antes de 429 — por isso o sync separa "busca em lote" (barato) de `find_revendedor` individual (caro, só pra quem está cruzando o limiar agora).
 
+**Aviso de cadastro novo (2026-08-31)**: evento `revendedor.created` do webhook dispara uma notificação (sino + push) só pra dono/gerente (`Notification.audience = 'owner_level'`, ver seção 10.2) com nome da revendedora e quem cadastrou no Jueri. **Atenção**: o nome do campo "quem cadastrou" no payload (`usuario`/`criado_por`) ainda não foi confirmado contra um evento real — foi um chute educado seguindo o padrão do campo `vendedor` já visto no payload de pedido. O payload completo continua logado inteiro (`Rails.logger.info` logo acima no controller) — na próxima vez que um `revendedor.created` real chegar, checar o log e corrigir o nome da chave se `cadastrado_por` sair "não identificado".
+
 **Bug encontrado e corrigido (2026-08-30): correntes duplicadas do `JueriSyncJob`.** `config/initializers/recurring_jobs.rb` agenda `JueriSyncJob.set(wait: 2.minutes).perform_later` a **cada boot** do backend/worker, sem checar se já existe uma corrente recorrente rodando — como o próprio job se reagenda pra sempre (`ensure ... perform_later`), cada deploy empilhava uma corrente nova e independente. Depois de vários deploys seguidos numa mesma sessão, isso fez o job rodar a cada 1-2min (em vez de a cada 30min) e disparar 429 em cascata na API do Jueri — mesma classe do incidente antigo do `JueriReconciliarPedidosAbertosJob`. Corrigido com um lock (`Rails.cache.write(..., unless_exist: true, expires_in: 30.minutes)`) que colapsa todas as correntes duplicadas pra só uma executar de verdade por ciclo.
 
 **`Pedido#data_acerto`** (2026-08-30) — a Jueri manda esse campo já no payload do pedido desde a criação (ex: pedido aberto em 29/08 já vem com `data_acerto` 28/09, o prazo padrão da maleta) — não é preenchido só depois do acerto acontecer de verdade. Persistido em `persistir_pedidos`, exposto em `GET /contacts` como `data_prevista_acerto` por revendedora (mínimo entre os pedidos abertos) e mostrado na coluna "Previsão de acerto" de `RevendedorasAtivas.vue`.
@@ -137,6 +139,10 @@ Toda mudança de `Contact#status` e `Contact#user_id` (responsável) fica regist
 **Gotcha**: `update_all`/`update_columns` NÃO disparam callback de model — `bulk_assign` (ContactsController) e `assign_unassigned` (SalesTeamsController) foram convertidos de `update_all` pra um loop com `#update` justamente por causa disso (senão essas duas telas de atribuição em massa ficariam sem registro no histórico). Qualquer código novo que mude `status`/`user_id` em lote precisa do mesmo cuidado.
 
 Exposto em `GET /contacts/:id` como `contact_audit_events` (com `changed_by` embutido), mostrado na aba "Histórico" de `ContactDetails.vue`.
+
+### 10.2 Notificações com público restrito (`Notification.audience`, 2026-08-31)
+
+`Notification` (sino do topo) era conta inteira (sem `user_id`) e **nunca tinha sido usada de verdade** (0 linhas em produção antes disso). Adicionado `audience`: nulo = todo mundo vê (comportamento antigo preservado), `'owner_level'` = só gerente/diretoria (`User::OWNER_LEVEL_ROLES`) — `Notification.visible_to(user)` faz o filtro, usado em `NotificationsController#index`/`#mark_all_read`/`#mark_as_read`. Primeiro uso real: aviso de `revendedor.created` (seção 5).
 
 ## 11. Pendências conhecidas
 
