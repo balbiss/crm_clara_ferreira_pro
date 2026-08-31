@@ -85,8 +85,15 @@ module Webhooks
         if Message.exists?(source_id: source_id)
           return # eco da própria IA/CRM já salvo antes
         end
-        if inbox.ai_enabled && Rails.cache.read("ai_is_replying_#{inbox.id}_#{chat_id}")
-          return # eco da IA ainda sem source_id local (corrida rara)
+        # Guarda contra a corrida entre "acabamos de mandar isso" (IA ou
+        # Fluxo, ver FlowRunnerService) e o eco (fromMe: true) chegando
+        # antes do Message local ser gravado com o source_id certo — sem
+        # isso o eco vira uma SEGUNDA mensagem, tratada como intervenção
+        # humana via celular (visto ao vivo num teste real de Fluxo em
+        # 2026-08-31). Não depende de inbox.ai_enabled: Fluxo manda mensagem
+        # mesmo com a IA desligada.
+        if Rails.cache.read("ai_is_replying_#{inbox.id}_#{chat_id}")
+          return
         end
 
         # Intervenção humana real, feita direto pelo celular — precisa ser

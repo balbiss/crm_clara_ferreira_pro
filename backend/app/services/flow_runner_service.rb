@@ -68,6 +68,16 @@ class FlowRunnerService
     return if text.blank?
 
     recipient = @contact.channel_identifier
+
+    # Corrida confirmada ao vivo em teste real: o eco da própria mensagem
+    # (fromMe: true) às vezes chega no webhook ANTES da gente terminar de
+    # gravar o Message com o source_id certo — o webhook então não acha
+    # nada com esse source_id e trata como intervenção humana, duplicando.
+    # Mesma guarda de cache que a IA já usa (ai_is_replying_#{inbox}_#{chat}),
+    # só que ela só era checada quando inbox.ai_enabled — Fluxo roda mesmo
+    # com IA desligada, então também precisa dessa guarda.
+    Rails.cache.write("ai_is_replying_#{@conversation.inbox_id}_#{recipient}", true, expires_in: 20.seconds)
+
     external_id = @conversation.inbox.messaging_service.send_message(recipient, text)
 
     msg = Message.create!(
