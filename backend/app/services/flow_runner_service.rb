@@ -228,9 +228,10 @@ class FlowRunnerService
         req = Net::HTTP::Post.new(uri)
         req['Content-Type'] = 'application/json'
         req.body = payload.to_json
-        Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == 'https', open_timeout: 5, read_timeout: 5) do |http|
+        res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == 'https', open_timeout: 5, read_timeout: 5) do |http|
           http.request(req)
         end
+        Rails.logger.info("Webhook de ação de Fluxo (flow=#{@flow.id}) respondeu #{res.code}")
       rescue StandardError => e
         Rails.logger.error("Webhook de ação de Fluxo falhou: #{e.message}")
       end
