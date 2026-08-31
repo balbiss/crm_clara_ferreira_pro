@@ -186,8 +186,17 @@ class FlowRunnerService
         broadcast_tags
       end
     when 'assign_agent'
+      # Na CONVERSA — mesmo caso da etiqueta (achado num teste real: o
+      # atendente não aparecia porque isso tava mudando o responsável da
+      # revendedora, um campo separado do atendente da conversa em si).
       user = @conversation.account.users.find_by(id: node.data['agent_id'])
-      @contact.update!(user_id: user.id) if user
+      if user
+        @conversation.update!(user_id: user.id)
+        ActionCable.server.broadcast("conversations_channel_#{@conversation.account_id}", {
+          event: 'conversation_updated',
+          conversation: { id: @conversation.id, assignee_id: user.id, assignee: user.first_name }
+        })
+      end
     when 'update_variable'
       var = node.data['variable'].to_s.strip
       return if var.blank?
