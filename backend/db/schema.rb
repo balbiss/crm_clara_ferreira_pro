@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_31_030000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_31_020000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -192,41 +192,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_31_030000) do
     t.index ["last_activity_at"], name: "index_conversations_on_last_activity_at"
     t.index ["status"], name: "index_conversations_on_status"
     t.index ["user_id"], name: "index_conversations_on_user_id"
-  end
-
-  create_table "flow_edges", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.bigint "flow_id", null: false
-    t.string "source_handle"
-    t.string "source_key", null: false
-    t.string "target_handle"
-    t.string "target_key", null: false
-    t.datetime "updated_at", null: false
-    t.index ["flow_id"], name: "index_flow_edges_on_flow_id"
-  end
-
-  create_table "flow_nodes", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.jsonb "data", default: {}, null: false
-    t.bigint "flow_id", null: false
-    t.string "key", null: false
-    t.string "node_type", null: false
-    t.jsonb "position", default: {}, null: false
-    t.datetime "updated_at", null: false
-    t.index ["flow_id", "key"], name: "index_flow_nodes_on_flow_id_and_key", unique: true
-    t.index ["flow_id"], name: "index_flow_nodes_on_flow_id"
-  end
-
-  create_table "flows", force: :cascade do |t|
-    t.bigint "account_id", null: false
-    t.boolean "active", default: true, null: false
-    t.string "channel"
-    t.datetime "created_at", null: false
-    t.text "description"
-    t.string "name", null: false
-    t.datetime "updated_at", null: false
-    t.index ["account_id", "active"], name: "index_flows_on_account_id_and_active"
-    t.index ["account_id"], name: "index_flows_on_account_id"
   end
 
   create_table "global_settings", force: :cascade do |t|
@@ -753,9 +718,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_31_030000) do
   add_foreign_key "conversations", "contacts"
   add_foreign_key "conversations", "inboxes"
   add_foreign_key "conversations", "users"
-  add_foreign_key "flow_edges", "flows"
-  add_foreign_key "flow_nodes", "flows"
-  add_foreign_key "flows", "accounts"
   add_foreign_key "inbox_members", "inboxes"
   add_foreign_key "inbox_members", "users"
   add_foreign_key "inboxes", "accounts"
