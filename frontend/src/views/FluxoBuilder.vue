@@ -5,12 +5,21 @@ import { VueFlow, useVueFlow, Position } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
-import { ArrowLeft, Undo2, Redo2, Save, ZoomIn, ZoomOut, Maximize, Zap, MessageCircle, GitFork, Clock, OctagonX, X } from '@lucide/vue'
+import {
+  ArrowLeft, Undo2, Redo2, Save, ZoomIn, ZoomOut, Maximize, X,
+  Zap, MessageCircle, HelpCircle, Image, Video, Mic, FileText,
+  MousePointerClick, LayoutList, GitFork, Clock, OctagonX,
+  Tag, TagIcon, UserCheck, Variable, Webhook, Plus, Trash2
+} from '@lucide/vue'
 import api from '../api'
 import TriggerNode from '../components/flow-nodes/TriggerNode.vue'
 import MessageNode from '../components/flow-nodes/MessageNode.vue'
+import QuestionNode from '../components/flow-nodes/QuestionNode.vue'
+import MediaNode from '../components/flow-nodes/MediaNode.vue'
+import OptionsNode from '../components/flow-nodes/OptionsNode.vue'
 import ConditionNode from '../components/flow-nodes/ConditionNode.vue'
 import WaitNode from '../components/flow-nodes/WaitNode.vue'
+import ActionNode from '../components/flow-nodes/ActionNode.vue'
 import EndNode from '../components/flow-nodes/EndNode.vue'
 
 // Flow Builder (MVP) — canvas via Vue Flow (@vue-flow/core, equivalente Vue
@@ -22,7 +31,17 @@ const flowId = route.params.id
 
 const { project, addEdges, findNode, fitView, zoomIn, zoomOut, onConnect, onNodeClick, onPaneReady, onNodesChange, onEdgesChange } = useVueFlow()
 
-const nodeTypes = { trigger: TriggerNode, send_message: MessageNode, condition: ConditionNode, wait: WaitNode, end: EndNode }
+const nodeTypes = {
+  trigger: TriggerNode,
+  send_message: MessageNode,
+  ask_question: QuestionNode,
+  send_media: MediaNode,
+  options: OptionsNode,
+  condition: ConditionNode,
+  wait: WaitNode,
+  action: ActionNode,
+  end: EndNode
+}
 
 const isLoading = ref(true)
 const flow = reactive({ id: null, name: '', description: '', channel: '', active: true })
@@ -31,12 +50,36 @@ const edges = ref([])
 const selectedNode = ref(null)
 const saveStatus = ref('') // '' | 'saving' | 'saved'
 const nameEditing = ref(false)
+const agents = ref([])
+const tags = ref([])
 
+// Alguns itens da paleta compartilham node_type e só mudam o "preset"
+// inicial (ex: os 4 tipos de mídia são todos `send_media` com media_type
+// diferente) — evita inflar node_type/componente por bullet do prompt
+// quando a diferença é só um campo de config.
 const PALETTE = [
-  { category: 'Gatilhos', items: [{ node_type: 'trigger', label: 'Gatilho', icon: Zap }] },
-  { category: 'Mensagens', items: [{ node_type: 'send_message', label: 'Enviar mensagem', icon: MessageCircle }] },
-  { category: 'Condições', items: [{ node_type: 'condition', label: 'Condição', icon: GitFork }] },
+  { category: 'Gatilhos', items: [
+    { node_type: 'trigger', label: 'Gatilho', icon: Zap }
+  ] },
+  { category: 'Mensagens', items: [
+    { node_type: 'send_message', label: 'Enviar mensagem', icon: MessageCircle },
+    { node_type: 'ask_question', label: 'Perguntar', icon: HelpCircle },
+    { node_type: 'send_media', label: 'Enviar imagem', icon: Image, preset: { media_type: 'image' } },
+    { node_type: 'send_media', label: 'Enviar vídeo', icon: Video, preset: { media_type: 'video' } },
+    { node_type: 'send_media', label: 'Enviar áudio', icon: Mic, preset: { media_type: 'audio' } },
+    { node_type: 'send_media', label: 'Enviar documento', icon: FileText, preset: { media_type: 'document' } },
+    { node_type: 'options', label: 'Botões', icon: MousePointerClick, preset: { mode: 'buttons' } },
+    { node_type: 'options', label: 'Lista de opções', icon: LayoutList, preset: { mode: 'list' } }
+  ] },
+  { category: 'Condições', items: [
+    { node_type: 'condition', label: 'Condição', icon: GitFork }
+  ] },
   { category: 'Ações', items: [
+    { node_type: 'action', label: 'Adicionar etiqueta', icon: Tag, preset: { action_type: 'add_tag' } },
+    { node_type: 'action', label: 'Remover etiqueta', icon: TagIcon, preset: { action_type: 'remove_tag' } },
+    { node_type: 'action', label: 'Atribuir atendente', icon: UserCheck, preset: { action_type: 'assign_agent' } },
+    { node_type: 'action', label: 'Atualizar variável', icon: Variable, preset: { action_type: 'update_variable' } },
+    { node_type: 'action', label: 'Enviar webhook', icon: Webhook, preset: { action_type: 'send_webhook' } },
     { node_type: 'wait', label: 'Aguardar', icon: Clock },
     { node_type: 'end', label: 'Encerrar fluxo', icon: OctagonX }
   ] }
@@ -45,8 +88,12 @@ const PALETTE = [
 const defaultDataFor = (type) => ({
   trigger: { trigger_type: 'manual', keyword: '' },
   send_message: { message: '' },
-  condition: { variable: '', operator: 'igual', value: '' },
+  ask_question: { question: '', variable: '' },
+  send_media: { media_type: 'image', url: '', caption: '' },
+  options: { mode: 'buttons', title: '', options: [] },
+  condition: { check_type: 'variavel', variable: '', operator: 'igual', value: '' },
   wait: { duration: 30, unit: 'minutos' },
+  action: { action_type: 'add_tag', tag_name: '', agent_id: null, variable: '', value: '', url: '' },
   end: {}
 }[type] || {})
 
@@ -91,6 +138,7 @@ const fetchFlow = async () => {
 // ---- Drag and drop da paleta pro canvas ----
 const onPaletteDragStart = (event, item) => {
   event.dataTransfer.setData('application/flow-node-type', item.node_type)
+  event.dataTransfer.setData('application/flow-node-preset', JSON.stringify(item.preset || {}))
   event.dataTransfer.effectAllowed = 'move'
 }
 
@@ -98,10 +146,12 @@ const canvasWrapper = ref(null)
 const onCanvasDrop = (event) => {
   const nodeType = event.dataTransfer.getData('application/flow-node-type')
   if (!nodeType) return
+  let preset = {}
+  try { preset = JSON.parse(event.dataTransfer.getData('application/flow-node-preset') || '{}') } catch (e) { preset = {} }
   const bounds = canvasWrapper.value.getBoundingClientRect()
   const position = project({ x: event.clientX - bounds.left, y: event.clientY - bounds.top })
   const key = crypto.randomUUID()
-  nodes.value = [...nodes.value, { id: key, type: nodeType, position, data: defaultDataFor(nodeType) }]
+  nodes.value = [...nodes.value, { id: key, type: nodeType, position, data: { ...defaultDataFor(nodeType), ...preset } }]
   pushHistory()
 }
 
@@ -120,6 +170,35 @@ const updateSelectedData = (patch) => {
   const node = findNode(selectedNode.value.id)
   if (!node) return
   node.data = { ...node.data, ...patch }
+}
+
+// ---- Opções do nó "Botões"/"Lista" — cada opção vira uma saída nomeada
+// (mesma ideia do Condição, só que em quantidade variável) ----
+const addOption = () => {
+  if (!selectedNode.value) return
+  const node = findNode(selectedNode.value.id)
+  if (!node) return
+  const options = [...(node.data.options || []), { id: crypto.randomUUID(), label: '' }]
+  node.data = { ...node.data, options }
+}
+
+const updateOptionLabel = (optionId, label) => {
+  if (!selectedNode.value) return
+  const node = findNode(selectedNode.value.id)
+  if (!node) return
+  const options = (node.data.options || []).map(o => o.id === optionId ? { ...o, label } : o)
+  node.data = { ...node.data, options }
+}
+
+const removeOption = (optionId) => {
+  if (!selectedNode.value) return
+  const node = findNode(selectedNode.value.id)
+  if (!node) return
+  node.data = { ...node.data, options: (node.data.options || []).filter(o => o.id !== optionId) }
+  // Sem isso a conexão que saía dessa opção fica órfã, apontando pra uma
+  // saída que não existe mais.
+  edges.value = edges.value.filter(e => !(e.source === selectedNode.value.id && e.sourceHandle === optionId))
+  pushHistory()
 }
 
 onNodesChange(() => { scheduleAutosave() })
@@ -210,8 +289,19 @@ const onKeydown = (e) => {
   else if (meta && e.key.toLowerCase() === 's') { e.preventDefault(); saveNow() }
 }
 
+const fetchAgentsAndTags = async () => {
+  try {
+    const [agentsRes, tagsRes] = await Promise.all([api.get('/agents'), api.get('/tags')])
+    agents.value = agentsRes.data
+    tags.value = tagsRes.data
+  } catch (e) {
+    console.error('Erro ao buscar agentes/etiquetas:', e)
+  }
+}
+
 onMounted(async () => {
   await fetchFlow()
+  fetchAgentsAndTags()
   history.value = [snapshot()]
   historyIndex.value = 0
   window.addEventListener('keydown', onKeydown)
@@ -266,7 +356,7 @@ const varHintLabels = computed(() => ['nome', 'telefone', 'email'].map(v => `{{$
           <h3>{{ group.category }}</h3>
           <div
             v-for="item in group.items"
-            :key="item.node_type"
+            :key="item.label"
             class="palette-item"
             draggable="true"
             @dragstart="onPaletteDragStart($event, item)"
@@ -297,6 +387,8 @@ const varHintLabels = computed(() => ['nome', 'telefone', 'email'].map(v => `{{$
               <option value="novo_contato">Novo contato</option>
               <option value="palavra_chave">Palavra-chave</option>
               <option value="mensagem_recebida">Mensagem recebida</option>
+              <option value="evento">Evento</option>
+              <option value="webhook">Webhook</option>
               <option value="manual">Manual</option>
             </select>
           </div>
@@ -304,6 +396,7 @@ const varHintLabels = computed(() => ['nome', 'telefone', 'email'].map(v => `{{$
             <label>Palavra-chave</label>
             <input class="form-input" :value="selectedNode.data.keyword" placeholder="ex: promoção" @input="updateSelectedData({ keyword: $event.target.value })" />
           </div>
+          <p v-if="['evento', 'webhook'].includes(selectedNode.data.trigger_type)" class="hint">Editor pronto pra esse gatilho — a execução ao vivo ainda só cobre Palavra-chave (ver FlowRunnerService).</p>
         </template>
 
         <template v-else-if="selectedNode.type === 'send_message'">
@@ -314,9 +407,66 @@ const varHintLabels = computed(() => ['nome', 'telefone', 'email'].map(v => `{{$
           </div>
         </template>
 
+        <template v-else-if="selectedNode.type === 'ask_question'">
+          <div class="form-group">
+            <label>Pergunta</label>
+            <textarea class="form-input" rows="3" :value="selectedNode.data.question" placeholder="Qual seu nome?" @input="updateSelectedData({ question: $event.target.value })"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Guardar resposta na variável</label>
+            <input class="form-input" :value="selectedNode.data.variable" placeholder="ex: nome_cliente" @input="updateSelectedData({ variable: $event.target.value })" />
+          </div>
+        </template>
+
+        <template v-else-if="selectedNode.type === 'send_media'">
+          <div class="form-group">
+            <label>Tipo</label>
+            <select :value="selectedNode.data.media_type" class="form-input" @change="updateSelectedData({ media_type: $event.target.value })">
+              <option value="image">Imagem</option>
+              <option value="video">Vídeo</option>
+              <option value="audio">Áudio</option>
+              <option value="document">Documento</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>URL do arquivo</label>
+            <input class="form-input" :value="selectedNode.data.url" placeholder="https://..." @input="updateSelectedData({ url: $event.target.value })" />
+          </div>
+          <div class="form-group">
+            <label>Legenda (opcional)</label>
+            <input class="form-input" :value="selectedNode.data.caption" @input="updateSelectedData({ caption: $event.target.value })" />
+          </div>
+        </template>
+
+        <template v-else-if="selectedNode.type === 'options'">
+          <div class="form-group">
+            <label>{{ selectedNode.data.mode === 'list' ? 'Título da lista' : 'Mensagem antes dos botões' }}</label>
+            <textarea class="form-input" rows="2" :value="selectedNode.data.title" @input="updateSelectedData({ title: $event.target.value })"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Opções</label>
+            <div v-for="opt in (selectedNode.data.options || [])" :key="opt.id" class="option-edit-row">
+              <input class="form-input" :value="opt.label" placeholder="Texto da opção" @input="updateOptionLabel(opt.id, $event.target.value)" />
+              <button class="icon-btn" title="Remover" @click="removeOption(opt.id)"><Trash2 class="icon-sm" /></button>
+            </div>
+            <button class="btn-add-option" @click="addOption"><Plus class="icon-xs" /> Adicionar opção</button>
+          </div>
+        </template>
+
         <template v-else-if="selectedNode.type === 'condition'">
           <div class="form-group">
-            <label>Variável</label>
+            <label>Verificar</label>
+            <select :value="selectedNode.data.check_type" class="form-input" @change="updateSelectedData({ check_type: $event.target.value })">
+              <option value="variavel">Variável</option>
+              <option value="resposta">Resposta</option>
+              <option value="horario">Horário</option>
+              <option value="dia">Dia</option>
+              <option value="etiqueta">Etiqueta</option>
+              <option value="status">Status</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Nome da variável</label>
             <input class="form-input" :value="selectedNode.data.variable" placeholder="ex: nome" @input="updateSelectedData({ variable: $event.target.value })" />
           </div>
           <div class="form-group">
@@ -330,6 +480,51 @@ const varHintLabels = computed(() => ['nome', 'telefone', 'email'].map(v => `{{$
           <div class="form-group">
             <label>Valor</label>
             <input class="form-input" :value="selectedNode.data.value" @input="updateSelectedData({ value: $event.target.value })" />
+          </div>
+        </template>
+
+        <template v-else-if="selectedNode.type === 'action'">
+          <div class="form-group">
+            <label>Ação</label>
+            <select :value="selectedNode.data.action_type" class="form-input" @change="updateSelectedData({ action_type: $event.target.value })">
+              <option value="add_tag">Adicionar etiqueta</option>
+              <option value="remove_tag">Remover etiqueta</option>
+              <option value="assign_agent">Atribuir atendente</option>
+              <option value="update_variable">Atualizar variável</option>
+              <option value="send_webhook">Enviar webhook</option>
+            </select>
+          </div>
+
+          <div v-if="['add_tag', 'remove_tag'].includes(selectedNode.data.action_type)" class="form-group">
+            <label>Etiqueta</label>
+            <select :value="selectedNode.data.tag_name" class="form-input" @change="updateSelectedData({ tag_name: $event.target.value })">
+              <option value="">Selecione...</option>
+              <option v-for="t in tags" :key="t.id" :value="t.name">{{ t.name }}</option>
+            </select>
+          </div>
+
+          <div v-else-if="selectedNode.data.action_type === 'assign_agent'" class="form-group">
+            <label>Atendente</label>
+            <select :value="selectedNode.data.agent_id" class="form-input" @change="updateSelectedData({ agent_id: $event.target.value })">
+              <option value="">Selecione...</option>
+              <option v-for="a in agents" :key="a.id" :value="a.id">{{ a.name }}</option>
+            </select>
+          </div>
+
+          <template v-else-if="selectedNode.data.action_type === 'update_variable'">
+            <div class="form-group">
+              <label>Variável</label>
+              <input class="form-input" :value="selectedNode.data.variable" placeholder="ex: interesse" @input="updateSelectedData({ variable: $event.target.value })" />
+            </div>
+            <div class="form-group">
+              <label>Novo valor</label>
+              <input class="form-input" :value="selectedNode.data.value" @input="updateSelectedData({ value: $event.target.value })" />
+            </div>
+          </template>
+
+          <div v-else-if="selectedNode.data.action_type === 'send_webhook'" class="form-group">
+            <label>URL</label>
+            <input class="form-input" :value="selectedNode.data.url" placeholder="https://..." @input="updateSelectedData({ url: $event.target.value })" />
           </div>
         </template>
 
@@ -366,6 +561,7 @@ const varHintLabels = computed(() => ['nome', 'telefone', 'email'].map(v => `{{$
 }
 
 .icon-sm { width: 16px; height: 16px; }
+.icon-xs { width: 13px; height: 13px; }
 
 .builder-topbar {
   display: flex;
@@ -567,5 +763,32 @@ const varHintLabels = computed(() => ['nome', 'telefone', 'email'].map(v => `{{$
   margin-top: 0.4rem;
 
   code { background: var(--bg-tertiary); padding: 0.1rem 0.3rem; border-radius: 4px; }
+}
+
+.option-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+
+  .form-input { flex: 1; }
+  .icon-btn { flex-shrink: 0; }
+}
+
+.btn-add-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px dashed var(--border-color);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+
+  &:hover { border-color: var(--primary, #d49ba7); color: var(--primary, #d49ba7); }
 }
 </style>

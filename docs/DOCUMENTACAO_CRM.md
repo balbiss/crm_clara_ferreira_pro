@@ -147,6 +147,18 @@ Exposto em `GET /contacts/:id` como `contact_audit_events` (com `changed_by` emb
 
 `Notification` (sino do topo) era conta inteira (sem `user_id`) e **nunca tinha sido usada de verdade** (0 linhas em produção antes disso). Adicionado `audience`: nulo = todo mundo vê (comportamento antigo preservado), `'owner_level'` = só gerente/diretoria (`User::OWNER_LEVEL_ROLES`) — `Notification.visible_to(user)` faz o filtro, usado em `NotificationsController#index`/`#mark_all_read`/`#mark_as_read`. Primeiro uso real: aviso de `revendedor.created` (seção 5).
 
+## 10.3 Fluxos — construtor visual de automação (2026-08-31)
+
+Menu "Fluxos" (só diretoria, `isCriticalConfig`), inspirado no builder do ManyChat. `Flow` → `FlowNode`/`FlowEdge` (grafo livre, não etapas lineares como `Pipeline`). `FlowNode#key` (UUID gerado no frontend) é o identificador estável que o Vue Flow usa e que `FlowEdge#source_key/target_key` referenciam — nunca é o `id` do Rails, evita remapear id no autosave.
+
+**Tipos de nó** (`FlowNode::NODE_TYPES`): `trigger` (Novo contato/Palavra-chave/Mensagem recebida/Evento/Webhook/Manual em `data.trigger_type`), `send_message`, `ask_question` (guarda resposta em `data.variable`), `send_media` (4 subtipos via `data.media_type`: image/video/audio/document), `options` (Botões e Lista de opções via `data.mode`, saídas dinâmicas nomeadas por opção — mesma ideia do `condition`), `condition` (`data.check_type`: variável/resposta/horário/dia/etiqueta/status — mas só variável é avaliado de verdade hoje), `wait`, `action` (add_tag/remove_tag/assign_agent/update_variable/send_webhook via `data.action_type` — mesmo vocabulário de `PipelineTrigger#action_type`, pensado pra um dia ser executado pelo mesmo tipo de runner), `end`.
+
+**Execução ao vivo (`FlowRunnerService`)**: cobertura deliberadamente mínima — só o gatilho de Palavra-chave dispara de verdade (hookado no webhook da WAHA, antes do bloco de IA), e só entende `send_message`/`wait` (passa direto, não segura)/`condition` (sempre segue "não")/`end`. Os outros gatilhos e `ask_question`/`send_media`/`options`/`action` são só editor por enquanto — o `case` do runner simplesmente para nesse nó sem erro. Testado ponta a ponta com WhatsApp real (WAHA) em 2026-08-31.
+
+**Bug de corrida corrigido**: o eco do WhatsApp (`fromMe: true`) pode chegar no webhook antes do `Message` local ser gravado com o `source_id` certo, duplicando a mensagem. Guarda: `FlowRunnerService` escreve `Rails.cache` na chave `ai_is_replying_#{inbox}_#{chat}` (mesma já usada pela IA) antes de mandar; o webhook passou a checar essa chave incondicionalmente (antes só quando `inbox.ai_enabled`).
+
+**Pendente do prompt original**: rascunho/publicado separado (só existe Ativo/Inativo), simulador "Testar fluxo", templates prontos, execução real dos gatilhos além de Palavra-chave e dos nós de Ação, canvas mobile.
+
 ## 11. Pendências conhecidas
 
 - Fase 1 do Agendamento (Acertos): faltam fórmulas de "Qtd. Peças → Nº de horários" e "Dias com Maleta → Data Acerto", só a Clara pode fornecer

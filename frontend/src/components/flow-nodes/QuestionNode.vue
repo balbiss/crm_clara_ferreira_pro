@@ -1,32 +1,21 @@
 <script setup>
-import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
-import { Zap } from '@lucide/vue'
+import { HelpCircle } from '@lucide/vue'
 
-const props = defineProps({ data: { type: Object, default: () => ({}) }, selected: { type: Boolean, default: false } })
-
-const TRIGGER_LABELS = {
-  novo_contato: 'Novo contato',
-  palavra_chave: 'Palavra-chave',
-  mensagem_recebida: 'Mensagem recebida',
-  evento: 'Evento',
-  webhook: 'Webhook',
-  manual: 'Manual'
-}
-
-const label = computed(() => TRIGGER_LABELS[props.data.trigger_type] || 'Selecione o gatilho')
-const preview = computed(() => props.data.trigger_type === 'palavra_chave' && props.data.keyword ? `"${props.data.keyword}"` : null)
+defineProps({ data: { type: Object, default: () => ({}) }, selected: { type: Boolean, default: false } })
 </script>
 
 <template>
-  <div class="flow-node trigger-node" :class="{ selected }">
+  <div class="flow-node question-node" :class="{ selected }">
+    <Handle type="target" :position="Position.Top" />
     <div class="node-header">
-      <div class="node-icon"><Zap class="icon-xs" /></div>
-      <span>Gatilho</span>
+      <div class="node-icon"><HelpCircle class="icon-xs" /></div>
+      <span>Perguntar</span>
     </div>
     <div class="node-body">
-      <p>{{ label }}</p>
-      <p v-if="preview" class="node-sub">{{ preview }}</p>
+      <p v-if="data.question">{{ data.question }}</p>
+      <p v-else class="node-empty">Clique pra escrever a pergunta...</p>
+      <p v-if="data.variable" class="node-sub">Resposta: {{ data.variable }}</p>
     </div>
     <Handle type="source" :position="Position.Bottom" />
   </div>
@@ -34,7 +23,8 @@ const preview = computed(() => props.data.trigger_type === 'palavra_chave' && pr
 
 <style lang="scss" scoped>
 .flow-node {
-  min-width: 200px;
+  min-width: 220px;
+  max-width: 260px;
   background: var(--bg-secondary);
   border: 2px solid var(--border-color);
   border-radius: 10px;
@@ -64,9 +54,9 @@ const preview = computed(() => props.data.trigger_type === 'palavra_chave' && pr
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  background: #cffafe;
+  color: #0e7490;
 }
-
-.trigger-node .node-icon { background: #fef3c7; color: #92400e; }
 
 .icon-xs { width: 13px; height: 13px; }
 
@@ -74,8 +64,10 @@ const preview = computed(() => props.data.trigger_type === 'palavra_chave' && pr
   padding: 0.65rem 0.75rem;
   font-size: 0.8rem;
   color: var(--text-main);
+  word-break: break-word;
 
   p { margin: 0; }
-  .node-sub { color: var(--text-muted); font-size: 0.75rem; margin-top: 0.2rem; }
+  .node-empty { color: var(--text-muted); font-style: italic; }
+  .node-sub { color: var(--text-muted); font-size: 0.72rem; margin-top: 0.35rem; font-family: monospace; }
 }
 </style>

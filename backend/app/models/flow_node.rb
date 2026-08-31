@@ -10,7 +10,12 @@
 class FlowNode < ApplicationRecord
   belongs_to :flow
 
-  NODE_TYPES = %w[trigger send_message condition wait end].freeze
+  # Alguns tipos do prompt original viraram data.subtype dentro de um único
+  # node_type (ex: 4 "enviar mídia" e "botões"/"lista" viram send_media/
+  # options com um campo dentro; "verificar X" do prompt vira condition com
+  # data.check_type) em vez de 1 node_type por bullet — evita inflar o
+  # schema e a paleta com N variações quase idênticas.
+  NODE_TYPES = %w[trigger send_message ask_question send_media options condition wait action end].freeze
 
   validates :key, presence: true, uniqueness: { scope: :flow_id }
   validates :node_type, presence: true, inclusion: { in: NODE_TYPES }

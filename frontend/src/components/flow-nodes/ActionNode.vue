@@ -1,49 +1,58 @@
 <script setup>
 import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
-import { GitFork } from '@lucide/vue'
+import { Tag, TagIcon, UserCheck, Webhook, Variable } from '@lucide/vue'
 
 const props = defineProps({ data: { type: Object, default: () => ({}) }, selected: { type: Boolean, default: false } })
 
-const OPERATOR_LABELS = { igual: 'é igual a', diferente: 'é diferente de', contem: 'contém' }
-const CHECK_TYPE_LABELS = {
-  variavel: 'Variável',
-  resposta: 'Resposta',
-  horario: 'Horário',
-  dia: 'Dia',
-  etiqueta: 'Etiqueta',
-  status: 'Status'
+const ICONS = { add_tag: Tag, remove_tag: TagIcon, assign_agent: UserCheck, update_variable: Variable, send_webhook: Webhook }
+const LABELS = {
+  add_tag: 'Adicionar etiqueta',
+  remove_tag: 'Remover etiqueta',
+  assign_agent: 'Atribuir atendente',
+  update_variable: 'Atualizar variável',
+  send_webhook: 'Enviar webhook'
 }
-const checkLabel = computed(() => CHECK_TYPE_LABELS[props.data.check_type] || CHECK_TYPE_LABELS.variavel)
+const icon = computed(() => ICONS[props.data.action_type] || Tag)
+const label = computed(() => LABELS[props.data.action_type] || 'Ação')
+
 const preview = computed(() => {
-  if (!props.data.variable) return null
-  return `${checkLabel.value} {{${props.data.variable}}} ${OPERATOR_LABELS[props.data.operator] || ''} "${props.data.value || ''}"`
+  const d = props.data
+  switch (d.action_type) {
+    case 'add_tag':
+    case 'remove_tag':
+      return d.tag_name || null
+    case 'assign_agent':
+      return d.agent_name || null
+    case 'update_variable':
+      return d.variable ? `${d.variable} = ${d.value || ''}` : null
+    case 'send_webhook':
+      return d.url || null
+    default:
+      return null
+  }
 })
 </script>
 
 <template>
-  <div class="flow-node condition-node" :class="{ selected }">
+  <div class="flow-node action-node" :class="{ selected }">
     <Handle type="target" :position="Position.Top" />
     <div class="node-header">
-      <div class="node-icon"><GitFork class="icon-xs" /></div>
-      <span>Condição</span>
+      <div class="node-icon"><component :is="icon" class="icon-xs" /></div>
+      <span>{{ label }}</span>
     </div>
     <div class="node-body">
       <p v-if="preview">{{ preview }}</p>
-      <p v-else class="node-empty">Clique pra configurar a condição...</p>
+      <p v-else class="node-empty">Clique pra configurar...</p>
     </div>
-    <div class="node-outputs">
-      <span class="output-label yes">Sim</span>
-      <span class="output-label no">Não</span>
-    </div>
-    <Handle id="sim" type="source" :position="Position.Bottom" style="left: 30%" />
-    <Handle id="nao" type="source" :position="Position.Bottom" style="left: 70%" />
+    <Handle type="source" :position="Position.Bottom" />
   </div>
 </template>
 
 <style lang="scss" scoped>
 .flow-node {
-  min-width: 220px;
+  min-width: 210px;
+  max-width: 260px;
   background: var(--bg-secondary);
   border: 2px solid var(--border-color);
   border-radius: 10px;
@@ -73,9 +82,9 @@ const preview = computed(() => {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  background: #dcfce7;
+  color: #166534;
 }
-
-.condition-node .node-icon { background: #ede9fe; color: #5b21b6; }
 
 .icon-xs { width: 13px; height: 13px; }
 
@@ -87,16 +96,5 @@ const preview = computed(() => {
 
   p { margin: 0; }
   .node-empty { color: var(--text-muted); font-style: italic; }
-}
-
-.node-outputs {
-  display: flex;
-  justify-content: space-between;
-  padding: 0 0.75rem 0.5rem;
-  font-size: 0.68rem;
-  font-weight: 700;
-
-  .yes { color: #059669; }
-  .no { color: #dc2626; }
 }
 </style>
