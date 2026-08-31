@@ -3,8 +3,11 @@
 :root {
   color-scheme: light;
 
-  --primary: #d49ba7;
-  --primary-hover: #ba5e72;
+  // Antes #d49ba7 (rosa apagado, lia como "botão desativado" — reclamação
+  // real do usuário). #FF007F já era a cor "oficial" documentada da marca
+  // Clara Ferreira (config/brand.js) mas nunca tinha sido conectada aqui.
+  --primary: #ff007f;
+  --primary-hover: #cc0066;
   
   /* Light Theme Variables */
   --bg-primary: #f5f0f2;
@@ -17,7 +20,7 @@
   --text-inverse: #ffffff;
   
   --border-color: #e2dde0;
-  --input-focus: rgba(212, 155, 167, 0.2);
+  --input-focus: rgba(255, 0, 127, 0.2);
   --shadow-color: rgba(43, 0, 22, 0.14);
   --shadow-sm: rgba(43, 0, 22, 0.07);
 

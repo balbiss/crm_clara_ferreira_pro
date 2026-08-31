@@ -154,7 +154,7 @@ const merge = async () => {
 }
 .contact-select:focus {
   outline: none;
-  border-color: #ba5e72;
+  border-color: #cc0066;
 }
 .modal-actions {
   display: flex;
@@ -171,7 +171,7 @@ const merge = async () => {
   color: #4a5568;
 }
 .btn-primary {
-  background: #d49ba7;
+  background: #ff007f;
   color: white;
   border: none;
   padding: 8px 16px;

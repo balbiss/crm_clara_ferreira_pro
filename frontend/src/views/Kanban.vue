@@ -150,7 +150,7 @@ const moveCardToStage = async (card, columnId) => {
     await api.put(`/contacts/${card.id}`, { contact: { status: columnId } })
   } catch (error) {
     console.error('Error updating contact status:', error)
-    Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível salvar o novo status no servidor.', confirmButtonColor: '#d49ba7' })
+    Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível salvar o novo status no servidor.', confirmButtonColor: '#ff007f' })
     fetchContacts()
   }
 }
@@ -170,7 +170,7 @@ const openCreateModal = (columnId) => { targetColumnId.value = columnId; showMod
 
 const handleCreateContact = async () => {
   if (!newContact.value.first_name) {
-    Swal.fire({ icon: 'warning', title: 'Atenção', text: 'O nome é obrigatório!', confirmButtonColor: '#d49ba7' })
+    Swal.fire({ icon: 'warning', title: 'Atenção', text: 'O nome é obrigatório!', confirmButtonColor: '#ff007f' })
     return
   }
   try {

@@ -42,7 +42,7 @@ const roleLabels = { consultor: 'Consultor', gerente: 'Gerente', diretoria: 'Dir
 // Letícia etc) ganham um avatar de iniciais, pra diferenciar visualmente.
 const isNamedTeam = (nome) => /^(vendas\s*\d*|g[eê]r[eê]nci?a?\s*comercial|gerente\s*de\s*opera[çc][õo]es)$/i.test(nome.trim())
 
-const AVATAR_COLORS = ['#ba5e72', '#6366f1', '#10b981', '#f59e0b', '#ec4899', '#3b82f6', '#8b5cf6', '#14b8a6']
+const AVATAR_COLORS = ['#cc0066', '#6366f1', '#10b981', '#f59e0b', '#ec4899', '#3b82f6', '#8b5cf6', '#14b8a6']
 const colorFor = (str) => {
   let hash = 0
   for (let i = 0; i < (str || '?').length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash)
@@ -446,7 +446,7 @@ const confirmAssign = async () => {
   border: 1px solid transparent;
   transition: background 0.15s, border-color 0.15s;
   &:hover { background: var(--bg-hover); }
-  &.selected { background: var(--input-focus); border-color: rgba(212, 155, 167, 0.35); }
+  &.selected { background: var(--input-focus); border-color: rgba(255, 0, 127, 0.35); }
 
   input[type="checkbox"], input[type="radio"] { display: none; }
 

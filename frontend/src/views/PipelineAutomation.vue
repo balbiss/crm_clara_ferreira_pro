@@ -284,8 +284,8 @@ const removeTrigger = async (stageId, triggerId) => {
 .trigger-list { display: flex; flex-direction: column; gap: 0.4rem; min-height: 40px; }
 
 .trigger-chip {
-  display: flex; align-items: center; gap: 0.35rem; background: rgba(212, 155, 167, 0.08);
-  border: 1px solid rgba(212, 155, 167, 0.25); border-radius: 6px; padding: 0.4rem 0.5rem;
+  display: flex; align-items: center; gap: 0.35rem; background: rgba(255, 0, 127, 0.08);
+  border: 1px solid rgba(255, 0, 127, 0.25); border-radius: 6px; padding: 0.4rem 0.5rem;
   color: var(--primary); font-size: 0.72rem; font-weight: 600;
   span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }

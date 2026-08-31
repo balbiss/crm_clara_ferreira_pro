@@ -21,7 +21,7 @@ const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
 // Cor do avatar varia por pessoa (hash simples do nome) — antes era um rosa
 // só, ficava tudo igual e monótono na lista.
 const AVATAR_COLORS = [
-  '#ba5e72', '#6366f1', '#10b981', '#f59e0b', '#ec4899', '#3b82f6', '#8b5cf6', '#14b8a6'
+  '#cc0066', '#6366f1', '#10b981', '#f59e0b', '#ec4899', '#3b82f6', '#8b5cf6', '#14b8a6'
 ]
 const avatarColor = (name) => {
   const str = name || '?'
@@ -612,7 +612,7 @@ onUnmounted(() => {
   color: white;
   cursor: pointer;
   flex-shrink: 0;
-  box-shadow: 0 2px 6px rgba(186, 94, 114, 0.4);
+  box-shadow: 0 2px 6px rgba(204, 0, 102, 0.4);
 
   &:hover:not(:disabled) { opacity: 0.9; }
   &:disabled { opacity: 0.5; cursor: not-allowed; }

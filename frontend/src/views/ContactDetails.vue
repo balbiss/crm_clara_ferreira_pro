@@ -529,7 +529,7 @@ const removeTag = async (tagId) => {
 }
 
 .btn-primary {
-  background: #ba5e72;
+  background: #cc0066;
   color: white;
   padding: 0.5rem 1rem;
   border-radius: 6px;
@@ -538,7 +538,7 @@ const removeTag = async (tagId) => {
   font-size: 0.85rem;
   cursor: pointer;
   
-  &:hover { background: #ba5e72; }
+  &:hover { background: #cc0066; }
 }
 
 .content-grid {
@@ -680,11 +680,11 @@ const removeTag = async (tagId) => {
     outline: none;
     width: 140px;
 
-    &:focus { border-color: #ba5e72; }
+    &:focus { border-color: #cc0066; }
   }
 
   .btn-add-tag {
-    background: #ba5e72;
+    background: #cc0066;
     color: white;
     border: none;
     padding: 0.3rem 0.65rem;
@@ -706,14 +706,14 @@ const removeTag = async (tagId) => {
   padding: 0.5rem 0.9rem;
   font-size: 0.82rem;
   font-weight: 600;
-  color: #ba5e72;
-  background: rgba(186, 94, 114, 0.07);
-  border: 1px solid rgba(186, 94, 114, 0.25);
+  color: #cc0066;
+  background: rgba(204, 0, 102, 0.07);
+  border: 1px solid rgba(204, 0, 102, 0.25);
   border-radius: 6px;
   text-decoration: none;
   width: fit-content;
 
-  &:hover { background: rgba(186, 94, 114, 0.14); }
+  &:hover { background: rgba(204, 0, 102, 0.14); }
 }
 
 .bio-section {
@@ -736,8 +736,8 @@ const removeTag = async (tagId) => {
     background: #f9fafb;
 
     &:focus {
-      border-color: #d49ba7;
-      box-shadow: 0 0 0 2px rgba(212, 155, 167, 0.2);
+      border-color: #ff007f;
+      box-shadow: 0 0 0 2px rgba(255, 0, 127, 0.2);
       background: white;
     }
   }
@@ -788,8 +788,8 @@ const removeTag = async (tagId) => {
   margin-bottom: -1px;
   
   &.active {
-    color: #ba5e72;
-    border-bottom-color: #ba5e72;
+    color: #cc0066;
+    border-bottom-color: #cc0066;
   }
   
   &:hover:not(.active) {
@@ -841,13 +841,13 @@ const removeTag = async (tagId) => {
     padding: 0.5rem 0.75rem;
     font-size: 0.8rem;
     font-weight: 600;
-    color: #ba5e72;
-    background: rgba(186, 94, 114, 0.07);
+    color: #cc0066;
+    background: rgba(204, 0, 102, 0.07);
     border: none;
     border-radius: 6px;
     cursor: pointer;
 
-    &:hover { background: rgba(186, 94, 114, 0.14); }
+    &:hover { background: rgba(204, 0, 102, 0.14); }
   }
 
   .history-item {
@@ -858,7 +858,7 @@ const removeTag = async (tagId) => {
     background: #ffffff;
     margin-bottom: 1rem;
     box-shadow: 0 1px 2px rgba(43,0,22,0.06), 0 6px 16px rgba(43,0,22,0.09);
-    border-left: 4px solid #d49ba7;
+    border-left: 4px solid #ff007f;
     
     .history-date {
       font-size: 0.8rem;
@@ -897,8 +897,8 @@ const removeTag = async (tagId) => {
       font-size: 0.95rem;
       
       &:focus {
-        border-color: #d49ba7;
-        box-shadow: 0 0 0 2px rgba(212, 155, 167, 0.2);
+        border-color: #ff007f;
+        box-shadow: 0 0 0 2px rgba(255, 0, 127, 0.2);
       }
     }
     
@@ -930,8 +930,8 @@ const removeTag = async (tagId) => {
     transition: all 0.2s;
     
     &:hover {
-      border-color: #d49ba7;
-      box-shadow: 0 2px 4px rgba(212, 155, 167, 0.1);
+      border-color: #ff007f;
+      box-shadow: 0 2px 4px rgba(255, 0, 127, 0.1);
       background: #f8fafc;
     }
 

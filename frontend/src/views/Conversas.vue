@@ -1658,12 +1658,12 @@ onUnmounted(() => {
   }
 
   .conv-tag-agent {
-    background: linear-gradient(135deg, #d49ba7, #a80050) !important;
+    background: linear-gradient(135deg, #ff007f, #a80050) !important;
     color: #fff !important;
     text-shadow: 0 1px 3px rgba(0,0,0,0.3) !important;
     font-weight: 700;
     letter-spacing: 0.01em;
-    box-shadow: 0 2px 6px rgba(212, 155, 167,0.4);
+    box-shadow: 0 2px 6px rgba(255, 0, 127,0.4);
   }
 
   .tag-chips {
@@ -1749,7 +1749,7 @@ onUnmounted(() => {
     &:focus {
       outline: none;
       border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(212, 155, 167,0.12);
+      box-shadow: 0 0 0 3px rgba(255, 0, 127,0.12);
     }
   }
 
@@ -2185,7 +2185,7 @@ onUnmounted(() => {
   gap: 0.6rem;
   padding: 0.6rem 1.5rem;
   background: #4d0026;
-  border-top: 1px solid #ba5e72;
+  border-top: 1px solid #cc0066;
   color: #ffd9ec;
   font-size: 0.82rem;
 
@@ -2206,7 +2206,7 @@ onUnmounted(() => {
     align-items: center;
     gap: 0.3rem;
     padding: 0.3rem 0.75rem;
-    background: #ba5e72;
+    background: #cc0066;
     color: white;
     border: none;
     border-radius: 6px;
@@ -2231,7 +2231,7 @@ onUnmounted(() => {
   gap: 0.3rem;
   padding: 0.2rem 0.5rem 0.2rem 0.4rem;
   background: #4d0026;
-  border: 1px solid #ba5e72;
+  border: 1px solid #cc0066;
   border-radius: 20px;
   color: #ffd9ec;
   font-size: 0.72rem;
@@ -2251,7 +2251,7 @@ onUnmounted(() => {
     justify-content: center;
     width: 18px;
     height: 18px;
-    background: #ba5e72;
+    background: #cc0066;
     border: none;
     border-radius: 50%;
     color: white;
@@ -2751,14 +2751,14 @@ onUnmounted(() => {
   padding: 0.5rem 0.75rem;
   font-size: 0.8rem;
   font-weight: 600;
-  color: #d49ba7;
-  background: rgba(212, 155, 167,0.07);
-  border: 1px solid rgba(212, 155, 167,0.2);
+  color: #ff007f;
+  background: rgba(255, 0, 127,0.07);
+  border: 1px solid rgba(255, 0, 127,0.2);
   border-radius: 6px;
   cursor: pointer;
   transition: background 0.15s;
 
-  &:hover { background: rgba(212, 155, 167,0.14); }
+  &:hover { background: rgba(255, 0, 127,0.14); }
 }
 
 .fin-summary {
@@ -3164,7 +3164,7 @@ onUnmounted(() => {
 }
 .assign-select:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(212, 155, 167, 0.12);
+  box-shadow: 0 0 0 3px rgba(255, 0, 127, 0.12);
 }
 .assign-select:disabled {
   opacity: 0.6;
@@ -3193,13 +3193,13 @@ onUnmounted(() => {
   padding: 0.45rem 0;
   font-size: 0.8rem;
   font-weight: 600;
-  color: #d49ba7;
-  background: rgba(212, 155, 167,0.07);
-  border: 1px solid rgba(212, 155, 167,0.2);
+  color: #ff007f;
+  background: rgba(255, 0, 127,0.07);
+  border: 1px solid rgba(255, 0, 127,0.2);
   border-radius: 6px;
   cursor: pointer;
   transition: background 0.15s;
-  &:hover:not(:disabled) { background: rgba(212, 155, 167,0.14); }
+  &:hover:not(:disabled) { background: rgba(255, 0, 127,0.14); }
   &:disabled { opacity: 0.4; cursor: not-allowed; }
 }
 

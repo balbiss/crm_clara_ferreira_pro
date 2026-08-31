@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { Plus, Edit2, Trash2, Lock, Unlock, ShieldAlert, RefreshCw, X, Check } from 'lucide-vue-next'
 
 const DEPT_CONFIG = {
-  corretor:    { label: 'Consultora',  color: '#d49ba7', bg: 'rgba(212, 155, 167,0.1)' },
+  corretor:    { label: 'Consultora',  color: '#ff007f', bg: 'rgba(255, 0, 127,0.1)' },
   suporte:     { label: 'Suporte',     color: '#059669', bg: 'rgba(5,150,105,0.1)' },
   financeiro:  { label: 'Financeiro',  color: '#d97706', bg: 'rgba(217,119,6,0.1)' },
   manutencao:  { label: 'Manutenção',  color: '#ea580c', bg: 'rgba(234,88,12,0.1)' },
@@ -420,7 +420,7 @@ const toggleRoundRobin = async (agent) => {
 .queue-card {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
-  border-left: 4px solid #d49ba7;
+  border-left: 4px solid #ff007f;
   border-radius: 8px;
   padding: 1rem 1.25rem;
   margin-bottom: 1.25rem;
@@ -452,20 +452,20 @@ const toggleRoundRobin = async (agent) => {
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    background: rgba(212, 155, 167,0.06);
-    border: 1px solid rgba(212, 155, 167,0.15);
+    background: rgba(255, 0, 127,0.06);
+    border: 1px solid rgba(255, 0, 127,0.15);
     border-radius: 20px;
     padding: 0.3rem 0.75rem;
     font-size: 0.82rem;
 
     .queue-pos {
       font-weight: 700;
-      color: #d49ba7;
+      color: #ff007f;
       min-width: 1.5rem;
     }
     .queue-name { color: var(--text-main); font-weight: 500; }
     .queue-next-badge {
-      background: #d49ba7;
+      background: #ff007f;
       color: white;
       font-size: 0.65rem;
       font-weight: 700;
@@ -524,7 +524,7 @@ const toggleRoundRobin = async (agent) => {
 
   tr {
     transition: background-color 0.2s;
-    &:hover { background: rgba(212, 155, 167,0.02); }
+    &:hover { background: rgba(255, 0, 127,0.02); }
     &.row-blocked { background: rgba(239,68,68,0.05); td { opacity: 0.7; } }
   }
 }
@@ -570,10 +570,10 @@ const toggleRoundRobin = async (agent) => {
   }
 
   &.toggle-on .toggle-track {
-    background: #d49ba7;
+    background: #ff007f;
     .toggle-thumb { transform: translateX(16px); }
   }
-  &.toggle-on .toggle-label { color: #d49ba7; font-weight: 600; }
+  &.toggle-on .toggle-label { color: #ff007f; font-weight: 600; }
 
   &.toggle-loading .toggle-track { opacity: 0.6; }
 }
@@ -593,7 +593,7 @@ const toggleRoundRobin = async (agent) => {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  background: #d49ba7;
+  background: #ff007f;
   color: white;
   padding: 0.2rem 0.6rem;
   border-radius: 4px;

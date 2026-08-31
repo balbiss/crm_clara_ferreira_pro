@@ -673,10 +673,10 @@ nav {
   }
 
   &.active {
-    background: rgba(212, 155, 167,0.08);
-    color: #d49ba7;
+    background: rgba(255, 0, 127,0.08);
+    color: #ff007f;
     font-weight: 600;
-    .arrow { opacity: 1; color: #d49ba7; }
+    .arrow { opacity: 1; color: #ff007f; }
   }
 }
 
@@ -705,7 +705,7 @@ h1 {
   color: var(--text-main);
   margin: 0 0 0.4rem;
   padding-bottom: 0.5rem;
-  border-bottom: 2px solid #d49ba7;
+  border-bottom: 2px solid #ff007f;
   display: inline-block;
 }
 
@@ -737,7 +737,7 @@ ul, ol {
   strong { color: var(--text-main); }
 }
 
-a { color: #d49ba7; }
+a { color: #ff007f; }
 
 // Cards row
 .cards-row {
@@ -755,7 +755,7 @@ a { color: #d49ba7; }
   border-radius: 8px;
   padding: 0.9rem 1rem;
 
-  svg { color: #d49ba7; flex-shrink: 0; margin-top: 2px; }
+  svg { color: #ff007f; flex-shrink: 0; margin-top: 2px; }
 
   strong { display: block; font-size: 0.83rem; color: var(--text-main); margin-bottom: 0.2rem; }
   p { font-size: 0.78rem; color: var(--text-muted); margin: 0; line-height: 1.5; }
@@ -809,14 +809,14 @@ table {
   &.green  { background: rgba(16,185,129,0.1);   color: #059669; }
   &.yellow { background: rgba(245,158,11,0.1);   color: #d97706; }
   &.gray   { background: rgba(107,114,128,0.1);  color: #6b7280; }
-  &.blue   { background: rgba(212, 155, 167,0.1);   color: #ba5e72; }
+  &.blue   { background: rgba(255, 0, 127,0.1);   color: #cc0066; }
   &.red    { background: rgba(239,68,68,0.1);    color: #dc2626; }
 }
 
 .code-block {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
-  border-left: 3px solid #d49ba7;
+  border-left: 3px solid #ff007f;
   border-radius: 6px;
   padding: 0.8rem 1rem;
   font-size: 0.83rem;
@@ -841,8 +841,8 @@ table {
 }
 
 .footer-note {
-  background: rgba(212, 155, 167,0.05);
-  border: 1px solid rgba(212, 155, 167,0.15);
+  background: rgba(255, 0, 127,0.05);
+  border: 1px solid rgba(255, 0, 127,0.15);
   border-radius: 8px;
   padding: 1rem 1.25rem;
   font-size: 0.85rem;

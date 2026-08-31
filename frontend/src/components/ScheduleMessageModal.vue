@@ -239,7 +239,7 @@ textarea {
   font-size: 0.9rem;
 }
 .btn-primary {
-  background: var(--primary, #d49ba7);
+  background: var(--primary, #ff007f);
   color: white;
 }
 .btn-primary:disabled {

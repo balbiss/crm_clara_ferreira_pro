@@ -55,7 +55,7 @@ const handleLogin = async () => {
       icon: 'success',
       title: 'Login realizado!',
       text: `Bem-vindo de volta ao ${brand.name}.`,
-      confirmButtonColor: '#ba5e72',
+      confirmButtonColor: '#cc0066',
       timer: 1500,
       showConfirmButton: false
     })
@@ -67,7 +67,7 @@ const handleLogin = async () => {
       icon: 'error',
       title: 'Acesso Negado',
       text: 'E-mail ou senha incorretos. Verifique e tente novamente.',
-      confirmButtonColor: '#ba5e72',
+      confirmButtonColor: '#cc0066',
       customClass: { icon: 'swal-icon-pulse-slow' }
     })
   } finally {
@@ -191,7 +191,7 @@ const handleLogin = async () => {
 .login-hero {
   flex: 1;
   position: relative;
-  background: linear-gradient(135deg, #d49ba7 0%, #ba5e72 55%, #6b2e3b 100%);
+  background: linear-gradient(135deg, #ff007f 0%, #cc0066 55%, #6b2e3b 100%);
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
@@ -348,8 +348,8 @@ const handleLogin = async () => {
     color: var(--text-main, #111827);
 
     &:focus {
-      border-color: var(--primary, #d49ba7);
-      box-shadow: 0 0 0 3px rgba(212, 155, 167,0.12);
+      border-color: var(--primary, #ff007f);
+      box-shadow: 0 0 0 3px rgba(255, 0, 127,0.12);
     }
   }
 }
@@ -371,7 +371,7 @@ const handleLogin = async () => {
     display: flex;
     align-items: center;
     padding: 0;
-    &:hover { color: var(--primary-hover, #ba5e72); }
+    &:hover { color: var(--primary-hover, #cc0066); }
   }
 }
 
@@ -391,14 +391,14 @@ const handleLogin = async () => {
 
   .forgot-password {
     font-weight: 500;
-    color: var(--primary-hover, #ba5e72);
+    color: var(--primary-hover, #cc0066);
     text-decoration: none;
     &:hover { text-decoration: underline; }
   }
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #ba5e72 0%, #9c4a5c 100%);
+  background: linear-gradient(135deg, #cc0066 0%, #9c4a5c 100%);
   color: white;
   border: none;
   border-radius: 8px;
@@ -426,7 +426,7 @@ const handleLogin = async () => {
 
   a {
     font-weight: 600;
-    color: var(--primary-hover, #ba5e72);
+    color: var(--primary-hover, #cc0066);
     text-decoration: none;
     &:hover { text-decoration: underline; }
   }
@@ -443,8 +443,8 @@ const handleLogin = async () => {
   gap: 0.5rem;
   width: 100%;
   background: transparent;
-  color: var(--primary-hover, #ba5e72);
-  border: 1px solid var(--primary-hover, #ba5e72);
+  color: var(--primary-hover, #cc0066);
+  border: 1px solid var(--primary-hover, #cc0066);
   border-radius: 8px;
   padding: 0.7rem;
   font-size: 0.9rem;
@@ -452,22 +452,22 @@ const handleLogin = async () => {
   cursor: pointer;
   transition: background 0.2s;
 
-  &:hover { background: rgba(212, 155, 167,0.06); }
+  &:hover { background: rgba(255, 0, 127,0.06); }
 }
 
 .ios-hint {
   display: flex;
   align-items: flex-start;
   gap: 0.5rem;
-  background: rgba(212, 155, 167,0.05);
-  border: 1px solid rgba(212, 155, 167,0.15);
+  background: rgba(255, 0, 127,0.05);
+  border: 1px solid rgba(255, 0, 127,0.15);
   border-radius: 8px;
   padding: 0.75rem 0.9rem;
   font-size: 0.8rem;
   color: var(--text-muted, #6b7280);
   line-height: 1.4;
 
-  svg { flex-shrink: 0; margin-top: 0.15rem; color: var(--primary-hover, #ba5e72); }
+  svg { flex-shrink: 0; margin-top: 0.15rem; color: var(--primary-hover, #cc0066); }
   strong { color: var(--text-main, #111827); }
 }
 </style>

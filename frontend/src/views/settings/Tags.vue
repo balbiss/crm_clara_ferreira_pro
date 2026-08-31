@@ -12,11 +12,11 @@ const isEditing = ref(false)
 const form = ref({
   id: null,
   name: '',
-  color: '#ba5e72'
+  color: '#cc0066'
 })
 
 const colors = [
-  '#ba5e72', // blue
+  '#cc0066', // blue
   '#dc2626', // red
   '#16a34a', // green
   '#d97706', // orange
@@ -48,7 +48,7 @@ const openModal = (tag = null) => {
     form.value = { ...tag }
   } else {
     isEditing.value = false
-    form.value = { id: null, name: '', color: '#ba5e72' }
+    form.value = { id: null, name: '', color: '#cc0066' }
   }
   showModal.value = true
 }
@@ -197,7 +197,7 @@ const deleteTag = async (id) => {
   th, td { padding: 1rem 1.5rem; text-align: left; border-bottom: 1px solid var(--border-color); }
   th { font-weight: 600; color: var(--text-main); font-size: 0.9rem; background: rgba(0,0,0,0.01); }
   td { color: var(--text-muted); font-size: 0.9rem; }
-  tr { transition: background-color 0.2s; &:hover { background: rgba(212, 155, 167, 0.02); } }
+  tr { transition: background-color 0.2s; &:hover { background: rgba(255, 0, 127, 0.02); } }
 }
 .color-dot { display: block; width: 16px; height: 16px; border-radius: 50%; }
 .tag-badge {

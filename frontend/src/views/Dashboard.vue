@@ -80,7 +80,7 @@ const refreshAll = () => {
 
 // ── Régua (funil) + Distribuição por status — paleta monocromática vinho,
 // só o alerta crítico (Atrasada) sai do tom institucional.
-const WINE_SHADES = ['#2b0016', '#5c1a35', '#8a3355', '#b45a78', '#d49ba7']
+const WINE_SHADES = ['#2b0016', '#5c1a35', '#8a3355', '#b45a78', '#ff007f']
 const ALERT_COLOR = '#a24a3a'
 
 const funnelTotal = computed(() => {
@@ -384,7 +384,7 @@ const statusDistributionData = computed(() => {
 .metrics-bar {
   display: flex;
   align-items: center;
-  background: linear-gradient(135deg, rgba(212, 155, 167, 0.1), rgba(43, 0, 22, 0.04));
+  background: linear-gradient(135deg, rgba(255, 0, 127, 0.1), rgba(43, 0, 22, 0.04));
   border: 1px solid rgba(43, 0, 22, 0.12);
   border-radius: 14px;
   padding: 1.1rem 1.5rem;

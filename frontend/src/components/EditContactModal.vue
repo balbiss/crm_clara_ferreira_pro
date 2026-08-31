@@ -104,7 +104,7 @@
                 Remover
               </button>
             </div>
-            <button type="button" @click="formData.telefonesAdicionais.push({label: '', numero: ''})" style="background: none; border: none; color: #d49ba7; cursor: pointer; font-weight: 500; font-size: 0.9rem; padding: 0; margin-top: 5px;">
+            <button type="button" @click="formData.telefonesAdicionais.push({label: '', numero: ''})" style="background: none; border: none; color: #ff007f; cursor: pointer; font-weight: 500; font-size: 0.9rem; padding: 0; margin-top: 5px;">
               + Adicionar telefone
             </button>
           </div>
@@ -152,7 +152,7 @@
                 Remover
               </button>
             </div>
-            <button v-if="canAddCustomField" type="button" @click="formData.customAttributesArray.push({key: '', value: ''})" style="background: none; border: none; color: #d49ba7; cursor: pointer; font-weight: 500; font-size: 0.9rem; padding: 0; margin-top: 5px;">
+            <button v-if="canAddCustomField" type="button" @click="formData.customAttributesArray.push({key: '', value: ''})" style="background: none; border: none; color: #ff007f; cursor: pointer; font-weight: 500; font-size: 0.9rem; padding: 0; margin-top: 5px;">
               + Adicionar novo atributo
             </button>
             <p v-else style="font-size: 0.8rem; color: #9ca3af; margin: 4px 0 0;">Só gerente ou superior pode criar campos novos — você pode editar os valores acima.</p>
@@ -560,9 +560,9 @@ const save = async () => {
 
 .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
   outline: none;
-  border-color: #d49ba7;
+  border-color: #ff007f;
   background: white;
-  box-shadow: 0 0 0 3px rgba(212, 155, 167, 0.1);
+  box-shadow: 0 0 0 3px rgba(255, 0, 127, 0.1);
 }
 
 .qualification-checklists {
@@ -650,8 +650,8 @@ const save = async () => {
 
 .conditional-input input:focus {
   outline: none;
-  border-color: #d49ba7;
-  box-shadow: 0 0 0 3px rgba(212, 155, 167, 0.1);
+  border-color: #ff007f;
+  box-shadow: 0 0 0 3px rgba(255, 0, 127, 0.1);
 }
 
 .phone-input-wrapper {
@@ -692,7 +692,7 @@ const save = async () => {
   width: 16px;
   height: 16px;
   border: 2px solid #e5e7eb;
-  border-top-color: #d49ba7;
+  border-top-color: #ff007f;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -756,7 +756,7 @@ const save = async () => {
 }
 
 .btn-primary {
-  background: var(--primary, #d49ba7);
+  background: var(--primary, #ff007f);
   color: white;
   border: none;
   padding: 8px 16px;
@@ -767,7 +767,7 @@ const save = async () => {
 }
 
 .btn-primary:hover {
-  background: var(--primary-dark, #ba5e72);
+  background: var(--primary-dark, #cc0066);
 }
 
 .btn-primary:disabled {

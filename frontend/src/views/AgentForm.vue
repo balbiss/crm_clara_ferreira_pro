@@ -376,7 +376,7 @@ const saveAgent = async () => {
       display: flex;
       align-items: center;
       border-radius: 4px;
-      &:hover { color: var(--primary); background: rgba(212, 155, 167, 0.06); }
+      &:hover { color: var(--primary); background: rgba(255, 0, 127, 0.06); }
     }
   }
 }
@@ -416,10 +416,10 @@ const saveAgent = async () => {
 }
 
 .admin-highlight {
-  background: rgba(212, 155, 167, 0.05);
+  background: rgba(255, 0, 127, 0.05);
   padding: 1rem;
   border-radius: 8px;
-  border: 1px solid rgba(212, 155, 167, 0.1);
+  border: 1px solid rgba(255, 0, 127, 0.1);
 }
 .disabled-list {
   opacity: 0.6; pointer-events: none;
@@ -476,7 +476,7 @@ const saveAgent = async () => {
   input[type="radio"] { display: none; }
   &.active {
     border-color: var(--primary);
-    background: rgba(212, 155, 167,0.04);
+    background: rgba(255, 0, 127,0.04);
   }
   &:hover { border-color: var(--primary); }
 }
@@ -484,11 +484,11 @@ const saveAgent = async () => {
   width: 10px; height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
-  &.dept-corretor   { background: #d49ba7; }
+  &.dept-corretor   { background: #ff007f; }
   &.dept-suporte    { background: #10b981; }
   &.dept-financeiro { background: #f59e0b; }
   &.dept-manutencao { background: #f97316; }
-  &.dept-consultor  { background: #d49ba7; }
+  &.dept-consultor  { background: #ff007f; }
   &.dept-gerente    { background: #6366f1; }
   &.dept-diretoria  { background: #2b0016; }
 }

@@ -25,7 +25,7 @@ const handleForgotPassword = async () => {
       icon: 'success',
       title: 'E-mail enviado!',
       text: 'Se este e-mail estiver cadastrado, você receberá um link para redefinir sua senha.',
-      confirmButtonColor: '#ba5e72'
+      confirmButtonColor: '#cc0066'
     })
     
     router.push('/login')
@@ -37,7 +37,7 @@ const handleForgotPassword = async () => {
       icon: 'error',
       title: 'Ops...',
       text: 'Houve um problema ao processar sua solicitação. Verifique o e-mail e tente novamente.',
-      confirmButtonColor: '#ba5e72',
+      confirmButtonColor: '#cc0066',
       customClass: { icon: 'swal-icon-pulse-slow' }
     })
   } finally {

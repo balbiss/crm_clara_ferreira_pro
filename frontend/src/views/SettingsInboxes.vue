@@ -359,7 +359,7 @@ onUnmounted(() => {
 }
 
 .btn-primary {
-  background: #d49ba7;
+  background: #ff007f;
   color: white;
   padding: 0.55rem 1rem;
   border-radius: 6px;
@@ -370,7 +370,7 @@ onUnmounted(() => {
   cursor: pointer;
   
   &:hover {
-    background: #d49ba7;
+    background: #ff007f;
   }
 }
 
@@ -686,7 +686,7 @@ onUnmounted(() => {
       width: 32px;
       height: 32px;
       border: 3px solid #e5e7eb;
-      border-top-color: #d49ba7;
+      border-top-color: #ff007f;
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
       margin: 0 auto 0.75rem;
@@ -773,8 +773,8 @@ onUnmounted(() => {
     
     &:focus {
       outline: none;
-      border-color: #d49ba7;
-      box-shadow: 0 0 0 3px rgba(212, 155, 167, 0.1);
+      border-color: #ff007f;
+      box-shadow: 0 0 0 3px rgba(255, 0, 127, 0.1);
     }
   }
 }

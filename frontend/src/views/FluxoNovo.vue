@@ -187,7 +187,7 @@ onMounted(fetchInboxes)
   font-weight: 600;
   cursor: pointer;
 
-  &.active { background: var(--primary, #d49ba7); color: white; border-color: var(--primary, #d49ba7); }
+  &.active { background: var(--primary, #ff007f); color: white; border-color: var(--primary, #ff007f); }
 }
 
 .error-text { color: #ef4444; font-size: 0.82rem; margin-bottom: 1rem; }
@@ -213,7 +213,7 @@ onMounted(fetchInboxes)
 }
 
 .btn-primary {
-  background: var(--primary, #d49ba7);
+  background: var(--primary, #ff007f);
   color: white;
   padding: 0.6rem 1.25rem;
   border-radius: 6px;

@@ -240,7 +240,7 @@ onMounted(fetchFlows)
 }
 
 .btn-primary {
-  background: var(--primary, #d49ba7);
+  background: var(--primary, #ff007f);
   color: white;
   padding: 0.55rem 1.1rem;
   border-radius: 6px;
@@ -268,8 +268,8 @@ onMounted(fetchFlows)
   transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
 
   &:hover {
-    border-color: var(--primary, #d49ba7);
-    box-shadow: 0 10px 24px -8px rgba(212, 155, 167, 0.35);
+    border-color: var(--primary, #ff007f);
+    box-shadow: 0 10px 24px -8px rgba(255, 0, 127, 0.35);
     transform: translateY(-2px);
   }
 }
@@ -285,8 +285,8 @@ onMounted(fetchFlows)
   width: 38px;
   height: 38px;
   border-radius: 10px;
-  background: linear-gradient(135deg, rgba(212, 155, 167, 0.28), rgba(212, 155, 167, 0.12));
-  color: var(--primary, #d49ba7);
+  background: linear-gradient(135deg, rgba(255, 0, 127, 0.28), rgba(255, 0, 127, 0.12));
+  color: var(--primary, #ff007f);
   display: flex;
   align-items: center;
   justify-content: center;

@@ -451,7 +451,7 @@ onMounted(async () => {
 .metrics-bar {
   display: flex;
   align-items: center;
-  background: linear-gradient(135deg, rgba(212, 155, 167, 0.1), rgba(43, 0, 22, 0.04));
+  background: linear-gradient(135deg, rgba(255, 0, 127, 0.1), rgba(43, 0, 22, 0.04));
   border: 1px solid rgba(43, 0, 22, 0.12);
   border-radius: 14px;
   padding: 1.1rem 1.5rem;
@@ -599,11 +599,11 @@ onMounted(async () => {
   }
 
   &.is-today .day-number {
-    background: var(--primary-hover, #ba5e72);
+    background: var(--primary-hover, #cc0066);
     color: white;
     font-weight: 700;
     border-radius: 50%;
-    box-shadow: 0 0 0 3px rgba(186, 94, 114, 0.2);
+    box-shadow: 0 0 0 3px rgba(204, 0, 102, 0.2);
   }
 }
 
@@ -641,7 +641,7 @@ onMounted(async () => {
   overflow: hidden;
 
   &.is-mine {
-    background: var(--primary, #d49ba7);
+    background: var(--primary, #ff007f);
     color: white;
   }
 }
@@ -687,15 +687,15 @@ onMounted(async () => {
 }
 
 .btn-primary {
-  background: var(--primary-hover, #ba5e72);
-  border-color: var(--primary-hover, #ba5e72);
+  background: var(--primary-hover, #cc0066);
+  border-color: var(--primary-hover, #cc0066);
   color: #ffffff;
-  box-shadow: 0 2px 6px rgba(186, 94, 114, 0.4);
+  box-shadow: 0 2px 6px rgba(204, 0, 102, 0.4);
 }
 
 .btn-primary:hover:not(:disabled) {
   filter: brightness(0.92);
-  box-shadow: 0 3px 8px rgba(186, 94, 114, 0.5);
+  box-shadow: 0 3px 8px rgba(204, 0, 102, 0.5);
 }
 
 .btn-primary:disabled {

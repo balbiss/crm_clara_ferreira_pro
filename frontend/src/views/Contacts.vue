@@ -389,7 +389,7 @@ const tempLabel = (t) => ({ hot: 'Quente', warm: 'Morno', cold: 'Frio' }[t] || '
     color: var(--text-main);
     width: 240px;
     &::placeholder { color: var(--text-muted); }
-    &:focus { border-color: #d49ba7; }
+    &:focus { border-color: #ff007f; }
   }
 
   .clear-search {
@@ -419,13 +419,13 @@ const tempLabel = (t) => ({ hot: 'Quente', warm: 'Morno', cold: 'Frio' }[t] || '
   color: var(--text-muted);
   transition: border-color 0.12s, color 0.12s;
 
-  &:hover { border-color: #d49ba7; color: #d49ba7; }
-  &.active { border-color: #d49ba7; color: #d49ba7; background: rgba(212, 155, 167,0.06); }
+  &:hover { border-color: #ff007f; color: #ff007f; }
+  &.active { border-color: #ff007f; color: #ff007f; background: rgba(255, 0, 127,0.06); }
 
   .badge-dot {
     position: absolute;
     top: -5px; right: -5px;
-    background: #d49ba7;
+    background: #ff007f;
     color: white;
     font-size: 0.6rem;
     font-weight: 700;
@@ -439,7 +439,7 @@ const tempLabel = (t) => ({ hot: 'Quente', warm: 'Morno', cold: 'Frio' }[t] || '
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  background: #d49ba7;
+  background: #ff007f;
   color: white;
   padding: 0.45rem 0.9rem;
   border-radius: 6px;
@@ -447,7 +447,7 @@ const tempLabel = (t) => ({ hot: 'Quente', warm: 'Morno', cold: 'Frio' }[t] || '
   font-weight: 600;
   font-size: 0.82rem;
   cursor: pointer;
-  &:hover { background: #ba5e72; }
+  &:hover { background: #cc0066; }
 }
 
 // ── Popovers ─────────────────────────────────────────────────
@@ -485,7 +485,7 @@ const tempLabel = (t) => ({ hot: 'Quente', warm: 'Morno', cold: 'Frio' }[t] || '
 .btn-link {
   background: none;
   border: none;
-  color: #d49ba7;
+  color: #ff007f;
   font-size: 0.78rem;
   cursor: pointer;
   font-weight: 600;
@@ -518,7 +518,7 @@ const tempLabel = (t) => ({ hot: 'Quente', warm: 'Morno', cold: 'Frio' }[t] || '
     border-radius: 4px;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
-    &.checked { background: #d49ba7; border-color: #d49ba7; color: white; }
+    &.checked { background: #ff007f; border-color: #ff007f; color: white; }
   }
 
   .temp-dot {
@@ -541,7 +541,7 @@ const tempLabel = (t) => ({ hot: 'Quente', warm: 'Morno', cold: 'Frio' }[t] || '
   cursor: pointer;
   text-align: left;
   &:hover { background: var(--bg-hover); color: var(--text-main); }
-  &.active { color: #d49ba7; font-weight: 600; }
+  &.active { color: #ff007f; font-weight: 600; }
 }
 
 .more-option {
@@ -568,7 +568,7 @@ const tempLabel = (t) => ({ hot: 'Quente', warm: 'Morno', cold: 'Frio' }[t] || '
 }
 
 .btn-apply {
-  background: #d49ba7;
+  background: #ff007f;
   color: white;
   border: none;
   border-radius: 5px;
@@ -576,7 +576,7 @@ const tempLabel = (t) => ({ hot: 'Quente', warm: 'Morno', cold: 'Frio' }[t] || '
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
-  &:hover { background: #ba5e72; }
+  &:hover { background: #cc0066; }
 }
 
 // ── Count bar ─────────────────────────────────────────────────
@@ -593,8 +593,8 @@ const tempLabel = (t) => ({ hot: 'Quente', warm: 'Morno', cold: 'Frio' }[t] || '
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  background: rgba(212, 155, 167,0.08);
-  color: #d49ba7;
+  background: rgba(255, 0, 127,0.08);
+  color: #ff007f;
   border-radius: 4px;
   padding: 0.1rem 0.5rem;
   font-size: 0.75rem;
@@ -602,7 +602,7 @@ const tempLabel = (t) => ({ hot: 'Quente', warm: 'Morno', cold: 'Frio' }[t] || '
 
   button {
     background: none; border: none; cursor: pointer;
-    color: #d49ba7; display: flex; align-items: center;
+    color: #ff007f; display: flex; align-items: center;
     padding: 0;
   }
 }
@@ -627,8 +627,8 @@ const tempLabel = (t) => ({ hot: 'Quente', warm: 'Morno', cold: 'Frio' }[t] || '
   transition: border-color 0.12s, box-shadow 0.12s;
 
   &:hover {
-    border-color: #d49ba7;
-    box-shadow: 0 1px 6px rgba(212, 155, 167,0.1);
+    border-color: #ff007f;
+    box-shadow: 0 1px 6px rgba(255, 0, 127,0.1);
   }
 }
 
@@ -765,7 +765,7 @@ const tempLabel = (t) => ({ hot: 'Quente', warm: 'Morno', cold: 'Frio' }[t] || '
   border: 1px solid var(--border-color);
   border-radius: 6px;
   margin-bottom: 0.75rem;
-  &:focus-within { border-color: #d49ba7; }
+  &:focus-within { border-color: #ff007f; }
   svg { color: var(--text-muted); flex-shrink: 0; }
   input { flex: 1; border: none; background: none; outline: none; font-size: 0.85rem; color: var(--text-main); &::placeholder { color: var(--text-muted); } }
 }
@@ -783,7 +783,7 @@ const tempLabel = (t) => ({ hot: 'Quente', warm: 'Morno', cold: 'Frio' }[t] || '
   .mc-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
   .mc-name { font-size: 0.85rem; font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .mc-phone { font-size: 0.75rem; color: var(--text-muted); }
-  .mc-icon { color: #d49ba7; flex-shrink: 0; }
+  .mc-icon { color: #ff007f; flex-shrink: 0; }
 }
 
 .empty-modal { padding: 1.5rem; text-align: center; font-size: 0.83rem; color: var(--text-muted); }

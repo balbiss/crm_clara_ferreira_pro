@@ -586,7 +586,7 @@ const handlePdfUpload = async (event) => {
 }
 
 .btn-primary {
-  background: #d49ba7;
+  background: #ff007f;
   color: white;
   padding: 0.65rem 1.5rem;
   border-radius: 6px;
@@ -596,7 +596,7 @@ const handlePdfUpload = async (event) => {
   cursor: pointer;
   
   &:hover {
-    background: #d49ba7;
+    background: #ff007f;
   }
 }
 
@@ -682,7 +682,7 @@ const handlePdfUpload = async (event) => {
   color: white;
   
   &:hover {
-    background: #d49ba7;
+    background: #ff007f;
   }
 }
 

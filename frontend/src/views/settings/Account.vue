@@ -141,9 +141,9 @@ onMounted(() => {
 
   const params = new URLSearchParams(window.location.search)
   if (params.get('facebook_leads_connected')) {
-    Swal.fire({ icon: 'success', title: 'Facebook conectado!', text: 'Os leads das suas campanhas já vão cair aqui no CRM.', confirmButtonColor: '#d49ba7' })
+    Swal.fire({ icon: 'success', title: 'Facebook conectado!', text: 'Os leads das suas campanhas já vão cair aqui no CRM.', confirmButtonColor: '#ff007f' })
   } else if (params.get('facebook_leads_error')) {
-    Swal.fire({ icon: 'error', title: 'Erro ao conectar', text: params.get('facebook_leads_error'), confirmButtonColor: '#d49ba7' })
+    Swal.fire({ icon: 'error', title: 'Erro ao conectar', text: params.get('facebook_leads_error'), confirmButtonColor: '#ff007f' })
   }
 })
 
@@ -154,7 +154,7 @@ const connectFacebookLeads = async () => {
     window.location.href = response.data.url
   } catch (error) {
     loadingFacebookLeads.value = false
-    Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível iniciar a conexão com o Facebook.', confirmButtonColor: '#d49ba7' })
+    Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível iniciar a conexão com o Facebook.', confirmButtonColor: '#ff007f' })
   }
 }
 
@@ -164,7 +164,7 @@ const disconnectFacebookLeads = async () => {
     await api.post('/facebook_leads_oauth/disconnect')
     facebookPageName.value = ''
   } catch (error) {
-    Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível desconectar.', confirmButtonColor: '#d49ba7' })
+    Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível desconectar.', confirmButtonColor: '#ff007f' })
   } finally {
     loadingFacebookLeads.value = false
   }
@@ -176,7 +176,7 @@ const updatePassword = async () => {
       icon: 'warning',
       title: 'Atenção',
       text: 'Preencha a senha atual e a nova senha.',
-      confirmButtonColor: '#d49ba7'
+      confirmButtonColor: '#ff007f'
     })
     return
   }
@@ -185,7 +185,7 @@ const updatePassword = async () => {
       icon: 'warning',
       title: 'Atenção',
       text: 'A nova senha e a confirmação não batem.',
-      confirmButtonColor: '#d49ba7'
+      confirmButtonColor: '#ff007f'
     })
     return
   }
@@ -197,7 +197,7 @@ const updatePassword = async () => {
       icon: 'success',
       title: 'Sucesso!',
       text: response.data.message || 'Senha alterada com sucesso!',
-      confirmButtonColor: '#d49ba7',
+      confirmButtonColor: '#ff007f',
       timer: 2000,
       showConfirmButton: false
     })
@@ -211,7 +211,7 @@ const updatePassword = async () => {
       icon: 'error',
       title: 'Oops...',
       text: errorMsg,
-      confirmButtonColor: '#d49ba7'
+      confirmButtonColor: '#ff007f'
     })
   } finally {
     loadingPassword.value = false
@@ -225,7 +225,7 @@ const updateSettings = async () => {
       icon: 'success',
       title: 'Configurações Salvas!',
       text: response.data.message || 'Configurações atualizadas com sucesso!',
-      confirmButtonColor: '#d49ba7',
+      confirmButtonColor: '#ff007f',
       timer: 2000,
       showConfirmButton: false
     })
@@ -242,7 +242,7 @@ const updateSettings = async () => {
       icon: 'error',
       title: 'Falha ao salvar',
       text: 'Ocorreu um erro ao atualizar as configurações.',
-      confirmButtonColor: '#d49ba7'
+      confirmButtonColor: '#ff007f'
     })
   }
 }
@@ -350,11 +350,11 @@ const updateSettings = async () => {
       justify-content: center;
 
       &-primary {
-        background: #d49ba7; 
+        background: #ff007f; 
         color: white;
         
         &:hover { 
-          background: #ba5e72; 
+          background: #cc0066; 
         }
       }
 

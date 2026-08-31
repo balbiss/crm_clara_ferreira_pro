@@ -39,7 +39,7 @@ const label = computed(() => LABELS[props.data.media_type] || 'Enviar mídia')
   box-shadow: 0 2px 6px rgba(0,0,0,0.08);
   overflow: hidden;
 
-  &.selected { border-color: var(--primary, #d49ba7); }
+  &.selected { border-color: var(--primary, #ff007f); }
 }
 
 .node-header {

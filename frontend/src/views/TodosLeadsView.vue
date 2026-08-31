@@ -133,7 +133,7 @@ const filteredCards = computed(() => {
 
 .phone-cell { display: flex; align-items: center; gap: 0.3rem; color: var(--text-muted); .icon-xs { width: 12px; height: 12px; } }
 
-.pipeline-badge { font-size: 0.72rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 20px; background: rgba(212, 155, 167,0.1); color: var(--primary); }
+.pipeline-badge { font-size: 0.72rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 20px; background: rgba(255, 0, 127,0.1); color: var(--primary); }
 
 .empty-state { padding: 3rem 1.5rem; text-align: center; color: var(--text-muted); h3 { font-size: 1rem; font-weight: 700; color: var(--text-main); margin: 0.75rem 0 0.4rem; } p { font-size: 0.85rem; } }
 

@@ -743,7 +743,7 @@ const varHintLabels = computed(() => ['nome', 'telefone', 'email'].map(v => `{{$
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  background: var(--primary, #d49ba7);
+  background: var(--primary, #ff007f);
   color: white;
   padding: 0.5rem 0.9rem;
   border-radius: 6px;
@@ -877,7 +877,7 @@ const varHintLabels = computed(() => ['nome', 'telefone', 'email'].map(v => `{{$
   font-size: 0.8rem;
   cursor: pointer;
 
-  &:hover { border-color: var(--primary, #d49ba7); color: var(--primary, #d49ba7); }
+  &:hover { border-color: var(--primary, #ff007f); color: var(--primary, #ff007f); }
 }
 
 .media-preview {
@@ -911,6 +911,6 @@ const varHintLabels = computed(() => ['nome', 'telefone', 'email'].map(v => `{{$
   font-weight: 600;
   cursor: pointer;
 
-  &:hover { border-color: var(--primary, #d49ba7); color: var(--primary, #d49ba7); }
+  &:hover { border-color: var(--primary, #ff007f); color: var(--primary, #ff007f); }
 }
 </style>

@@ -135,7 +135,7 @@ const funnelChart = computed(() => {
   return {
     labels: ['Ativa', '3º dia', '10º dia', '20º dia', 'Agendado'],
     datasets: [{ label: 'Revendedoras', data: [f.revendedor_ativo, f.terceiro_dia, f.decimo_dia, f.vigesimo_dia, f.agendado],
-      backgroundColor: ['#6366f1','#f59e0b','#eab308','#d49ba7','#10b981'],
+      backgroundColor: ['#6366f1','#f59e0b','#eab308','#ff007f','#10b981'],
       borderRadius: 6, borderSkipped: false }]
   }
 })
@@ -148,7 +148,7 @@ const sourceChart = computed(() => {
   return {
     labels,
     datasets: [{ data: Object.values(src),
-      backgroundColor: ['#6366f1','#10b981','#f59e0b','#ef4444','#d49ba7','#ec4899','#0d9488'] }]
+      backgroundColor: ['#6366f1','#10b981','#f59e0b','#ef4444','#ff007f','#ec4899','#0d9488'] }]
   }
 })
 
@@ -534,8 +534,8 @@ const donutOptions = {
   animation: flash-update 0.6s ease;
 }
 @keyframes flash-update {
-  0%   { box-shadow: 0 0 0 0 rgba(212, 155, 167,0); }
-  30%  { box-shadow: 0 0 0 4px rgba(212, 155, 167,0.25); }
+  0%   { box-shadow: 0 0 0 0 rgba(255, 0, 127,0); }
+  30%  { box-shadow: 0 0 0 4px rgba(255, 0, 127,0.25); }
   100% { box-shadow: 0 1px 2px rgba(43,0,22,0.06), 0 6px 16px rgba(43,0,22,0.09); }
 }
 
@@ -590,7 +590,7 @@ const donutOptions = {
   font-size: 2rem; font-weight: 800; color: var(--text-main, #0f172a); letter-spacing: -0.02em;
   &.red    { color: #dc2626; }
   &.green  { color: #059669; }
-  &.indigo { color: #d49ba7; }
+  &.indigo { color: #ff007f; }
 }
 
 /* Charts */
@@ -615,10 +615,10 @@ const donutOptions = {
 
 .btn-export {
   display: inline-flex; align-items: center; gap: 0.35rem;
-  background: #d49ba7; color: white; border: none; border-radius: 7px;
+  background: #ff007f; color: white; border: none; border-radius: 7px;
   padding: 0.4rem 0.9rem; font-size: 0.78rem; font-weight: 600; cursor: pointer;
   transition: background 0.15s;
-  &:hover { background: #ba5e72; }
+  &:hover { background: #cc0066; }
   &.green { background: #059669; &:hover { background: #047857; } }
   .ic { width: 13px; height: 13px; }
 }
@@ -661,7 +661,7 @@ const donutOptions = {
   th { font-weight: 600; color: var(--text-main); background: var(--bg-primary, #fafafa); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }
   td { color: var(--text-muted); }
   tr:last-child td { border-bottom: none; }
-  tr:hover td { background: rgba(212, 155, 167,0.03); }
+  tr:hover td { background: rgba(255, 0, 127,0.03); }
 }
 
 .agent-name { color: var(--text-main) !important; font-weight: 500; }
@@ -703,8 +703,8 @@ const donutOptions = {
   padding: 0.65rem 1rem; cursor: pointer;
   border-bottom: 1px solid var(--border-color, #f8fafc);
   transition: background 0.15s;
-  &:hover { background: rgba(212, 155, 167,0.04); }
-  &.active { background: rgba(212, 155, 167,0.08); }
+  &:hover { background: rgba(255, 0, 127,0.04); }
+  &.active { background: rgba(255, 0, 127,0.08); }
 }
 
 .tag-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }

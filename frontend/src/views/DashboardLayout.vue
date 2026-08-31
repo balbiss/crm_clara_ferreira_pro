@@ -441,7 +441,7 @@ const handleLeadAtribuido = (e) => {
     html: `<strong>${contact_name}</strong><br><small style="color:#6b7280">${origem}</small>`,
     showConfirmButton: true,
     confirmButtonText: 'Ver conversa',
-    confirmButtonColor: '#d49ba7',
+    confirmButtonColor: '#ff007f',
     showCloseButton: true,
     timer: 12000,
     timerProgressBar: true,
@@ -479,7 +479,7 @@ const handleSnoozeExpired = (e) => {
     html:            `<strong>${contact_name || 'Revendedora'}</strong><br><small style="color:#6b7280">O tempo de adiamento expirou — conversa reaberta.</small>`,
     showConfirmButton: true,
     confirmButtonText: 'Ver conversa',
-    confirmButtonColor: '#d49ba7',
+    confirmButtonColor: '#ff007f',
     showCloseButton: true,
     timer:           12000,
     timerProgressBar: true
@@ -508,7 +508,7 @@ const createPipeline = async () => {
   isPipelinesMenuOpen.value = false
   const { value: name } = await Swal.fire({
     title: 'Novo pipeline', input: 'text', inputPlaceholder: 'Ex: Atacado, Prospecção...',
-    showCancelButton: true, confirmButtonColor: '#d49ba7', confirmButtonText: 'Criar', cancelButtonText: 'Cancelar'
+    showCancelButton: true, confirmButtonColor: '#ff007f', confirmButtonText: 'Criar', cancelButtonText: 'Cancelar'
   })
   if (!name || !name.trim()) return
   const pipeline = await pipelinesStore.createPipeline(name.trim())
@@ -1149,12 +1149,12 @@ const saveReorder = async () => {
 .btn-mark-all {
   background: transparent;
   border: none;
-  color: #d49ba7;
+  color: #ff007f;
   font-size: 0.75rem;
   font-weight: 500;
   cursor: pointer;
   padding: 0;
-  &:hover { text-decoration: underline; color: #ba5e72; }
+  &:hover { text-decoration: underline; color: #cc0066; }
 }
 
 .notifications-list { max-height: 250px; overflow-y: auto; }
@@ -1185,7 +1185,7 @@ const saveReorder = async () => {
 }
 
 .unread-dot {
-  width: 6px; height: 6px; background: #d49ba7; border-radius: 50%;
+  width: 6px; height: 6px; background: #ff007f; border-radius: 50%;
 }
 
 .icon-sm { width: 16px; height: 16px; color: rgba(255,255,255,0.7); }
@@ -1524,7 +1524,7 @@ const saveReorder = async () => {
   }
 
   .btn-primary {
-    background: var(--primary, #d49ba7);
+    background: var(--primary, #ff007f);
     color: white;
     border: none;
     padding: 0.5rem 1rem;
@@ -1533,7 +1533,7 @@ const saveReorder = async () => {
     font-weight: 500;
     font-size: 0.85rem;
 
-    &:hover { background: var(--primary-hover, #ba5e72); }
+    &:hover { background: var(--primary-hover, #cc0066); }
   }
 }
 
@@ -1587,7 +1587,7 @@ const saveReorder = async () => {
 
   input {
     opacity: 0; width: 0; height: 0;
-    &:checked + .slider { background-color: #d49ba7; }
+    &:checked + .slider { background-color: #ff007f; }
     &:checked + .slider:before { transform: translateX(16px); }
   }
 
@@ -1704,7 +1704,7 @@ const saveReorder = async () => {
       background: var(--bg-tertiary);
       color: var(--text-muted);
 
-      &.role-gerente, &.role-diretoria { background: rgba(212, 155, 167, 0.15); color: var(--primary-hover); }
+      &.role-gerente, &.role-diretoria { background: rgba(255, 0, 127, 0.15); color: var(--primary-hover); }
       &.role-financeiro { background: #dcfce7; color: #166534; }
     }
   }

@@ -502,7 +502,7 @@ onMounted(async () => {
   align-items: center;
   gap: 0.75rem;
   background: var(--bg-secondary);
-  border: 1px solid var(--primary, #d49ba7);
+  border: 1px solid var(--primary, #ff007f);
   border-radius: 8px;
   padding: 0.6rem 0.9rem;
   margin-bottom: 1rem;
@@ -511,7 +511,7 @@ onMounted(async () => {
 }
 
 .btn-primary-sm {
-  background: var(--primary, #d49ba7);
+  background: var(--primary, #ff007f);
   color: #fff;
   border: none;
   border-radius: 6px;

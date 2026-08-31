@@ -80,7 +80,7 @@ const moveCardToStage = async (card, stageId) => {
     await api.put(`/pipeline_cards/${card.id}`, { pipeline_card: { pipeline_stage_id: stageId } })
   } catch (e) {
     card.pipeline_stage_id = oldStageId
-    Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível mover o card.', confirmButtonColor: '#d49ba7' })
+    Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível mover o card.', confirmButtonColor: '#ff007f' })
   }
 }
 
@@ -100,7 +100,7 @@ const removeCard = async (card) => {
   const result = await Swal.fire({
     title: 'Remover do pipeline?',
     text: `${card.contact.name} sai deste pipeline (o cadastro dela continua existindo).`,
-    icon: 'warning', showCancelButton: true, confirmButtonColor: '#d49ba7', confirmButtonText: 'Remover', cancelButtonText: 'Cancelar'
+    icon: 'warning', showCancelButton: true, confirmButtonColor: '#ff007f', confirmButtonText: 'Remover', cancelButtonText: 'Cancelar'
   })
   if (!result.isConfirmed) return
   await api.delete(`/pipeline_cards/${card.id}`)
@@ -171,7 +171,7 @@ const createAndAddContact = async () => {
 const renamePipeline = async () => {
   const { value: name } = await Swal.fire({
     title: 'Renomear pipeline', input: 'text', inputValue: pipeline.value.name,
-    showCancelButton: true, confirmButtonColor: '#d49ba7', confirmButtonText: 'Salvar', cancelButtonText: 'Cancelar'
+    showCancelButton: true, confirmButtonColor: '#ff007f', confirmButtonText: 'Salvar', cancelButtonText: 'Cancelar'
   })
   if (!name || !name.trim()) return
   await pipelinesStore.renamePipeline(pipeline.value.id, name.trim())
@@ -195,7 +195,7 @@ const deletePipeline = async () => {
 const addStage = async () => {
   const { value: name } = await Swal.fire({
     title: 'Nova etapa', input: 'text', inputPlaceholder: 'Ex: Em negociação',
-    showCancelButton: true, confirmButtonColor: '#d49ba7', confirmButtonText: 'Criar', cancelButtonText: 'Cancelar'
+    showCancelButton: true, confirmButtonColor: '#ff007f', confirmButtonText: 'Criar', cancelButtonText: 'Cancelar'
   })
   if (!name || !name.trim()) return
   await pipelinesStore.createStage(pipeline.value.id, name.trim())
@@ -204,7 +204,7 @@ const addStage = async () => {
 const renameStage = async (stage) => {
   const { value: name } = await Swal.fire({
     title: 'Renomear etapa', input: 'text', inputValue: stage.name,
-    showCancelButton: true, confirmButtonColor: '#d49ba7', confirmButtonText: 'Salvar', cancelButtonText: 'Cancelar'
+    showCancelButton: true, confirmButtonColor: '#ff007f', confirmButtonText: 'Salvar', cancelButtonText: 'Cancelar'
   })
   if (!name || !name.trim()) return
   await pipelinesStore.renameStage(stage.id, name.trim())
