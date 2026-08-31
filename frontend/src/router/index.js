@@ -132,6 +132,24 @@ const router = createRouter({
           component: () => import('../views/ComingSoon.vue'),
           meta: { title: 'Automações', description: 'Regras automáticas de tarefas e mensagens — ainda não disponível.', requiresCriticalConfig: true }
         },
+        {
+          path: 'fluxos',
+          name: 'fluxos',
+          component: () => import('../views/FluxosView.vue'),
+          meta: { requiresCriticalConfig: true }
+        },
+        {
+          path: 'fluxos/novo',
+          name: 'fluxo_novo',
+          component: () => import('../views/FluxoNovo.vue'),
+          meta: { requiresCriticalConfig: true }
+        },
+        {
+          path: 'fluxos/:id',
+          name: 'fluxo_builder',
+          component: () => import('../views/FluxoBuilder.vue'),
+          meta: { requiresCriticalConfig: true }
+        },
         // Rotas exclusivas do dono (empresa/admin)
         {
           path: 'agentes',

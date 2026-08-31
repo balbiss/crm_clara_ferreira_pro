@@ -34,6 +34,7 @@ import {
   CalendarDays,
   Badge,
   Activity,
+  GitBranch,
   TrendingUp,
   BookOpen,
   Menu,
@@ -746,6 +747,11 @@ const saveReorder = async () => {
         <router-link v-if="isCriticalConfig" to="/automacoes" class="nav-item">
           <Zap class="icon" />
           <span>Automações</span>
+        </router-link>
+
+        <router-link v-if="isCriticalConfig" to="/fluxos" class="nav-item">
+          <GitBranch class="icon" />
+          <span>Fluxos</span>
         </router-link>
 
         <div class="nav-section settings-section" v-if="isCriticalConfig">
