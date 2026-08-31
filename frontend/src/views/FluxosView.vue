@@ -134,16 +134,25 @@ onMounted(fetchFlows)
           <p class="flow-description">{{ flow.description || 'Sem descrição.' }}</p>
 
           <div class="flow-meta">
-            <span>{{ flow.flow_nodes_count }} etapa{{ flow.flow_nodes_count === 1 ? '' : 's' }}</span>
+            <span class="step-pill">{{ flow.flow_nodes_count }} etapa{{ flow.flow_nodes_count === 1 ? '' : 's' }}</span>
+            <span class="meta-sep">·</span>
             <span>Criado em {{ formatDate(flow.created_at) }}</span>
+            <span class="meta-sep">·</span>
             <span>Atualizado em {{ formatDate(flow.updated_at) }}</span>
           </div>
 
           <div class="flow-actions" @click.stop>
             <button class="icon-btn" title="Editar" @click="openFlow(flow)"><Edit2 class="icon-sm" /></button>
             <button class="icon-btn" title="Duplicar" @click="duplicateFlow(flow)"><Copy class="icon-sm" /></button>
-            <button class="icon-btn" :title="flow.active ? 'Desativar' : 'Ativar'" @click="toggleActive(flow)">
-              <span class="toggle-dot" :class="{ on: flow.active }"></span>
+            <button
+              class="switch"
+              :class="{ on: flow.active }"
+              :title="flow.active ? 'Desativar' : 'Ativar'"
+              role="switch"
+              :aria-checked="flow.active"
+              @click="toggleActive(flow)"
+            >
+              <span class="switch-knob"></span>
             </button>
             <div class="menu-wrapper">
               <button class="icon-btn" title="Mais ações" @click="toggleMenu(flow.id)"><MoreVertical class="icon-sm" /></button>
@@ -185,10 +194,16 @@ onMounted(fetchFlows)
 }
 
 .header {
-  margin-bottom: 1.5rem;
+  margin-bottom: 2rem;
 
-  h1 { font-size: 1.25rem; font-weight: 500; color: var(--text-main); margin-bottom: 0.5rem; }
-  .description { color: var(--text-muted); font-size: 0.9rem; }
+  h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--text-main);
+    margin-bottom: 0.4rem;
+  }
+  .description { color: var(--text-muted); font-size: 0.92rem; }
 }
 
 .icon-xs { width: 14px; height: 14px; }
@@ -238,36 +253,42 @@ onMounted(fetchFlows)
 .flows-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1rem;
+  gap: 1.1rem;
 }
 
 .flow-card {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
-  border-radius: 10px;
-  padding: 1.25rem;
+  border-radius: 12px;
+  padding: 1.35rem;
   cursor: pointer;
-  transition: border-color 0.15s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
 
-  &:hover { border-color: var(--primary); }
+  &:hover {
+    border-color: var(--primary, #d49ba7);
+    box-shadow: 0 10px 24px -8px rgba(212, 155, 167, 0.35);
+    transform: translateY(-2px);
+  }
 }
 
 .flow-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 0.75rem;
+  margin-bottom: 1rem;
 }
 
 .flow-icon {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  background: var(--bg-tertiary);
-  color: var(--primary);
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(212, 155, 167, 0.28), rgba(212, 155, 167, 0.12));
+  color: var(--primary, #d49ba7);
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .status-badge {
@@ -285,13 +306,20 @@ onMounted(fetchFlows)
   &.disconnected { background: #f3f4f6; color: #6b7280; .dot { background: #9ca3af; } }
 }
 
-.flow-name { font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.35rem; }
+.flow-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  color: var(--text-main);
+  margin-bottom: 0.35rem;
+}
 
 .flow-description {
-  font-size: 0.83rem;
+  font-size: 0.84rem;
+  line-height: 1.5;
   color: var(--text-muted);
-  margin-bottom: 0.85rem;
-  min-height: 1.2rem;
+  margin-bottom: 1rem;
+  min-height: 2.5rem;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -300,13 +328,27 @@ onMounted(fetchFlows)
 
 .flow-meta {
   display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  font-size: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.6rem;
+  font-size: 0.73rem;
   color: var(--text-muted);
-  margin-bottom: 1rem;
-  padding-bottom: 1rem;
+  margin-bottom: 1.1rem;
+  padding-bottom: 1.1rem;
   border-bottom: 1px solid var(--border-color);
+
+  .step-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 20px;
+    background: var(--bg-tertiary);
+    color: var(--text-main);
+    font-weight: 600;
+  }
+
+  .meta-sep { color: var(--border-color); }
 }
 
 .flow-actions {

@@ -3,10 +3,9 @@ import { ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } from
 import { useRoute, useRouter } from 'vue-router'
 import { VueFlow, useVueFlow, Position } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
-import { Controls } from '@vue-flow/controls'
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
-import { ArrowLeft, Undo2, Redo2, Save, Zap, MessageCircle, GitFork, Clock, OctagonX, X } from '@lucide/vue'
+import { ArrowLeft, Undo2, Redo2, Save, ZoomIn, ZoomOut, Maximize, Zap, MessageCircle, GitFork, Clock, OctagonX, X } from '@lucide/vue'
 import api from '../api'
 import TriggerNode from '../components/flow-nodes/TriggerNode.vue'
 import MessageNode from '../components/flow-nodes/MessageNode.vue'
@@ -245,8 +244,18 @@ const varHintLabels = computed(() => ['nome', 'telefone', 'email'].map(v => `{{$
       <div class="topbar-spacer"></div>
 
       <span class="save-indicator" :class="saveStatus">{{ statusLabel }}</span>
-      <button class="icon-btn" title="Desfazer" :disabled="historyIndex <= 0" @click="undo"><Undo2 class="icon-sm" /></button>
-      <button class="icon-btn" title="Refazer" :disabled="historyIndex >= history.length - 1" @click="redo"><Redo2 class="icon-sm" /></button>
+
+      <div class="toolbar-group">
+        <button class="icon-btn" title="Diminuir zoom" @click="zoomOut()"><ZoomOut class="icon-sm" /></button>
+        <button class="icon-btn" title="Aumentar zoom" @click="zoomIn()"><ZoomIn class="icon-sm" /></button>
+        <button class="icon-btn" title="Ajustar à tela" @click="fitView({ padding: 0.2 })"><Maximize class="icon-sm" /></button>
+      </div>
+
+      <div class="toolbar-group">
+        <button class="icon-btn" title="Desfazer" :disabled="historyIndex <= 0" @click="undo"><Undo2 class="icon-sm" /></button>
+        <button class="icon-btn" title="Refazer" :disabled="historyIndex >= history.length - 1" @click="redo"><Redo2 class="icon-sm" /></button>
+      </div>
+
       <button class="btn-primary" @click="saveNow"><Save class="icon-sm" /> Salvar</button>
     </div>
 
@@ -271,7 +280,6 @@ const varHintLabels = computed(() => ['nome', 'telefone', 'email'].map(v => `{{$
       <div ref="canvasWrapper" class="canvas-wrapper" @dragover.prevent @drop="onCanvasDrop">
         <VueFlow v-if="!isLoading" v-model:nodes="nodes" v-model:edges="edges" :node-types="nodeTypes" :delete-key-code="['Delete', 'Backspace']" fit-view-on-init @pane-ready="onPaneReady">
           <Background :gap="18" />
-          <Controls />
         </VueFlow>
         <div v-else class="canvas-loading">Carregando fluxo...</div>
       </div>
@@ -421,6 +429,14 @@ const varHintLabels = computed(() => ['nome', 'telefone', 'email'].map(v => `{{$
   min-width: 60px;
 
   &.saved { color: #059669; }
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0 0.5rem;
+  border-left: 1px solid var(--border-color);
 }
 
 .icon-btn {
