@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowLeft } from '@lucide/vue'
 import api from '../api'
@@ -9,9 +9,30 @@ const router = useRouter()
 const name = ref('')
 const description = ref('')
 const channel = ref('whatsapp')
+const inboxId = ref('')
 const active = ref(true)
 const isSaving = ref(false)
 const errorMsg = ref('')
+const inboxes = ref([])
+
+// Sem isso o gatilho por palavra-chave disparava em QUALQUER caixa da
+// conta — a pessoa que testou percebeu isso na prática. Filtra pelo canal
+// escolhido acima, já que um fluxo de WhatsApp não faz sentido numa caixa
+// de Instagram.
+const inboxesDoCanal = computed(() => {
+  const providersPorCanal = { whatsapp: ['baileys', 'waha'], instagram: ['instagram'] }
+  const validos = providersPorCanal[channel.value]
+  return validos ? inboxes.value.filter(i => validos.includes(i.provider)) : inboxes.value
+})
+
+const fetchInboxes = async () => {
+  try {
+    const { data } = await api.get('/inboxes')
+    inboxes.value = data
+  } catch (e) {
+    console.error('Erro ao buscar caixas:', e)
+  }
+}
 
 const criarFluxo = async () => {
   if (!name.value.trim()) {
@@ -22,7 +43,7 @@ const criarFluxo = async () => {
   errorMsg.value = ''
   try {
     const { data } = await api.post('/flows', {
-      flow: { name: name.value.trim(), description: description.value.trim(), channel: channel.value, active: active.value }
+      flow: { name: name.value.trim(), description: description.value.trim(), channel: channel.value, inbox_id: inboxId.value || null, active: active.value }
     })
     router.push(`/fluxos/${data.id}`)
   } catch (e) {
@@ -32,6 +53,8 @@ const criarFluxo = async () => {
     isSaving.value = false
   }
 }
+
+onMounted(fetchInboxes)
 </script>
 
 <template>
@@ -57,11 +80,20 @@ const criarFluxo = async () => {
 
         <div class="form-group">
           <label>Canal</label>
-          <select v-model="channel" class="form-input">
+          <select v-model="channel" class="form-input" @change="inboxId = ''">
             <option value="whatsapp">WhatsApp</option>
             <option value="instagram">Instagram</option>
             <option value="outro">Outro</option>
           </select>
+        </div>
+
+        <div v-if="channel !== 'outro'" class="form-group">
+          <label>Caixa</label>
+          <select v-model="inboxId" class="form-input">
+            <option value="">Selecione a caixa...</option>
+            <option v-for="ib in inboxesDoCanal" :key="ib.id" :value="ib.id">{{ ib.name }}</option>
+          </select>
+          <p class="hint">O gatilho por palavra-chave só escuta essa caixa. Sem escolher, o fluxo não dispara em lugar nenhum.</p>
         </div>
 
         <div class="form-group">
@@ -159,6 +191,7 @@ const criarFluxo = async () => {
 }
 
 .error-text { color: #ef4444; font-size: 0.82rem; margin-bottom: 1rem; }
+.hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.4rem; }
 
 .form-actions {
   display: flex;

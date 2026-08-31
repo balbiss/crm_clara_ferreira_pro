@@ -4,6 +4,7 @@ class Inbox < ApplicationRecord
   has_many :conversations, dependent: :nullify
   has_many :inbox_members, dependent: :destroy
   has_many :users, through: :inbox_members, dependent: :destroy
+  has_many :flows, dependent: :nullify
 
   validate :followup_not_allowed_for_instagram
   # Baileys e WAHA derivam o nome da sessão externa a partir do phone_number

@@ -111,6 +111,30 @@ class WhatsappWahaService
     nil
   end
 
+  # Usado pelo nó "Enviar mídia" do Fluxos — a WAHA baixa o arquivo sozinha
+  # a partir da URL (não precisa a gente baixar e reenviar em base64, como
+  # `send_message` faz pra anexo já hospedado no nosso ActiveStorage).
+  def send_media_by_url(recipient_phone, url, media_type, caption = nil)
+    chat_id = normalize_jid(recipient_phone)
+    filename = File.basename(URI.parse(url).path.presence || 'arquivo')
+
+    endpoint = { 'image' => '/api/sendImage', 'video' => '/api/sendVideo', 'audio' => '/api/sendVoice', 'document' => '/api/sendFile' }[media_type] || '/api/sendFile'
+
+    payload = { 'session' => @session, 'chatId' => chat_id, 'file' => { 'url' => url, 'filename' => filename } }
+    payload['caption'] = caption if caption.present? && media_type != 'audio'
+    payload['ptt'] = true if media_type == 'audio'
+
+    res = request(:post, endpoint, payload, timeout: 40)
+    Rails.logger.info("Waha send_media_by_url response code: #{res.code}, body: #{res.body}")
+    return nil unless res.is_a?(Net::HTTPSuccess)
+
+    parsed = JSON.parse(res.body) rescue {}
+    parsed.dig('id', '_serialized') || parsed.dig('_data', 'id', '_serialized')
+  rescue => e
+    Rails.logger.error("Waha send_media_by_url error: #{e.message}")
+    nil
+  end
+
   def send_presence_update(recipient_phone, presence = 'composing')
     chat_id = normalize_jid(recipient_phone)
     endpoint = presence == 'composing' ? '/api/startTyping' : '/api/stopTyping'

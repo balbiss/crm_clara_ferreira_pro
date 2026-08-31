@@ -5,6 +5,7 @@ class Conversation < ApplicationRecord
   belongs_to :inbox, optional: true
 
   has_many :messages, dependent: :destroy
+  has_many :flow_runs, dependent: :destroy
   has_many :scheduled_messages, dependent: :destroy
   has_many :conversation_tags, dependent: :destroy
   has_many :tags, through: :conversation_tags

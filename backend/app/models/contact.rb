@@ -11,6 +11,7 @@ class Contact < ApplicationRecord
   has_many :contact_tags, dependent: :destroy
   has_many :tags, through: :contact_tags
   has_many :contact_audit_events, dependent: :destroy
+  has_many :flow_runs, dependent: :destroy
 
   # Histórico de transferência de responsável e de mudança de status
   # (briefing seção 22 + pendência da auditoria). Current.user é quem fez a

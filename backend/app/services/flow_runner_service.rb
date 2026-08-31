@@ -1,25 +1,33 @@
-# Execução ao vivo de um Fluxo (MVP) — só o suficiente pra testar o gatilho
-# de Palavra-chave de ponta a ponta. Percorre nó por nó via FlowEdge, mesmo
+# Execução ao vivo de um Fluxo — percorre nó por nó via FlowEdge, mesmo
 # padrão de PipelineTriggerRunnerService (guarda de loop com MAX_STEPS).
+# Estado da execução (variáveis capturadas, em que nó parou) mora num
+# FlowRun, um por vez por conversa em andamento.
 #
-# "wait" segura de verdade (enfileira FlowContinueJob com `.set(wait: ...)`
-# e para a execução síncrona ali — confirmado num teste real que sem isso a
-# mensagem de depois do Aguardar chegava junto com a de antes, instantâneo).
-# "condition" segue sempre pelo caminho "não" (não existe nó de Pergunta
-# ainda pra popular a variável de verdade). Os outros gatilhos (novo
-# contato, mensagem recebida, manual) e os tipos de nó de Pergunta/Mídia/
-# Opções/Ação ainda não são executados — só a palavra-chave, que é testável
-# direto por uma mensagem de WhatsApp.
+# Cobertura:
+# - Gatilho: só Palavra-chave dispara (trigger_by_keyword) — os outros
+#   (novo contato, mensagem recebida, evento, webhook, manual) ainda não.
+# - "send_message"/"send_media": manda de verdade.
+# - "ask_question": manda a pergunta e PARA — vira FlowRun#status
+#   "waiting_reply", a próxima mensagem da conversa é tratada como resposta
+#   (continue_with_reply) e vira a variável configurada, em vez de cair na
+#   IA ou virar um novo gatilho.
+# - "options" (Botões/Lista): manda a lista numerada e também PARA esperando
+#   resposta — casa a resposta por número ou por texto da opção.
+# - "wait": segura de verdade (FlowContinueJob com `.set(wait: ...)`).
+# - "condition": avalia de verdade contra FlowRun#variables.
+# - "action": add_tag/remove_tag/assign_agent/update_variable/send_webhook,
+#   mesmo vocabulário de PipelineTrigger#action_type.
 class FlowRunnerService
   MAX_STEPS = 20
 
-  # Acionado pelo webhook (Waha/Baileys) a cada mensagem recebida. Devolve
-  # true se algum fluxo ativo do canal bateu com a palavra-chave e foi
-  # executado (o chamador deve pular a IA nesse caso).
+  # Acionado pelo webhook a cada mensagem recebida. Só considera fluxos
+  # ativos DA MESMA CAIXA que recebeu a mensagem (Flow#inbox_id) — um fluxo
+  # sem caixa definida não dispara em lugar nenhum, de propósito (evita
+  # crer que ativou pra uma caixa e na verdade valer pra todas).
   def self.trigger_by_keyword(inbox, conversation, contact, text)
     return false if text.blank?
 
-    flow = inbox.account.flows.includes(:flow_nodes).where(active: true).find do |f|
+    flow = inbox.flows.includes(:flow_nodes).where(active: true).find do |f|
       trigger = f.flow_nodes.find { |n| n.node_type == 'trigger' }
       trigger && trigger.data['trigger_type'] == 'palavra_chave' &&
         trigger.data['keyword'].to_s.strip.present? &&
@@ -28,50 +36,176 @@ class FlowRunnerService
     return false unless flow
 
     trigger_node = flow.flow_nodes.find { |n| n.node_type == 'trigger' }
-    new(flow, conversation, contact).call(trigger_node.key)
+    flow_run = FlowRun.create!(flow: flow, conversation: conversation, contact: contact)
+    new(flow_run).call(trigger_node.key)
     true
   rescue StandardError => e
     Rails.logger.error("FlowRunnerService (palavra-chave) falhou: #{e.message}")
     false
   end
 
-  def initialize(flow, conversation, contact)
-    @flow = flow
-    @conversation = conversation
-    @contact = contact
+  # Chamado ANTES de trigger_by_keyword pra toda mensagem recebida — se essa
+  # conversa tem um FlowRun esperando resposta (Perguntar ou Botões/Lista),
+  # essa mensagem é a resposta, não um gatilho novo nem algo pra IA.
+  def self.continue_with_reply(conversation, text)
+    flow_run = FlowRun.where(conversation: conversation, status: 'waiting_reply').order(updated_at: :desc).first
+    return false unless flow_run
+
+    node = flow_run.flow.flow_nodes.find_by(key: flow_run.current_node_key)
+    return false unless node
+
+    case node.node_type
+    when 'ask_question'
+      var_name = node.data['variable'].to_s.strip.presence || 'resposta'
+      flow_run.update!(variables: flow_run.variables.merge(var_name => text.to_s), status: 'running')
+      new(flow_run).call(node.key)
+      true
+    when 'options'
+      handle_id = match_option_handle(node, text)
+      flow_run.update!(status: 'running')
+      new(flow_run).call(node.key, handle: handle_id)
+      true
+    else
+      false
+    end
+  rescue StandardError => e
+    Rails.logger.error("FlowRunnerService (continuar) falhou: #{e.message}")
+    false
+  end
+
+  def self.match_option_handle(node, text)
+    options = node.data['options'] || []
+    normalized = text.to_s.strip.downcase
+    return nil if options.blank?
+
+    by_number = normalized.match?(/\A\d+\z/) ? options[normalized.to_i - 1] : nil
+    match = by_number ||
+      options.find { |o| o['label'].to_s.strip.downcase == normalized } ||
+      options.find { |o| normalized.include?(o['label'].to_s.strip.downcase) && o['label'].to_s.present? }
+    match && match['id']
+  end
+
+  def initialize(flow_run)
+    @flow_run = flow_run
+    @flow = flow_run.flow
+    @conversation = flow_run.conversation
+    @contact = flow_run.contact
   end
 
   def call(from_key, handle: nil, steps: 0)
     return if steps >= MAX_STEPS
 
     edge = @flow.flow_edges.find_by(source_key: from_key, source_handle: handle)
-    return unless edge
+    return finish! unless edge
 
     node = @flow.flow_nodes.find_by(key: edge.target_key)
-    return unless node
+    return finish! unless node
 
     case node.node_type
     when 'send_message'
-      send_message(node)
+      send_message_text(interpolate(node.data['message'].to_s))
       call(node.key, steps: steps + 1)
+    when 'send_media'
+      send_media(node)
+      call(node.key, steps: steps + 1)
+    when 'ask_question'
+      send_message_text(interpolate(node.data['question'].to_s))
+      @flow_run.update!(current_node_key: node.key, status: 'waiting_reply')
+    when 'options'
+      send_options(node)
+      @flow_run.update!(current_node_key: node.key, status: 'waiting_reply')
     when 'wait'
       seconds = wait_seconds(node.data)
       if seconds.positive?
-        FlowContinueJob.set(wait: seconds.seconds).perform_later(@flow.id, @conversation.id, @contact.id, node.key)
+        @flow_run.update!(current_node_key: node.key)
+        FlowContinueJob.set(wait: seconds.seconds).perform_later(@flow_run.id, node.key)
       else
         call(node.key, steps: steps + 1)
       end
     when 'condition'
-      call(node.key, handle: 'nao', steps: steps + 1)
+      call(node.key, handle: (evaluate_condition(node) ? 'sim' : 'nao'), steps: steps + 1)
+    when 'action'
+      run_action(node)
+      call(node.key, steps: steps + 1)
     when 'end'
-      nil
+      finish!
+    else
+      finish!
     end
   end
 
   private
 
-  def send_message(node)
-    text = interpolate(node.data['message'].to_s)
+  def finish!
+    @flow_run.update!(status: 'completed') if @flow_run.status != 'completed'
+    nil
+  end
+
+  def evaluate_condition(node)
+    actual = @flow_run.variables[node.data['variable'].to_s].to_s
+    expected = interpolate(node.data['value'].to_s)
+
+    case node.data['operator']
+    when 'igual' then actual.casecmp?(expected)
+    when 'diferente' then !actual.casecmp?(expected)
+    when 'contem' then actual.downcase.include?(expected.downcase)
+    else false
+    end
+  end
+
+  def run_action(node)
+    case node.data['action_type']
+    when 'add_tag'
+      tag = @conversation.account.tags.find_by(name: node.data['tag_name'])
+      @contact.tags << tag if tag && !@contact.tags.include?(tag)
+    when 'remove_tag'
+      tag = @conversation.account.tags.find_by(name: node.data['tag_name'])
+      @contact.tags.delete(tag) if tag
+    when 'assign_agent'
+      user = @conversation.account.users.find_by(id: node.data['agent_id'])
+      @contact.update!(user_id: user.id) if user
+    when 'update_variable'
+      var = node.data['variable'].to_s.strip
+      return if var.blank?
+
+      @flow_run.update!(variables: @flow_run.variables.merge(var => interpolate(node.data['value'].to_s)))
+    when 'send_webhook'
+      send_webhook(node)
+    end
+  rescue StandardError => e
+    Rails.logger.error("FlowRunnerService ação '#{node.data['action_type']}' falhou: #{e.message}")
+  end
+
+  # Mesmo padrão de PipelineTriggerRunnerService#send_webhook.
+  def send_webhook(node)
+    url = node.data['url']
+    return if url.blank?
+
+    uri = URI.parse(url)
+    return unless uri.is_a?(URI::HTTP) || uri.is_a?(URI::HTTPS)
+
+    payload = {
+      event: 'flow_action',
+      flow_id: @flow.id,
+      contact: { id: @contact.id, name: @contact.name, phone: @contact.phone },
+      variables: @flow_run.variables
+    }
+
+    Thread.new do
+      begin
+        req = Net::HTTP::Post.new(uri)
+        req['Content-Type'] = 'application/json'
+        req.body = payload.to_json
+        Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == 'https', open_timeout: 5, read_timeout: 5) do |http|
+          http.request(req)
+        end
+      rescue StandardError => e
+        Rails.logger.error("Webhook de ação de Fluxo falhou: #{e.message}")
+      end
+    end
+  end
+
+  def send_message_text(text)
     return if text.blank?
 
     recipient = @contact.channel_identifier
@@ -80,9 +214,7 @@ class FlowRunnerService
     # (fromMe: true) às vezes chega no webhook ANTES da gente terminar de
     # gravar o Message com o source_id certo — o webhook então não acha
     # nada com esse source_id e trata como intervenção humana, duplicando.
-    # Mesma guarda de cache que a IA já usa (ai_is_replying_#{inbox}_#{chat}),
-    # só que ela só era checada quando inbox.ai_enabled — Fluxo roda mesmo
-    # com IA desligada, então também precisa dessa guarda.
+    # Mesma guarda de cache que a IA já usa (ai_is_replying_#{inbox}_#{chat}).
     Rails.cache.write("ai_is_replying_#{@conversation.inbox_id}_#{recipient}", true, expires_in: 20.seconds)
 
     external_id = @conversation.inbox.messaging_service.send_message(recipient, text)
@@ -99,11 +231,47 @@ class FlowRunnerService
     msg.rebroadcast
   end
 
+  def send_media(node)
+    url = node.data['url']
+    return if url.blank?
+
+    caption = interpolate(node.data['caption'].to_s)
+    recipient = @contact.channel_identifier
+    media_type = node.data['media_type'].presence || 'document'
+
+    Rails.cache.write("ai_is_replying_#{@conversation.inbox_id}_#{recipient}", true, expires_in: 20.seconds)
+
+    messaging_service = @conversation.inbox.messaging_service
+    external_id = messaging_service.respond_to?(:send_media_by_url) ? messaging_service.send_media_by_url(recipient, url, media_type, caption) : nil
+
+    msg = Message.create!(
+      account_id: @conversation.account_id,
+      conversation: @conversation,
+      text: caption.presence || "[#{media_type}] #{url}",
+      sender_type: 'User',
+      sender_id: nil,
+      source_id: external_id.presence || "flow_#{@flow.id}_#{SecureRandom.hex(8)}",
+      status: :sent
+    )
+    msg.rebroadcast
+  end
+
+  def send_options(node)
+    lines = [interpolate(node.data['title'].to_s)]
+    (node.data['options'] || []).each_with_index do |opt, i|
+      lines << "#{i + 1}. #{opt['label']}"
+    end
+    send_message_text(lines.reject(&:blank?).join("\n"))
+  end
+
   def interpolate(text)
-    text.to_s
+    base = text.to_s
       .gsub('{{nome}}', @contact.name.to_s)
       .gsub('{{telefone}}', @contact.phone.to_s)
       .gsub('{{email}}', @contact.email.to_s)
+
+    @flow_run.variables.each { |key, value| base = base.gsub("{{#{key}}}", value.to_s) }
+    base
   end
 
   def wait_seconds(data)

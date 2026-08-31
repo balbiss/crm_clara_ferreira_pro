@@ -44,7 +44,7 @@ const nodeTypes = {
 }
 
 const isLoading = ref(true)
-const flow = reactive({ id: null, name: '', description: '', channel: '', active: true })
+const flow = reactive({ id: null, name: '', description: '', channel: '', inbox_id: '', active: true })
 const nodes = ref([])
 const edges = ref([])
 const selectedNode = ref(null)
@@ -52,6 +52,7 @@ const saveStatus = ref('') // '' | 'saving' | 'saved'
 const nameEditing = ref(false)
 const agents = ref([])
 const tags = ref([])
+const inboxes = ref([])
 
 // Alguns itens da paleta compartilham node_type e só mudam o "preset"
 // inicial (ex: os 4 tipos de mídia são todos `send_media` com media_type
@@ -103,6 +104,7 @@ const backendToVueFlow = (data) => {
   flow.name = data.name
   flow.description = data.description
   flow.channel = data.channel
+  flow.inbox_id = data.inbox_id || ''
   flow.active = data.active
 
   nodes.value = (data.nodes || []).map(n => ({
@@ -291,11 +293,22 @@ const onKeydown = (e) => {
 
 const fetchAgentsAndTags = async () => {
   try {
-    const [agentsRes, tagsRes] = await Promise.all([api.get('/agents'), api.get('/tags')])
+    const [agentsRes, tagsRes, inboxesRes] = await Promise.all([api.get('/agents'), api.get('/tags'), api.get('/inboxes')])
     agents.value = agentsRes.data
     tags.value = tagsRes.data
+    inboxes.value = inboxesRes.data
   } catch (e) {
-    console.error('Erro ao buscar agentes/etiquetas:', e)
+    console.error('Erro ao buscar agentes/etiquetas/caixas:', e)
+  }
+}
+
+const changeInbox = async (event) => {
+  const newInboxId = event.target.value || null
+  flow.inbox_id = newInboxId || ''
+  try {
+    await api.patch(`/flows/${flow.id}`, { flow: { inbox_id: newInboxId } })
+  } catch (e) {
+    console.error('Erro ao trocar caixa do fluxo:', e)
   }
 }
 
@@ -330,6 +343,11 @@ const varHintLabels = computed(() => ['nome', 'telefone', 'email'].map(v => `{{$
       <span class="status-badge" :class="{ connected: flow.active, disconnected: !flow.active }">
         <span class="dot"></span>{{ flow.active ? 'Ativo' : 'Inativo' }}
       </span>
+
+      <select :value="flow.inbox_id" class="inbox-select" @change="changeInbox" title="Caixa em que o gatilho por palavra-chave escuta">
+        <option value="">Sem caixa (não dispara)</option>
+        <option v-for="ib in inboxes" :key="ib.id" :value="ib.id">{{ ib.name }}</option>
+      </select>
 
       <div class="topbar-spacer"></div>
 
@@ -615,6 +633,16 @@ const varHintLabels = computed(() => ['nome', 'telefone', 'email'].map(v => `{{$
 
   &.connected { background: #d1fae5; color: #059669; .dot { background: #10b981; } }
   &.disconnected { background: #f3f4f6; color: #6b7280; .dot { background: #9ca3af; } }
+}
+
+.inbox-select {
+  font-size: 0.78rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+  color: var(--text-main);
+  max-width: 180px;
 }
 
 .topbar-spacer { flex: 1; }

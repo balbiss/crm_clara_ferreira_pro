@@ -265,11 +265,14 @@ module Webhooks
 
       message_record.rebroadcast
 
-      # Fluxos (MVP) — gatilho de Palavra-chave. Se algum Fluxo ativo bater,
-      # ele assume a resposta dessa mensagem e a IA não entra (mesma
-      # prioridade que intervenção humana tem sobre a IA).
-      flow_handled = !human_reply_via_phone && !from_me &&
+      # Fluxos — se essa conversa tem um Fluxo esperando resposta (Perguntar/
+      # Botões), essa mensagem É a resposta, checado antes do gatilho por
+      # palavra-chave. Se algum Fluxo assumir (resposta OU gatilho novo), a
+      # IA não entra (mesma prioridade que intervenção humana tem sobre ela).
+      flow_handled = !human_reply_via_phone && !from_me && (
+        FlowRunnerService.continue_with_reply(conversation, text) ||
         FlowRunnerService.trigger_by_keyword(inbox, conversation, contact, text)
+      )
 
       # ===== MOTOR DE INTELIGÊNCIA ARTIFICIAL (mesma lógica do Baileys) =====
       if inbox.ai_enabled && !human_reply_via_phone && !flow_handled

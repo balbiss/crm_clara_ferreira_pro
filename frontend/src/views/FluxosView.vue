@@ -136,6 +136,8 @@ onMounted(fetchFlows)
           <div class="flow-meta">
             <span class="step-pill">{{ flow.flow_nodes_count }} etapa{{ flow.flow_nodes_count === 1 ? '' : 's' }}</span>
             <span class="meta-sep">·</span>
+            <span :class="{ 'no-inbox': !flow.inbox_name }">{{ flow.inbox_name || 'Sem caixa (não dispara)' }}</span>
+            <span class="meta-sep">·</span>
             <span>Criado em {{ formatDate(flow.created_at) }}</span>
             <span class="meta-sep">·</span>
             <span>Atualizado em {{ formatDate(flow.updated_at) }}</span>
@@ -349,6 +351,7 @@ onMounted(fetchFlows)
   }
 
   .meta-sep { color: var(--border-color); }
+  .no-inbox { color: #dc2626; }
 }
 
 .flow-actions {

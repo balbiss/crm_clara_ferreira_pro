@@ -8,7 +8,7 @@ class FlowsController < ApplicationController
   before_action :set_flow, only: %i[show update destroy duplicate graph]
 
   def index
-    flows = current_user.account.flows.includes(:flow_nodes).order(updated_at: :desc)
+    flows = current_user.account.flows.includes(:flow_nodes, :inbox).order(updated_at: :desc)
     render json: flows.map { |f| serialize_summary(f) }
   end
 
@@ -46,6 +46,7 @@ class FlowsController < ApplicationController
         name: "#{@flow.name} (cópia)",
         description: @flow.description,
         channel: @flow.channel,
+        inbox_id: @flow.inbox_id,
         active: false
       )
       @flow.flow_nodes.each do |n|
@@ -101,7 +102,7 @@ class FlowsController < ApplicationController
   end
 
   def flow_params
-    params.require(:flow).permit(:name, :description, :channel, :active)
+    params.require(:flow).permit(:name, :description, :channel, :active, :inbox_id)
   end
 
   def serialize_summary(flow)
@@ -111,6 +112,8 @@ class FlowsController < ApplicationController
       description: flow.description,
       channel: flow.channel,
       active: flow.active,
+      inbox_id: flow.inbox_id,
+      inbox_name: flow.inbox&.name,
       flow_nodes_count: flow.flow_nodes.size,
       created_at: flow.created_at,
       updated_at: flow.updated_at

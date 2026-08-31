@@ -6,12 +6,10 @@
 class FlowContinueJob < ApplicationJob
   queue_as :default
 
-  def perform(flow_id, conversation_id, contact_id, from_key)
-    flow = Flow.find_by(id: flow_id)
-    conversation = Conversation.find_by(id: conversation_id)
-    contact = Contact.find_by(id: contact_id)
-    return unless flow && conversation && contact
+  def perform(flow_run_id, from_key)
+    flow_run = FlowRun.find_by(id: flow_run_id)
+    return unless flow_run && flow_run.status != 'completed'
 
-    FlowRunnerService.new(flow, conversation, contact).call(from_key)
+    FlowRunnerService.new(flow_run).call(from_key)
   end
 end
