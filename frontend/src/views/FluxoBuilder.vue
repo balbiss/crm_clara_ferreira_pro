@@ -66,7 +66,6 @@ const PALETTE = [
     { node_type: 'send_message', label: 'Enviar mensagem', icon: MessageCircle },
     { node_type: 'ask_question', label: 'Perguntar', icon: HelpCircle },
     { node_type: 'send_media', label: 'Enviar imagem', icon: Image, preset: { media_type: 'image' } },
-    { node_type: 'send_media', label: 'Enviar vídeo', icon: Video, preset: { media_type: 'video' } },
     { node_type: 'send_media', label: 'Enviar áudio', icon: Mic, preset: { media_type: 'audio' } },
     { node_type: 'send_media', label: 'Enviar documento', icon: FileText, preset: { media_type: 'document' } },
     { node_type: 'options', label: 'Botões', icon: MousePointerClick, preset: { mode: 'buttons' } },
@@ -485,7 +484,6 @@ const varHintLabels = computed(() => ['nome', 'telefone', 'email'].map(v => `{{$
             <label>Tipo</label>
             <select :value="selectedNode.data.media_type" class="form-input" @change="updateSelectedData({ media_type: $event.target.value })">
               <option value="image">Imagem</option>
-              <option value="video">Vídeo</option>
               <option value="audio">Áudio</option>
               <option value="document">Documento</option>
             </select>

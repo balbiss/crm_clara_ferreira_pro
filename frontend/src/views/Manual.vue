@@ -612,7 +612,7 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
           <h3>❓ Perguntar</h3>
           <p>Manda uma pergunta e <strong>para o fluxo</strong>, esperando a resposta do cliente. Quando ele responde, o texto digitado vira o valor da variável que você definir em <strong>Guardar resposta na variável</strong> (ex: <code>nome_prato</code>) — dá pra usar essa variável nos blocos seguintes.</p>
 
-          <h3>🖼️ Enviar mídia (imagem/vídeo/áudio/documento)</h3>
+          <h3>🖼️ Enviar mídia (imagem/áudio/documento)</h3>
           <p>Manda um arquivo. Use <strong>Enviar do computador</strong> pra subir o arquivo direto — é o jeito confiável. O campo "URL do arquivo" é uma alternativa, mas um link externo pode não funcionar dependendo de como o WhatsApp está conectado.</p>
 
           <h3>👆 Botões / 📋 Lista de opções</h3>
