@@ -22,7 +22,16 @@ const searchQuery = ref('')
 const responsavelFilter = ref('all')
 const priorityFilter = ref('all')
 const groupFilter = ref('all')
+const carteiraFilter = ref('all')
 const tarefas = ref([])
+
+// "Carteira" = time de vendas do Jueri (custom_attributes.gerente_jueri_nome,
+// mesmo campo já usado em RevendedorasAtivas.vue) — diferente de
+// responsavelFilter (Contact#user_id, atribuição manual individual, hoje
+// vazia pra quase toda revendedora). Toda tarefa nasce vinculada a uma
+// revendedora que já tem carteira sincronizada do Jueri, então filtrar por
+// aqui é útil mesmo sem nenhuma atribuição pessoa a pessoa feita ainda.
+const carteiraNome = (t) => t.contact?.custom_attributes?.gerente_jueri_nome || null
 
 const priorityOptions = [
   { value: 'all', label: 'Todas as prioridades' },
@@ -62,8 +71,17 @@ const responsavelOptions = computed(() => [
   ...(convStore.agents || []).map(a => ({ value: a.id, label: `${a.first_name || ''} ${a.last_name || ''}`.trim() })),
 ])
 
+const carteiraOptions = computed(() => {
+  const presentes = [...new Set(tarefas.value.map(carteiraNome).filter(Boolean))].sort()
+  return [{ value: 'all', label: 'Todas as carteiras' }, ...presentes.map(nome => ({ value: nome, label: nome }))]
+})
+
 const filteredTasks = computed(() => {
   let list = tarefas.value
+
+  if (carteiraFilter.value !== 'all') {
+    list = list.filter(t => carteiraNome(t) === carteiraFilter.value)
+  }
 
   if (responsavelFilter.value === 'none') {
     list = list.filter(t => !t.user_id)
@@ -188,6 +206,9 @@ onMounted(async () => {
       <select v-model="priorityFilter" class="responsavel-select">
         <option v-for="opt in priorityOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
       </select>
+      <select v-model="carteiraFilter" class="responsavel-select">
+        <option v-for="opt in carteiraOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+      </select>
       <div class="stage-chips">
         <button
           v-for="opt in groupOptions"
@@ -215,6 +236,7 @@ onMounted(async () => {
                 <span class="task-name">{{ t.contact?.name || 'Sem nome' }}</span>
                 <span class="task-title">{{ t.titulo }}</span>
               </div>
+              <span v-if="carteiraNome(t)" class="carteira-badge">{{ carteiraNome(t) }}</span>
               <span class="priority-badge">{{ PRIORITY_LABELS[t.prioridade] }}</span>
             </div>
             <ul class="task-checklist">
@@ -418,6 +440,17 @@ onMounted(async () => {
 
   .priority-alta & { background: #fef3c7; color: #92400e; }
   .priority-urgente & { background: #fee2e2; color: #991b1b; }
+}
+
+.carteira-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 20px;
+  background: var(--bg-tertiary);
+  color: var(--text-main);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .task-checklist {

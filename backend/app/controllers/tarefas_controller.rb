@@ -21,7 +21,12 @@ class TarefasController < ApplicationController
     )
 
     render json: tarefas.as_json(include: {
-      contact: { only: %i[id name phone status user_id] },
+      # custom_attributes → carteira (gerente_jueri_nome, briefing seção 6) —
+      # toda revendedora sincronizada do Jueri já tem isso, diferente do
+      # responsável individual (user_id), que é atribuição manual e hoje está
+      # vazio pra quase todo mundo. Tarefas.vue usa isso pra agrupar/filtrar
+      # por time mesmo sem atribuição pessoa a pessoa.
+      contact: { only: %i[id name phone status user_id custom_attributes] },
       user: { only: %i[id first_name last_name] }
     })
   end
