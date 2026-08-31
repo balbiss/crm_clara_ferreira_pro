@@ -843,7 +843,7 @@ onUnmounted(() => {
             </div>
             <div class="conv-preview">
               <span v-if="conv.unread > 0" class="unread-badge"></span>
-              <span>{{ conv.preview }}</span>
+              <span class="conv-preview-text">{{ conv.preview }}</span>
             </div>
             <div class="conv-tags" v-if="(conv.tags && conv.tags.length > 0) || conv.assignee">
               <span v-for="tag in conv.tags" :key="tag.id" class="conv-tag" :style="{ background: tag.color, color: '#fff' }">
@@ -1785,6 +1785,14 @@ onUnmounted(() => {
     display: flex;
     align-items: center;
     gap: 0.25rem;
+    min-width: 0; // sem isso o filho não consegue truncar dentro de um flex
+
+    .conv-preview-text {
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      min-width: 0;
+    }
   }
 
   &.unread .conv-preview {
