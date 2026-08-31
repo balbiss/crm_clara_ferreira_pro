@@ -104,13 +104,6 @@ Rails.application.routes.draw do
 
   resources :jueri_activities, only: [:index]
 
-  resources :flows do
-    member do
-      post :duplicate
-      put :graph
-    end
-  end
-
   resources :sales_teams, only: [:index] do
     member do
       patch :members, action: :update_members

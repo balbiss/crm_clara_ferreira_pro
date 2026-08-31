@@ -258,14 +258,8 @@ module Webhooks
 
       message_record.rebroadcast
 
-      # Fluxos (MVP) — gatilho de Palavra-chave. Se algum Fluxo ativo bater,
-      # ele assume a resposta dessa mensagem e a IA não entra (mesma
-      # prioridade que intervenção humana tem sobre a IA).
-      flow_handled = !human_reply_via_phone && !from_me &&
-        FlowRunnerService.trigger_by_keyword(inbox, conversation, contact, text)
-
       # ===== MOTOR DE INTELIGÊNCIA ARTIFICIAL (mesma lógica do Baileys) =====
-      if inbox.ai_enabled && !human_reply_via_phone && !flow_handled
+      if inbox.ai_enabled && !human_reply_via_phone
         is_paused = Rails.cache.read("ai_paused_#{inbox.id}_#{chat_id}")
 
         if is_paused
