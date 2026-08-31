@@ -2,12 +2,14 @@
 # de Palavra-chave de ponta a ponta. Percorre nó por nó via FlowEdge, mesmo
 # padrão de PipelineTriggerRunnerService (guarda de loop com MAX_STEPS).
 #
-# Cobertura deliberadamente mínima: "wait" não segura de verdade a resposta
-# do webhook (passa direto — dá pra virar job assíncrono depois) e
+# "wait" segura de verdade (enfileira FlowContinueJob com `.set(wait: ...)`
+# e para a execução síncrona ali — confirmado num teste real que sem isso a
+# mensagem de depois do Aguardar chegava junto com a de antes, instantâneo).
 # "condition" segue sempre pelo caminho "não" (não existe nó de Pergunta
-# ainda pra popular a variável). Os outros gatilhos (novo contato, mensagem
-# recebida, manual) e os tipos de nó de Ação ainda não são executados — só a
-# palavra-chave, que é testável direto por uma mensagem de WhatsApp.
+# ainda pra popular a variável de verdade). Os outros gatilhos (novo
+# contato, mensagem recebida, manual) e os tipos de nó de Pergunta/Mídia/
+# Opções/Ação ainda não são executados — só a palavra-chave, que é testável
+# direto por uma mensagem de WhatsApp.
 class FlowRunnerService
   MAX_STEPS = 20
 
@@ -53,7 +55,12 @@ class FlowRunnerService
       send_message(node)
       call(node.key, steps: steps + 1)
     when 'wait'
-      call(node.key, steps: steps + 1)
+      seconds = wait_seconds(node.data)
+      if seconds.positive?
+        FlowContinueJob.set(wait: seconds.seconds).perform_later(@flow.id, @conversation.id, @contact.id, node.key)
+      else
+        call(node.key, steps: steps + 1)
+      end
     when 'condition'
       call(node.key, handle: 'nao', steps: steps + 1)
     when 'end'
@@ -97,5 +104,13 @@ class FlowRunnerService
       .gsub('{{nome}}', @contact.name.to_s)
       .gsub('{{telefone}}', @contact.phone.to_s)
       .gsub('{{email}}', @contact.email.to_s)
+  end
+
+  def wait_seconds(data)
+    duration = data['duration'].to_i
+    return 0 if duration <= 0
+
+    multiplier = { 'segundos' => 1, 'minutos' => 60, 'horas' => 3600, 'dias' => 86_400 }[data['unit']] || 1
+    duration * multiplier
   end
 end
