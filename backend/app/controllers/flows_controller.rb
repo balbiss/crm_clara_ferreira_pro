@@ -8,11 +8,7 @@ class FlowsController < ApplicationController
   before_action :set_flow, only: %i[show update destroy duplicate graph]
 
   def index
-    flows = current_user.account.flows.left_joins(:flow_nodes)
-      .select('flows.*, COUNT(flow_nodes.id) AS flow_nodes_count')
-      .group('flows.id')
-      .order(updated_at: :desc)
-
+    flows = current_user.account.flows.includes(:flow_nodes).order(updated_at: :desc)
     render json: flows.map { |f| serialize_summary(f) }
   end
 
@@ -111,7 +107,7 @@ class FlowsController < ApplicationController
       description: flow.description,
       channel: flow.channel,
       active: flow.active,
-      flow_nodes_count: flow.flow_nodes_count.to_i,
+      flow_nodes_count: flow.flow_nodes.size,
       created_at: flow.created_at,
       updated_at: flow.updated_at
     }
