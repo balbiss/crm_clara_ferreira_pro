@@ -3,7 +3,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import {
   MessageCircle, Users, UserCheck, UserX, ListChecks, LayoutGrid, Kanban,
   TrendingUp, Badge, Settings, BrainCircuit, Bell,
-  BookOpen, ChevronRight, Search, Bot, Zap, Shield, ArrowRightLeft
+  BookOpen, ChevronRight, Search, Bot, Zap, Shield, ArrowRightLeft, GitBranch
 } from 'lucide-vue-next'
 
 const activeSection = ref('visao-geral')
@@ -25,6 +25,7 @@ const sections = [
   { id: 'ia',             label: 'Inteligência Artificial', icon: BrainCircuit },
   { id: 'notificacoes',   label: 'Notificações Push',       icon: Bell },
   { id: 'permissoes',     label: 'Permissões',              icon: Shield },
+  { id: 'fluxos',         label: 'Fluxos',                  icon: GitBranch },
 ]
 
 const filteredSections = ref(sections)
@@ -584,6 +585,78 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
 
         <div class="divider" />
 
+        <!-- ══════════════════════════════════════ FLUXOS -->
+        <section id="fluxos">
+          <h1>Fluxos</h1>
+          <p class="lead">Construtor visual de automação de conversa (menu <strong>Fluxos</strong>, exclusivo da Diretoria). Monte uma sequência de blocos conectados que responde sozinha quando o cliente manda uma palavra-chave no WhatsApp.</p>
+
+          <h2>Como criar um fluxo</h2>
+          <ol>
+            <li>No menu, clique em <strong>Fluxos → + Criar fluxo</strong></li>
+            <li>Dê um nome, descrição e escolha o <strong>Canal</strong> (WhatsApp/Instagram)</li>
+            <li>Escolha a <strong>Caixa</strong> — é a caixa de WhatsApp específica que vai escutar o gatilho. <strong>Sem escolher uma caixa, o fluxo não dispara em lugar nenhum</strong> (proposital: evita um fluxo de teste responder sem querer numa conversa de cliente real)</li>
+            <li>Clique em <strong>Criar fluxo</strong> — o editor visual abre na hora</li>
+          </ol>
+
+          <h2>Montando o fluxo</h2>
+          <p>Arraste um bloco da barra <strong>Elementos</strong> (esquerda) pro canvas. Puxe uma linha do círculo de saída de um bloco até a entrada de outro pra conectar. Clique num bloco pra abrir o painel de <strong>Configuração</strong> (direita) e preencher os dados dele. Tudo é salvo sozinho (indicador "Salvando.../Salvo" no topo) — também dá pra forçar com o botão <strong>Salvar</strong> ou <kbd>Ctrl+S</kbd>.</p>
+
+          <h2>Os blocos</h2>
+
+          <h3>⚡ Gatilho</h3>
+          <p>Todo fluxo começa com um. Escolha o tipo em <strong>Tipo de gatilho</strong>. Hoje só <strong>Palavra-chave</strong> funciona de verdade: quando o cliente manda uma mensagem contendo a palavra configurada, o fluxo começa a rodar. Os outros tipos (Novo contato, Mensagem recebida, Evento, Webhook, Manual) já existem na tela mas ainda não disparam nada — ficam prontos pra quando isso for implementado.</p>
+
+          <h3>💬 Enviar mensagem</h3>
+          <p>Manda um texto pro cliente. Aceita variáveis: <code>{{nome}}</code>, <code>{{telefone}}</code>, <code>{{email}}</code> (dados da revendedora) e qualquer variável capturada por um bloco Perguntar mais cedo no mesmo fluxo (ex: <code>{{cor_favorita}}</code>).</p>
+
+          <h3>❓ Perguntar</h3>
+          <p>Manda uma pergunta e <strong>para o fluxo</strong>, esperando a resposta do cliente. Quando ele responde, o texto digitado vira o valor da variável que você definir em <strong>Guardar resposta na variável</strong> (ex: <code>nome_prato</code>) — dá pra usar essa variável nos blocos seguintes.</p>
+
+          <h3>🖼️ Enviar mídia (imagem/vídeo/áudio/documento)</h3>
+          <p>Manda um arquivo. Use <strong>Enviar do computador</strong> pra subir o arquivo direto — é o jeito confiável. O campo "URL do arquivo" é uma alternativa, mas um link externo pode não funcionar dependendo de como o WhatsApp está conectado.</p>
+
+          <h3>👆 Botões / 📋 Lista de opções</h3>
+          <p>Mostra opções pro cliente escolher e <strong>para o fluxo</strong> esperando a resposta. Como o WhatsApp não permite botão/lista nativo fora da API oficial da Meta, isso vira uma mensagem numerada (<em>"1. Opção A / 2. Opção B"</em>) — o cliente responde digitando o número ou o texto da opção. Se a resposta não bater com nenhuma, o fluxo pede pra responder de novo em vez de travar.</p>
+
+          <h3>🔀 Condição</h3>
+          <p>Compara uma variável (capturada num Perguntar, por exemplo) contra um valor e segue por um de dois caminhos: <strong>Sim</strong> ou <strong>Não</strong>. Escolha o que <strong>Verificar</strong>, o <strong>Operador</strong> (é igual a / é diferente de / contém) e o <strong>Valor</strong> de comparação.</p>
+
+          <h3>⏱️ Aguardar</h3>
+          <p>Pausa o fluxo pelo tempo definido (segundos/minutos/horas/dias) antes de continuar pro próximo bloco. A pausa é de verdade — o fluxo realmente espera, mesmo que isso leve horas ou dias.</p>
+
+          <h3>🏷️ Ação</h3>
+          <p>Executa uma operação no CRM, sem mandar mensagem nenhuma:</p>
+          <ul>
+            <li><strong>Adicionar/Remover etiqueta</strong> — aplica na conversa (mesma etiqueta que aparece no topo da tela de conversa)</li>
+            <li><strong>Atribuir atendente</strong> — muda o responsável pela revendedora</li>
+            <li><strong>Atualizar variável</strong> — define/sobrescreve uma variável na mão, pra usar depois em mensagens ou condições</li>
+            <li><strong>Enviar webhook</strong> — manda os dados da execução (contato + variáveis capturadas) por POST pra uma URL externa</li>
+          </ul>
+
+          <h3>⛔ Encerrar fluxo</h3>
+          <p>Marca o fim da linha. Não precisa de configuração.</p>
+
+          <h2>O que já funciona de verdade vs. só editor</h2>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Bloco</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr><td>Gatilho por Palavra-chave</td><td><span class="badge green">Funciona</span></td></tr>
+                <tr><td>Enviar mensagem / mídia</td><td><span class="badge green">Funciona</span></td></tr>
+                <tr><td>Perguntar / Botões / Lista</td><td><span class="badge green">Funciona</span></td></tr>
+                <tr><td>Condição / Aguardar / Ação</td><td><span class="badge green">Funciona</span></td></tr>
+                <tr><td>Gatilho: Novo contato / Mensagem recebida / Evento / Webhook / Manual</td><td><span class="badge yellow">Só editor</span></td></tr>
+                <tr><td>Publicar (rascunho x publicado) / Testar fluxo / Modelos prontos</td><td><span class="badge gray">Ainda não existe</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2>Gerenciando fluxos</h2>
+          <p>Na listagem (<strong>Fluxos</strong>), cada card mostra o status (Ativo/Inativo), quantidade de etapas e a caixa vinculada. No menu de <strong>⋮</strong> (três pontos) ou nos ícones do card: <strong>Editar</strong>, <strong>Duplicar</strong> (cria uma cópia inativa), <strong>Renomear</strong>, <strong>Ativar/Desativar</strong> (o interruptor) e <strong>Excluir</strong>.</p>
+        </section>
+
+        <div class="divider" />
+
         <div class="footer-note">
           <p>Dúvidas ou problemas? Acesse <strong>Suporte</strong> no menu lateral para abrir um chamado com a equipe técnica.</p>
         </div>
@@ -725,7 +798,29 @@ h2 {
   letter-spacing: 0.04em;
 }
 
+h3 {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 1.1rem 0 0.3rem;
+}
+
 p { font-size: 0.88rem; color: var(--text-muted); line-height: 1.7; margin: 0.4rem 0; }
+
+code, kbd {
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 0.82rem;
+  background: var(--bg-tertiary);
+  color: var(--text-main);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+}
+
+kbd {
+  border: 1px solid var(--border-color);
+  border-bottom-width: 2px;
+  font-size: 0.78rem;
+}
 
 ul, ol {
   padding-left: 1.3rem;

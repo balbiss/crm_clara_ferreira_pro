@@ -9,7 +9,7 @@ import {
   ArrowLeft, Undo2, Redo2, Save, ZoomIn, ZoomOut, Maximize, X,
   Zap, MessageCircle, HelpCircle, Image, Video, Mic, FileText,
   MousePointerClick, LayoutList, GitFork, Clock, OctagonX,
-  Tag, TagIcon, UserCheck, Variable, Webhook, Plus, Trash2, UploadCloud
+  Tag, TagIcon, UserCheck, Variable, Webhook, Plus, Trash2, UploadCloud, AlertTriangle
 } from '@lucide/vue'
 import api from '../api'
 import TriggerNode from '../components/flow-nodes/TriggerNode.vue'
@@ -517,6 +517,10 @@ const varHintLabels = computed(() => ['nome', 'telefone', 'email'].map(v => `{{$
         </template>
 
         <template v-else-if="selectedNode.type === 'options'">
+          <div class="config-warning">
+            <AlertTriangle class="icon-sm" />
+            <p>O WhatsApp não permite botão/lista nativo fora da API oficial da Meta (a WAHA responde "não implementado" pra esse tipo de conexão). Isso vira uma <strong>mensagem numerada</strong> ("1. Opção A / 2. Opção B") e a pessoa responde digitando o número ou o texto.</p>
+          </div>
           <div class="form-group">
             <label>{{ selectedNode.data.mode === 'list' ? 'Título da lista' : 'Mensagem antes dos botões' }}</label>
             <textarea class="form-input" rows="2" :value="selectedNode.data.title" @input="updateSelectedData({ title: $event.target.value })"></textarea>
@@ -851,6 +855,21 @@ const varHintLabels = computed(() => ['nome', 'telefone', 'email'].map(v => `{{$
   margin-top: 0.4rem;
 
   code { background: var(--bg-tertiary); padding: 0.1rem 0.3rem; border-radius: 4px; }
+}
+
+.config-warning {
+  display: flex;
+  gap: 0.55rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 8px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  margin-bottom: 1.1rem;
+
+  svg { flex-shrink: 0; margin-top: 0.1rem; }
+  p { margin: 0; font-size: 0.76rem; line-height: 1.45; }
+  strong { font-weight: 700; }
 }
 
 .option-edit-row {
