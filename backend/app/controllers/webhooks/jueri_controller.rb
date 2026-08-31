@@ -36,6 +36,8 @@ module Webhooks
       # mudança de formato da API sem precisar confiar nos campos aqui.
       Rails.logger.info("[Webhooks::Jueri] account=#{account.id} evento=#{evento.inspect} payload=#{payload.to_json}")
 
+      registrar_atividade(account, evento, payload)
+
       # pedido.deleted não precisa de fk_revendedor_id no payload — o job
       # acha a revendedora pelo próprio Pedido já salvo localmente (ver
       # JueriSyncService#sync_pedido_excluido). Os outros 3 eventos de
@@ -68,12 +70,7 @@ module Webhooks
     # Payload completo já fica no log logo acima, então dá pra ajustar o
     # nome certo da chave assim que um evento real passar por aqui.
     def notificar_novo_cadastro(account, payload)
-      revendedor = payload['revendedor'].is_a?(Hash) ? payload['revendedor'] : payload
-      nome = revendedor['nome'].presence || 'Revendedora sem nome'
-      cadastrado_por = payload['usuario'].presence || payload['criado_por'].presence ||
-        payload.dig('revendedor', 'usuario').presence || 'não identificado'
-
-      mensagem = "#{nome} — cadastrado por #{cadastrado_por}"
+      mensagem = descricao_para('revendedor.created', payload)
 
       Notification.create!(
         account: account,
@@ -88,6 +85,57 @@ module Webhooks
       end
     rescue StandardError => e
       Rails.logger.error("[Webhooks::Jueri] falha ao notificar revendedor.created: #{e.message}")
+    end
+
+    # Feed de atividade genérico (tela "Atividades", só gerência) — TODO
+    # evento que chega no webhook vira uma linha aqui, sem notificação/push
+    # (diferente do cadastro novo acima): pedido aberto muda de valor várias
+    # vezes por dia, virar aviso a cada mudança seria barulho demais. É só
+    # pra consulta, inspirado no painel "Atividades do Dia" da própria Jueri.
+    def registrar_atividade(account, evento, payload)
+      return if evento.blank?
+
+      id_jueri = payload['fk_revendedor_id'] || payload.dig('revendedor', 'id') || payload.dig('comprador', 'id')
+      contact = id_jueri.present? ? account.contacts.find_by(id_jueri: id_jueri.to_s) : nil
+
+      JueriActivity.create!(
+        account: account,
+        contact: contact,
+        evento: evento,
+        descricao: descricao_para(evento, payload),
+        ocorrido_em: Time.current,
+        payload: payload
+      )
+    rescue StandardError => e
+      Rails.logger.error("[Webhooks::Jueri] falha ao registrar atividade: #{e.message}")
+    end
+
+    def descricao_para(evento, payload)
+      case evento
+      when 'revendedor.created', 'revendedor.updated'
+        revendedor = payload['revendedor'].is_a?(Hash) ? payload['revendedor'] : payload
+        nome = revendedor['nome'].presence || 'Revendedora sem nome'
+        if evento == 'revendedor.created'
+          autor = payload['usuario'].presence || payload['criado_por'].presence ||
+            payload.dig('revendedor', 'usuario').presence || 'não identificado'
+          "#{nome} — cadastro novo (por #{autor})"
+        else
+          "#{nome} — cadastro atualizado"
+        end
+      when /\Apedido\./
+        codigo = payload['codigo_pedido'] || payload['id']
+        valor = payload['valor_total'].presence
+        valor_fmt = valor ? "R$ #{format('%.2f', valor.to_f).tr('.', ',')}" : nil
+        acao = {
+          'pedido.created'  => 'aberto',
+          'pedido.updated'  => 'atualizado',
+          'pedido.deleted'  => 'excluído/unificado',
+          'pedido.canceled' => 'cancelado'
+        }.fetch(evento, evento)
+        ["Pedido ##{codigo}", "— #{acao}", valor_fmt].compact.join(' ')
+      else
+        "Evento #{evento}"
+      end
     end
   end
 end

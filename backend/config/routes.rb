@@ -102,6 +102,8 @@ Rails.application.routes.draw do
     end
   end
 
+  resources :jueri_activities, only: [:index]
+
   resources :sales_teams, only: [:index] do
     member do
       patch :members, action: :update_members

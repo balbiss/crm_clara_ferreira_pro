@@ -33,6 +33,7 @@ import {
   Bell,
   CalendarDays,
   Badge,
+  Activity,
   TrendingUp,
   BookOpen,
   Menu,
@@ -631,6 +632,11 @@ const saveReorder = async () => {
         <router-link v-if="isFullPortfolio" to="/gerencial" class="nav-item">
           <BarChart2 class="icon" />
           <span>Gerencial</span>
+        </router-link>
+
+        <router-link v-if="isFullPortfolio" to="/atividades" class="nav-item">
+          <Activity class="icon" />
+          <span>Atividades</span>
         </router-link>
 
         <router-link v-if="isFullPortfolio" to="/relatorios" class="nav-item">

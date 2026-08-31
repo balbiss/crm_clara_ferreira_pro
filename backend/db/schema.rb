@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_31_000000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_31_010000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -258,6 +258,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_31_000000) do
     t.index ["recipient_id", "read_at"], name: "index_internal_messages_on_recipient_id_and_read_at"
     t.index ["recipient_id", "sender_id"], name: "index_internal_messages_on_recipient_id_and_sender_id"
     t.index ["sender_id", "recipient_id"], name: "index_internal_messages_on_sender_id_and_recipient_id"
+  end
+
+  create_table "jueri_activities", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "contact_id"
+    t.datetime "created_at", null: false
+    t.string "descricao", null: false
+    t.string "evento", null: false
+    t.datetime "ocorrido_em", null: false
+    t.jsonb "payload", default: {}
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "ocorrido_em"], name: "index_jueri_activities_on_account_id_and_ocorrido_em"
+    t.index ["account_id"], name: "index_jueri_activities_on_account_id"
+    t.index ["contact_id"], name: "index_jueri_activities_on_contact_id"
   end
 
   create_table "lifecycle_events", force: :cascade do |t|
@@ -710,6 +724,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_31_000000) do
   add_foreign_key "internal_messages", "accounts"
   add_foreign_key "internal_messages", "users", column: "recipient_id"
   add_foreign_key "internal_messages", "users", column: "sender_id"
+  add_foreign_key "jueri_activities", "accounts"
+  add_foreign_key "jueri_activities", "contacts"
   add_foreign_key "lifecycle_events", "accounts"
   add_foreign_key "lifecycle_events", "contacts"
   add_foreign_key "lifecycle_events", "pedidos"

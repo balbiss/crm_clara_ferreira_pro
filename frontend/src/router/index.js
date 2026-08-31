@@ -68,6 +68,12 @@ const router = createRouter({
           meta: { requiresFullPortfolio: true }
         },
         {
+          path: 'atividades',
+          name: 'atividades',
+          component: () => import('../views/AtividadesView.vue'),
+          meta: { requiresFullPortfolio: true }
+        },
+        {
           path: 'conversas',
           name: 'conversas',
           component: () => import('../views/Conversas.vue')
