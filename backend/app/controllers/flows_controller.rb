@@ -62,8 +62,12 @@ class FlowsController < ApplicationController
   # vez (upsert por key, apaga o que sumiu). Mais adequado ao canvas do que
   # REST granular por node/edge (evita 1 request por drag).
   def graph
-    nodes_params = params.require(:nodes)
-    edges_params = params.fetch(:edges, [])
+    # position/data são jsonb — precisam virar Hash de verdade antes de
+    # gravar, senão vai ActionController::Parameters cru pra coluna (mesma
+    # armadilha documentada em Webhooks::WahaController: Parameters não é
+    # Hash, `.to_unsafe_h` resolve).
+    nodes_params = params.require(:nodes).map { |n| n.respond_to?(:to_unsafe_h) ? n.to_unsafe_h : n }
+    edges_params = params.fetch(:edges, []).map { |e| e.respond_to?(:to_unsafe_h) ? e.to_unsafe_h : e }
 
     ActiveRecord::Base.transaction do
       keys_recebidas = nodes_params.map { |n| n[:key] }
