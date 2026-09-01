@@ -366,13 +366,13 @@ onMounted(async () => {
             <th class="cell-name">Revendedora</th>
             <th class="cell-nivel">Nível</th>
             <th class="cell-etapa">Etapa</th>
-            <th class="cell-tarefa">Próxima tarefa</th>
-            <th class="cell-dias">Dias com maleta</th>
-            <th class="cell-pecas">Peças em aberto</th>
-            <th class="cell-valor">Valor em aberto</th>
-            <th class="cell-previsao">Previsão de acerto</th>
-            <th class="cell-agendamento">Próximo agendamento</th>
-            <th class="cell-interacao">Última interação</th>
+            <th class="cell-tarefa">Tarefa</th>
+            <th class="cell-dias">Dias maleta</th>
+            <th class="cell-pecas">Peças aberto</th>
+            <th class="cell-valor">Valor aberto</th>
+            <th class="cell-previsao">Previsão acerto</th>
+            <th class="cell-agendamento">Agendamento</th>
+            <th class="cell-interacao">Interação</th>
             <th class="cell-alerta">Alerta</th>
             <th class="cell-carteira">Carteira</th>
             <th class="cell-acao">Ação</th>
@@ -437,7 +437,10 @@ onMounted(async () => {
 
 <style lang="scss" scoped>
 .revendedoras-page {
-  padding: 1.5rem 2rem;
+  // Padding lateral enxuto — com 13 colunas de dado, cada cm de largura
+  // conta; 2rem de "parede" de cada lado tirava ~64px que fariam falta
+  // pra tabela caber sem quebrar palavra no cabeçalho.
+  padding: 1.25rem 0.9rem;
   height: 100%;
   overflow-y: auto;
 }
@@ -606,8 +609,12 @@ onMounted(async () => {
 
 .table-wrapper {
   background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
+  // Sem borda/raio lateral: numa tabela de 13 colunas, o "quadro" em
+  // volta só rouba largura sem ajudar em nada — deixa a tabela usar o
+  // espaço disponível até a borda da tela em vez de ficar "encaixotada".
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 0;
   // Cliente pediu pra caber todas as colunas na tela sem precisar dar
   // zoom out no navegador (antes só resolvia com rolagem horizontal, que
   // ele não queria). Solução: table-layout: fixed com largura por coluna
@@ -624,31 +631,35 @@ onMounted(async () => {
 
   thead th {
     text-align: left;
-    padding: 0.6rem 0.6rem;
-    font-size: 0.66rem;
+    padding: 0.55rem 0.4rem;
+    font-size: 0.64rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.01em;
     color: var(--text-muted);
     background: var(--bg-tertiary);
     border-bottom: 1px solid var(--border-color);
-    overflow-wrap: break-word;
+    // keep-all em vez de break-word: quebra só entre palavras, nunca no
+    // meio de uma palavra (era isso que deixava "AGENDAMENTO" e "AÇÃO"
+    // cortados de um jeito feio/ilegível).
+    word-break: keep-all;
+    overflow-wrap: normal;
   }
 
-  .cell-check { width: 2.5%; }
-  .cell-name { width: 13%; }
-  .cell-nivel { width: 8%; }
-  .cell-etapa { width: 7%; }
-  .cell-tarefa { width: 11%; }
+  .cell-check { width: 2.2%; }
+  .cell-name { width: 13.5%; }
+  .cell-nivel { width: 7.5%; }
+  .cell-etapa { width: 6.5%; }
+  .cell-tarefa { width: 10.5%; }
   .cell-dias { width: 6.5%; }
   .cell-pecas { width: 5.5%; }
   .cell-valor { width: 7.5%; }
-  .cell-previsao { width: 6.5%; }
+  .cell-previsao { width: 7%; }
   .cell-agendamento { width: 7.5%; }
   .cell-interacao { width: 7.5%; }
-  .cell-alerta { width: 6%; }
+  .cell-alerta { width: 5.5%; }
   .cell-carteira { width: 6.5%; }
-  .cell-acao { width: 4%; text-align: center; }
+  .cell-acao { width: 3.7%; text-align: center; }
 
   tbody tr {
     cursor: pointer;
@@ -662,12 +673,13 @@ onMounted(async () => {
   }
 
   td {
-    padding: 0.55rem 0.6rem;
+    padding: 0.5rem 0.4rem;
     color: var(--text-main);
     // Quebra em vez de cortar/rolar — é o que garante que as 13 colunas
     // cabem na largura da tela (pedido do cliente).
     white-space: normal;
-    overflow-wrap: break-word;
+    word-break: keep-all;
+    overflow-wrap: normal;
   }
 
   td.cell-name {
