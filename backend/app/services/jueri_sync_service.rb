@@ -235,7 +235,25 @@ class JueriSyncService
       reativar_contact(contact, resultado)
     elsif !acima_do_limiar && Contact::ACTIVE_STATUSES.include?(contact.status)
       demover_para_sem_maleta(contact, pecas_antes, resultado)
+    elsif acima_do_limiar && Contact::ACTIVE_STATUSES.include?(contact.status)
+      # Mesmo bug do resync em lote (ver transicionar_status), só que pelo
+      # caminho do webhook em tempo real: revendedora já ativa recebe um
+      # pedido novo que abre um ciclo de verdade — reinicia pro 1º dia.
+      reiniciar_ciclo_se_pedido_novo(contact, resultado)
     end
+  end
+
+  def reiniciar_ciclo_se_pedido_novo(contact, resultado)
+    novo_inicio = contact.pedidos.where(status_id: Pedido::STATUS_ABERTO).minimum(:data_criacao)
+    return if novo_inicio.blank? || contact.cycle_started_at.blank?
+    return unless novo_inicio > contact.cycle_started_at + 1.minute
+
+    contact.status = 'revendedor_ativo'
+    contact.cycle_started_at = novo_inicio
+    contact.save!
+    criar_evento(contact, 'ciclo_reiniciado')
+    resultado[:atualizados] -= 1
+    resultado[:reativados] += 1
   end
 
   # Reaproveita a mesma regra de marco de reativação do resync em lote
@@ -517,6 +535,20 @@ class JueriSyncService
       criar_evento(contact, 'reativacao') if elegivel_marco_reativacao
       resultado[:reativados] += 1
     else
+      # Bug reportado pela Clara (PDF Etapa 2): revendedora já ativa (ex: parada
+      # no "20º dia" de uma maleta antiga) abre um pedido NOVO de verdade — sem
+      # isso aqui, o ciclo nunca reinicia sozinho, porque este branch nunca
+      # tocava em status/cycle_started_at. Se a data do pedido aberto mais
+      # antigo agora é mais recente que o cycle_started_at gravado, é sinal de
+      # que a maleta anterior fechou (baixa/cancelamento) e uma nova começou —
+      # volta pro 1º dia igual reativação, sem esperar virar Sem Maleta antes.
+      novo_inicio = inicio_ciclo(pedidos_raw)
+      if novo_inicio.present? && contact.cycle_started_at.present? && novo_inicio > contact.cycle_started_at + 1.minute
+        contact.status = 'revendedor_ativo'
+        contact.cycle_started_at = novo_inicio
+        contact.save!
+        criar_evento(contact, 'ciclo_reiniciado')
+      end
       resultado[:atualizados] += 1
     end
   end

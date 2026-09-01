@@ -7,7 +7,11 @@ class LifecycleEvent < ApplicationRecord
   belongs_to :contact
   belongs_to :pedido, optional: true
 
-  TIPOS = %w[iniciada churn reativacao].freeze
+  # 'ciclo_reiniciado': revendedora já estava em ciclo ativo (ex: vigésimo dia
+  # de uma maleta antiga) e abriu um pedido novo de verdade — o ciclo volta
+  # pro início sozinho (JueriSyncService#transicionar_status). Diferente de
+  # 'reativacao', que é só pra quem tava numa etapa INATIVA.
+  TIPOS = %w[iniciada churn reativacao ciclo_reiniciado].freeze
   validates :event_type, inclusion: { in: TIPOS }
   validates :occurred_at, presence: true
 
