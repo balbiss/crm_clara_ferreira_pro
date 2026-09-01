@@ -1110,9 +1110,18 @@ onUnmounted(() => {
 
       <template v-if="activeDetailsTab === 'principal'">
       <div class="lead-fields">
+        <!-- "Atendente" (temporário, quem está respondendo agora — volta pro
+             responsável quando a conversa fecha) é diferente de "Carteira"
+             (permanente, o time do Jueri dono dessa revendedora). O rótulo
+             antigo "Usuário responsável" (herança Kommo) misturava os dois
+             num campo só — PDF Etapa 2 pediu pra separar. -->
         <div class="lead-field">
-          <span class="lf-label">Usuário responsável</span>
+          <span class="lf-label">Atendente</span>
           <span class="lf-value">{{ store.activeConversation.assignee || 'Não atribuído' }}</span>
+        </div>
+        <div class="lead-field">
+          <span class="lf-label">Carteira</span>
+          <span class="lf-value" :class="{ empty: !store.activeConversation.contact.custom_attributes?.gerente_jueri_nome }">{{ store.activeConversation.contact.custom_attributes?.gerente_jueri_nome || 'Sem time' }}</span>
         </div>
         <div class="lead-field" v-for="f in principalFields" :key="f.key">
           <span class="lf-label">{{ f.label }}</span>
@@ -1351,8 +1360,12 @@ onUnmounted(() => {
             </select>
           </div>
           <div class="lead-field">
-            <span class="lf-label">Responsável</span>
+            <span class="lf-label">Atendente</span>
             <span class="lf-value" :class="{ empty: !store.activeConversation.assignee }">{{ store.activeConversation.assignee || 'Não atribuído' }}</span>
+          </div>
+          <div class="lead-field">
+            <span class="lf-label">Carteira</span>
+            <span class="lf-value" :class="{ empty: !store.activeConversation.contact.custom_attributes?.gerente_jueri_nome }">{{ store.activeConversation.contact.custom_attributes?.gerente_jueri_nome || 'Sem time' }}</span>
           </div>
         </div>
       </div>
