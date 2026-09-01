@@ -1726,161 +1726,6 @@ onUnmounted(() => {
     box-shadow: 0 2px 6px rgba(255, 0, 127,0.4);
   }
 
-  .tag-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 0.9rem;
-
-    &:empty { display: none; }
-  }
-
-  .tag-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    padding: 5px 6px 5px 12px;
-    border-radius: 999px;
-    color: #fff;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.18);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
-    line-height: 1.3;
-  }
-
-  .tag-remove {
-    background: rgba(255,255,255,0.22);
-    border: none;
-    color: #fff;
-    border-radius: 50%;
-    width: 18px;
-    height: 18px;
-    line-height: 1;
-    cursor: pointer;
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    flex-shrink: 0;
-    transition: background 0.15s;
-    &:hover { background: rgba(255,255,255,0.4); }
-  }
-
-  .tag-add-row {
-    display: flex;
-    gap: 0.5rem;
-    align-items: stretch;
-  }
-
-  .tag-suggestions {
-    position: absolute;
-    top: calc(100% + 0.3rem);
-    left: 0;
-    right: 0;
-    z-index: 20;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.12);
-    padding: 0.3rem;
-    max-height: 220px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
-  }
-
-  .tag-suggestion-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    width: 100%;
-    padding: 0.4rem 0.5rem;
-    border: none;
-    background: none;
-    border-radius: 6px;
-    color: var(--text-main);
-    font-size: 0.82rem;
-    text-align: left;
-    cursor: pointer;
-
-    &:hover { background: var(--bg-hover); }
-  }
-
-  .tag-suggestion-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-
-  .tag-color-picker {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    margin-top: 0.5rem;
-  }
-
-  .tag-color-dot {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    border: 2px solid transparent;
-    cursor: pointer;
-    padding: 0;
-
-    &.active { border-color: var(--text-main); }
-    &:hover { opacity: 0.85; }
-  }
-
-  .tag-input {
-    flex: 1;
-    min-width: 0;
-    height: 36px;
-    box-sizing: border-box;
-    padding: 0 0.75rem;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    background: var(--bg-secondary);
-    color: var(--text-main);
-    font-size: 0.85rem;
-    transition: border-color 0.15s, box-shadow 0.15s;
-
-    &:focus {
-      outline: none;
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(255, 0, 127,0.12);
-    }
-  }
-
-  .btn-add-tag {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.3rem;
-    flex-shrink: 0;
-    height: 36px;
-    box-sizing: border-box;
-    padding: 0 0.85rem;
-    font-size: 0.8rem;
-    font-weight: 600;
-    border-radius: 8px;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: background 0.15s;
-
-    color: white;
-    background: var(--primary);
-    border: none;
-
-    &:hover:not(:disabled) { background: var(--primary-hover); }
-    &:disabled { cursor: not-allowed; }
-
-    .icon-xs { width: 14px; height: 14px; }
-  }
-
   .conv-preview {
     font-size: 0.8rem;
     color: var(--text-muted);
@@ -1912,6 +1757,166 @@ onUnmounted(() => {
     box-shadow: 0 0 5px #ef4444;
     animation: unread-pulse 2s infinite ease-in-out;
   }
+}
+
+// Etiquetas do painel de detalhes da conversa (accordion "Etiquetas") — esse
+// bloco tinha ficado indevidamente aninhado dentro de .conv-item (item da
+// lista de conversas), então nunca batia com o DOM real e o input/botão
+// caíam no estilo padrão do navegador (reclamação real: "caixa diferente
+// das outras do sistema").
+.tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 0.9rem;
+
+  &:empty { display: none; }
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 5px 6px 5px 12px;
+  border-radius: 999px;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.18);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  line-height: 1.3;
+}
+
+.tag-remove {
+  background: rgba(255,255,255,0.22);
+  border: none;
+  color: #fff;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  line-height: 1;
+  cursor: pointer;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background 0.15s;
+  &:hover { background: rgba(255,255,255,0.4); }
+}
+
+.tag-add-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.tag-suggestions {
+  position: absolute;
+  top: calc(100% + 0.3rem);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+  padding: 0.3rem;
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.tag-suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  color: var(--text-main);
+  font-size: 0.82rem;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover { background: var(--bg-hover); }
+}
+
+.tag-suggestion-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.tag-color-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+.tag-color-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+
+  &.active { border-color: var(--text-main); }
+  &:hover { opacity: 0.85; }
+}
+
+.tag-input {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  box-sizing: border-box;
+  padding: 0 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  color: var(--text-main);
+  font-size: 0.85rem;
+  transition: border-color 0.15s, box-shadow 0.15s;
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(255, 0, 127,0.12);
+  }
+}
+
+.btn-add-tag {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  flex-shrink: 0;
+  height: 36px;
+  box-sizing: border-box;
+  padding: 0 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+
+  color: white;
+  background: var(--primary);
+  border: none;
+
+  &:hover:not(:disabled) { background: var(--primary-hover); }
+  &:disabled { cursor: not-allowed; }
+
+  .icon-xs { width: 14px; height: 14px; }
 }
 
 @keyframes unread-pulse {
