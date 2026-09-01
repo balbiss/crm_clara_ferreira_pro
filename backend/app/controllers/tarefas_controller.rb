@@ -32,18 +32,44 @@ class TarefasController < ApplicationController
   end
 
   # PATCH /tarefas/1/complete
+  # body opcional: { resultado: "...", proxima_tarefa: { tipo, titulo, descricao, prioridade, vencimento_em, user_id } }
+  # Reforma do fluxo de tarefas (PDF Etapa 2, página 9): concluir passa a
+  # registrar o que aconteceu e, se quiser, já cria o follow-up na hora —
+  # antes era um clique só, sem nenhum registro pra gerência auditar depois.
   def complete
-    @tarefa.concluir!(por: current_user)
-    render json: @tarefa
+    @tarefa.concluir!(por: current_user, resultado: params[:resultado].presence)
+
+    proxima = nil
+    if params[:proxima_tarefa].present?
+      pt = params[:proxima_tarefa]
+      tipo = Tarefa::MANUAL_TIPOS.include?(pt[:tipo]) ? pt[:tipo] : 'manual_outro'
+      begin
+        proxima = current_user.account.tarefas.create!(
+          contact_id: @tarefa.contact_id,
+          user_id: pt[:user_id].presence || @tarefa.user_id,
+          tipo: tipo,
+          titulo: pt[:titulo].presence || Tarefa::MANUAL_TIPO_LABELS[tipo],
+          descricao: pt[:descricao],
+          prioridade: Tarefa::PRIORIDADES.include?(pt[:prioridade]) ? pt[:prioridade] : 'normal',
+          vencimento_em: pt[:vencimento_em].presence || Time.current
+        )
+      rescue ActiveRecord::RecordNotUnique
+        # já existe uma pendente do mesmo tipo manual pra essa revendedora —
+        # a conclusão em si já foi salva, só não duplica o follow-up.
+        proxima = nil
+      end
+    end
+
+    render json: @tarefa.as_json.merge(proxima_tarefa: proxima)
   end
 
   # POST /tarefas — tarefa manual pra qualquer revendedora/consultor da conta
   # (briefing "Gerente: criar tarefas manuais para qualquer consultor").
   def create
     contact = current_user.account.contacts.find(tarefa_params[:contact_id])
-    tarefa = current_user.account.tarefas.new(tarefa_params.except(:contact_id))
+    tarefa = current_user.account.tarefas.new(tarefa_params.except(:contact_id, :tipo))
     tarefa.contact = contact
-    tarefa.tipo = 'manual'
+    tarefa.tipo = Tarefa::MANUAL_TIPOS.include?(tarefa_params[:tipo]) ? tarefa_params[:tipo] : 'manual_outro'
     tarefa.vencimento_em ||= Time.current
 
     if tarefa.save
@@ -54,7 +80,7 @@ class TarefasController < ApplicationController
   rescue ActiveRecord::RecordNotFound
     render json: { error: 'not_found', message: 'Revendedora não encontrada.' }, status: :not_found
   rescue ActiveRecord::RecordNotUnique
-    render json: { error: 'ja_existe', message: 'Já existe uma tarefa manual pendente para essa revendedora.' }, status: :unprocessable_entity
+    render json: { error: 'ja_existe', message: 'Já existe uma tarefa desse tipo pendente para essa revendedora.' }, status: :unprocessable_entity
   end
 
   # PATCH /tarefas/1 — reatribuir responsável (tarefa atrasada/sem dono) ou
@@ -77,7 +103,7 @@ class TarefasController < ApplicationController
   private
 
   def tarefa_params
-    params.require(:tarefa).permit(:contact_id, :user_id, :titulo, :descricao, :prioridade, :vencimento_em)
+    params.require(:tarefa).permit(:contact_id, :user_id, :tipo, :titulo, :descricao, :prioridade, :vencimento_em)
   end
 
   # Consultor só vê tarefas da própria carteira (mesma regra de

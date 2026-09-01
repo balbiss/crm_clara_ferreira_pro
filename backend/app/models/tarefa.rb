@@ -9,10 +9,21 @@ class Tarefa < ApplicationRecord
   belongs_to :user, optional: true
   belongs_to :concluida_por, class_name: 'User', optional: true
 
-  # 'manual' é a única criável diretamente via API (TarefasController#create,
-  # gerente/diretoria) — as outras são geradas automaticamente pelo
-  # ReguaAutoAdvanceJob na transição de status.
-  TIPOS = %w[terceiro_dia decimo_dia vigesimo_dia atrasada manual].freeze
+  # terceiro_dia/decimo_dia/vigesimo_dia/atrasada nascem sozinhos do
+  # ReguaAutoAdvanceJob. Os MANUAL_TIPOS são escolhidos por quem cria a
+  # tarefa (TarefasController#create) ou por quem conclui uma e já cria o
+  # follow-up (#complete) — lista inspirada no Kommo (PDF Etapa 2, página
+  # 10: "no Kommo a gente podia criar vários tipos de tarefa").
+  MANUAL_TIPOS = %w[manual_ligar manual_mensagem manual_agendamento manual_cobranca manual_acompanhamento manual_outro].freeze
+  MANUAL_TIPO_LABELS = {
+    'manual_ligar'         => 'Ligar',
+    'manual_mensagem'      => 'Enviar mensagem',
+    'manual_agendamento'   => 'Agendar acerto',
+    'manual_cobranca'      => 'Cobrança',
+    'manual_acompanhamento' => 'Acompanhamento',
+    'manual_outro'         => 'Outro'
+  }.freeze
+  TIPOS = (%w[terceiro_dia decimo_dia vigesimo_dia atrasada] + MANUAL_TIPOS).freeze
   STATUSES = %w[pendente concluida ignorada].freeze
   PRIORIDADES = %w[normal alta urgente].freeze
 
@@ -70,7 +81,7 @@ class Tarefa < ApplicationRecord
     nil # já existe uma pendente do mesmo tipo pra essa revendedora — não duplica
   end
 
-  def concluir!(por:)
-    update!(status: 'concluida', concluida_em: Time.current, concluida_por: por)
+  def concluir!(por:, resultado: nil)
+    update!(status: 'concluida', concluida_em: Time.current, concluida_por: por, resultado: resultado)
   end
 end
