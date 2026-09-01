@@ -268,7 +268,7 @@ onMounted(async () => {
     overflow-wrap: normal;
   }
 
-  .cell-name {
+  td.cell-name {
     display: flex;
     align-items: center;
     gap: 0.5rem;
