@@ -16,6 +16,21 @@ production:
   ai_followup_job:
     class: AiFollowupJob
     schedule: every 10 minutes
+  # Migrados do padrão auto-perpetuante (config/initializers/recurring_jobs.rb,
+  # removido) pro recorrente nativo do Solid Queue — incidente 2026-09-01:
+  # o padrão antigo duplicava uma corrente inteira a cada boot do
+  # backend/worker, empilhando centenas ao longo de semanas de deploys e
+  # martelando a API do Jueri com rate limit em cascata (ver JueriSyncJob).
+  # Recorrente é agendamento único, deduplicado por task — não duplica nunca.
+  jueri_sync:
+    class: JueriSyncJob
+    schedule: every 30 minutes
+  regua_auto_advance:
+    class: ReguaAutoAdvanceJob
+    schedule: every hour
+  check_snoozed_conversations:
+    class: CheckSnoozedConversationsJob
+    schedule: every minute
 
 development:
   ai_followup_job:

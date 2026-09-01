@@ -1,8 +1,9 @@
 # Avança automaticamente o status da revendedora conforme os dias do ciclo consignado
-# (briefing seções 12-13). Roda em loop próprio, no mesmo padrão do
-# CheckSnoozedConversationsJob — sem depender da API do Jueri, usa cycle_started_at
-# (setado pelo Contact#track_regua_status_change sempre que o status entra em
-# "revendedor_ativo").
+# (briefing seções 12-13). Sem depender da API do Jueri, usa cycle_started_at (setado
+# pelo Contact#track_regua_status_change sempre que o status entra em
+# "revendedor_ativo"). Agendamento em config/recurring.yml (Solid Queue) — não
+# se auto-reagenda mais (ver JueriSyncJob pro histórico do incidente de
+# duplicação em cada boot).
 class ReguaAutoAdvanceJob < ApplicationJob
   queue_as :default
 
@@ -11,8 +12,6 @@ class ReguaAutoAdvanceJob < ApplicationJob
   def perform
     Contact.where(status: ADVANCEABLE_STATUSES).find_each { |c| advance(c) }
     Contact.where(status: 'atrasada').find_each { |c| check_virada_de_mes(c) }
-  ensure
-    self.class.set(wait: 1.hour).perform_later rescue nil
   end
 
   private

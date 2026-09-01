@@ -1,3 +1,5 @@
+# Agendamento em config/recurring.yml (Solid Queue) — não se auto-reagenda mais
+# (ver JueriSyncJob pro histórico do incidente de duplicação em cada boot).
 class CheckSnoozedConversationsJob < ApplicationJob
   queue_as :default
 
@@ -16,7 +18,5 @@ class CheckSnoozedConversationsJob < ApplicationJob
         conversation: { id: conv.id, status: 'open', snoozed_until: nil }
       })
     end
-  ensure
-    self.class.set(wait: 60.seconds).perform_later rescue nil
   end
 end
