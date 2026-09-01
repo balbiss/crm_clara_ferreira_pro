@@ -3,7 +3,8 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import {
   MessageCircle, Users, UserCheck, UserX, ListChecks, LayoutGrid, Kanban,
   TrendingUp, Badge, Settings, BrainCircuit, Bell,
-  BookOpen, ChevronRight, Search, Bot, Zap, Shield, ArrowRightLeft, GitBranch
+  BookOpen, ChevronRight, Search, Bot, Zap, Shield, ArrowRightLeft, GitBranch,
+  Tag, Package, Users2, Timer, Smartphone
 } from 'lucide-vue-next'
 
 const activeSection = ref('visao-geral')
@@ -11,16 +12,22 @@ const searchQuery   = ref('')
 
 const sections = [
   { id: 'visao-geral',    label: 'Visão Geral',             icon: BookOpen },
+  { id: 'regua',          label: 'Régua Consignado',        icon: Timer },
   { id: 'conversas',      label: 'Conversas',               icon: MessageCircle },
   { id: 'transferencia',  label: 'Transferência de Conversa', icon: ArrowRightLeft },
   { id: 'contatos',       label: 'Contatos / Revendedoras',  icon: Users },
   { id: 'carteira',       label: 'Carteira Ativa',          icon: UserCheck },
   { id: 'inativas',       label: 'Revendedoras Inativas',   icon: UserX },
-  { id: 'tarefas',        label: 'Tarefas / Régua',         icon: ListChecks },
-  { id: 'funil',          label: 'Funil (Kanban)',          icon: Kanban },
+  { id: 'atacado',        label: 'Atacado',                 icon: Package },
+  { id: 'etiquetas',      label: 'Etiquetas',               icon: Tag },
+  { id: 'tarefas',        label: 'Tarefas',                 icon: ListChecks },
+  { id: 'funil',          label: 'Pipelines (Kanban)',      icon: Kanban },
+  { id: 'gatilhos',       label: 'Gatilhos de Pipeline',    icon: Zap },
+  { id: 'times-vendas',   label: 'Times de Vendas',         icon: Users2 },
   { id: 'gerencial',      label: 'Visão Gerencial',         icon: LayoutGrid },
   { id: 'relatorios',     label: 'Relatórios',              icon: TrendingUp },
   { id: 'agentes',        label: 'Agentes',                 icon: Badge },
+  { id: 'whatsapp',       label: 'Conectar WhatsApp',       icon: Smartphone },
   { id: 'configuracoes',  label: 'Configurações',           icon: Settings },
   { id: 'ia',             label: 'Inteligência Artificial', icon: BrainCircuit },
   { id: 'notificacoes',   label: 'Notificações Push',       icon: Bell },
@@ -120,26 +127,78 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
             </div>
           </div>
 
-          <h2>Estrutura do sistema</h2>
+          <h2>Estrutura do sistema (menu lateral)</h2>
           <div class="table-wrap">
             <table>
               <thead><tr><th>Módulo</th><th>Quem acessa</th><th>Função principal</th></tr></thead>
               <tbody>
-                <tr><td>Dashboard</td><td>Todos</td><td>KPIs, leads do dia, régua</td></tr>
-                <tr><td>Conversas</td><td>Todos</td><td>Chat WhatsApp em tempo real</td></tr>
-                <tr><td>Contatos</td><td>Todos*</td><td>Base de revendedoras com histórico</td></tr>
-                <tr><td>Carteira Ativa</td><td>Todos*</td><td>Revendedoras no ciclo ativo da régua</td></tr>
-                <tr><td>Revendedoras Inativas</td><td>Todos*</td><td>Fora do ciclo ativo ou suspensas</td></tr>
-                <tr><td>Tarefas</td><td>Todos</td><td>Ações da régua 3º/10º/20º dia</td></tr>
-                <tr><td>Funil</td><td>Todos</td><td>Pipeline visual em Kanban</td></tr>
-                <tr><td>Relatórios</td><td>Todos</td><td>Performance e métricas</td></tr>
-                <tr><td>Agentes</td><td>Dono/Admin</td><td>Gerenciar equipe</td></tr>
-                <tr><td>Configurações</td><td>Dono/Admin</td><td>Canais, tags, integrações</td></tr>
-                <tr><td>Cobrança</td><td>Financeiro+</td><td>PIX e boleto pelo WhatsApp</td></tr>
+                <tr><td>Início</td><td>Todos</td><td>Painel do dia: tarefas do dia, atendimento, acertos da semana</td></tr>
+                <tr><td>Minhas Revendedoras</td><td>Todos, exceto Financeiro</td><td>Carteira ativa (dentro do ciclo da régua)</td></tr>
+                <tr><td>Inativas</td><td>Todos</td><td>Fora do ciclo ativo — inclui as 7 sub-etapas de inadimplência/cadastro</td></tr>
+                <tr><td>Atacado</td><td>Todos</td><td>Clientes de compra à vista do Jueri, fora do modelo consignado</td></tr>
+                <tr><td>Tarefas</td><td>Todos, exceto Financeiro</td><td>Fila de ações pendentes geradas pela régua + tarefas manuais</td></tr>
+                <tr><td>Gerencial / Relatórios</td><td>Gerente e Diretoria</td><td>Visão consolidada de todas as carteiras e métricas</td></tr>
+                <tr><td>Times de Vendas</td><td>Gerente e Diretoria</td><td>Quem enxerga a carteira de cada time sincronizado do Jueri</td></tr>
+                <tr><td>Comunicações</td><td>Todos</td><td>Inbox de chat (WhatsApp/Instagram) + Chat da Equipe</td></tr>
+                <tr><td>Pipelines</td><td>Todos (criar pipeline novo é só Gerente/Diretoria)</td><td>Consignado (fixo, segue a régua) + pipelines próprios (Varejo etc.)</td></tr>
+                <tr><td>Calendário</td><td>Todos</td><td>Agendamentos de acerto e mensagens programadas</td></tr>
+                <tr><td>Automações / Fluxos</td><td>Diretoria</td><td>Robô de conversa no WhatsApp e automações do pipeline</td></tr>
+                <tr><td>Configurações</td><td>Diretoria</td><td>Conta, Caixas de Entrada (WhatsApp), Etiquetas, Agentes, Atividades</td></tr>
               </tbody>
             </table>
           </div>
-          <p class="note">* Consultoras veem apenas seus próprios registros. Donos e admins veem tudo.</p>
+          <p class="note">Não existe cobrança de PIX/boleto integrada ao CRM — cobrança e inadimplência são acompanhadas pela tela Inativas (sub-etapas "Inativa com Pendência", "Suspensa por Atraso" etc.), o pagamento em si é resolvido fora do sistema.</p>
+        </section>
+
+        <div class="divider" />
+
+        <!-- ══════════════════════════════════════ RÉGUA -->
+        <section id="regua">
+          <h1>Régua Consignado — como o status de cada revendedora é decidido</h1>
+          <p class="lead">Essa é a lógica principal do CRM: cada revendedora tem um único campo de <strong>status</strong>, e ele muda sozinho conforme o tempo passa e os pedidos que ela abre no Jueri. Nenhum consultor precisa mover isso manualmente no dia a dia — só em casos excepcionais.</p>
+
+          <h2>1. Como uma revendedora vira Ativa</h2>
+          <p>Toda madrugada (e a cada sincronização), o CRM soma as peças em aberto de cada revendedora no Jueri. Quando o total passa de <strong>25 peças</strong>, ela vira <span class="badge green">Revendedor Ativo</span> automaticamente e o ciclo começa a contar a partir da data do pedido mais antigo em aberto.</p>
+
+          <h2>2. Avanço automático do ciclo</h2>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Dia do ciclo</th><th>Status</th><th>O que a régua espera da equipe</th></tr></thead>
+              <tbody>
+                <tr><td>Dia 0</td><td><span class="badge green">Revendedor Ativo</span></td><td>Maleta acabou de sair</td></tr>
+                <tr><td>Dia 3</td><td><span class="badge yellow">3° Dia</span></td><td>Mensagem de incentivo, perguntar se viu o catálogo</td></tr>
+                <tr><td>Dia 10</td><td><span class="badge yellow">10° Dia</span></td><td>Perguntar como estão as vendas, lembrar do prazo</td></tr>
+                <tr><td>Dia 20</td><td><span class="badge blue">20° Dia</span></td><td>Agendar o acerto, incentivar até o fim do prazo</td></tr>
+                <tr><td>—</td><td><span class="badge blue">Agendado</span></td><td>Acerto marcado — depois de feito, volta pra Ativo com data de novo pedido</td></tr>
+                <tr><td>Dia 35+</td><td><span class="badge red">Atrasada</span></td><td>Gerar alerta, acionar consultor, registrar tentativa de contato</td></tr>
+                <tr><td>Virou o mês sem acerto</td><td><span class="badge gray">Suspensa por Atraso</span></td><td>Sai da Carteira Ativa, vai pra Inativas</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Cada linha da régua (3º/10º/20º dia e Atrasada) <strong>cria uma tarefa de verdade</strong> automaticamente — é o que alimenta a tela <router-link to="/tarefas">Tarefas</router-link>.</p>
+
+          <h2>3. Pedido novo reinicia o ciclo sozinho</h2>
+          <p>Se uma revendedora que já está em ciclo ativo (Ativo até Atrasada) abre um <strong>pedido novo</strong> no Jueri com data mais recente que o início do ciclo atual, o CRM detecta e reinicia a contagem pro 1º dia automaticamente — sem precisar de ninguém mexendo manualmente. Isso fica registrado no histórico da revendedora como "ciclo reiniciado".</p>
+
+          <h2>4. Status Inativos (fora do ciclo)</h2>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Status</th><th>Quando acontece</th></tr></thead>
+              <tbody>
+                <tr><td>Sem Maleta</td><td>Nunca teve pedido em aberto suficiente pra ativar (menos de 25 peças)</td></tr>
+                <tr><td>Inativa com Pendência</td><td>Tem pendência financeira em aberto no Jueri</td></tr>
+                <tr><td>Suspensa por Atraso</td><td>Ficou atrasada e o mês virou sem acerto — a mais comum</td></tr>
+                <tr><td>Negativado/Jurídico</td><td>Caso encaminhado pro jurídico</td></tr>
+                <tr><td>Resgate</td><td>Marcada manualmente pra uma segunda chance de reativação</td></tr>
+                <tr><td>Reativação</td><td>Em processo de voltar a ficar ativa</td></tr>
+                <tr><td>Descadastrada</td><td>Não faz mais parte do time de revendedoras</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="note">Importante: <strong>Resgate nunca reativa sozinho</strong> mesmo que a revendedora abra pedido novo — é o único status que exige mudança manual, de propósito, pra não pular a etapa de negociação com quem já teve problema sério.</p>
+
+          <h2>5. O que o CRM nunca faz</h2>
+          <p>O CRM <strong>não altera nenhum dado de cadastro do Jueri</strong> (CPF, nome, telefone, endereço, gerente etc.) — só lê. Os únicos campos que o CRM controla por conta própria são o status da régua e os campos de acompanhamento comercial (Venda, Meta, Observações, Etiquetas). Se precisar corrigir um dado de cadastro, sempre no Jueri — o link "Abrir cadastro no Jueri" no perfil da revendedora leva direto pra lá.</p>
         </section>
 
         <div class="divider" />
@@ -249,38 +308,33 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
           <h1>Contatos / Revendedoras</h1>
           <p class="lead">Toda revendedora sincronizada do ERP Jueri, ou captada pelo WhatsApp, é armazenada como contato — a entidade central do CRM.</p>
 
-          <h2>Campos do contato</h2>
+          <h2>Duas categorias de campo — não confundir</h2>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Campo</th><th>Descrição</th></tr></thead>
+              <thead><tr><th>Categoria</th><th>Exemplos</th><th>Quem edita</th></tr></thead>
               <tbody>
-                <tr><td>Nome</td><td>Nome completo da revendedora</td></tr>
-                <tr><td>Telefone / WhatsApp</td><td>Número principal de contato</td></tr>
-                <tr><td>E-mail</td><td>E-mail para envios</td></tr>
-                <tr><td>CPF/CNPJ</td><td>Sincronizado automaticamente do Jueri</td></tr>
-                <tr><td>Temperatura</td><td>Quente / Morno / Frio — indica nível de engajamento</td></tr>
-                <tr><td>Status</td><td>Etapa da régua: ativa, 3º/10º/20º dia, agendado, atrasada</td></tr>
-                <tr><td>Origem</td><td>WhatsApp, Indicação, Jueri (sincronização) etc.</td></tr>
-                <tr><td>Data de nascimento</td><td>Para personalização de atendimento</td></tr>
+                <tr><td><strong>Dados do Jueri (sincronizado)</strong></td><td>Nome, CPF, RG, endereço, telefone, gerente/carteira, status cadastral</td><td>Ninguém no CRM — só lido, edição é sempre no Jueri</td></tr>
+                <tr><td><strong>Campos personalizados do CRM</strong></td><td>Venda, Meta, Observação do mês, Próximo agendamento, Descrição, atributos livres</td><td>Equipe, pelo botão "Adicionar/editar campos"</td></tr>
               </tbody>
             </table>
           </div>
+          <p>A aba <strong>Informações</strong> no perfil da revendedora mostra só a segunda categoria — nunca mistura com dado do Jueri, pra não confundir o que é editável do que não é.</p>
 
-          <h2>Temperatura do lead</h2>
+          <h2>Carteira × Atendente — a distinção mais importante</h2>
           <ul>
-            <li><span class="badge red">Quente</span> — demonstrou interesse real, pronto para avançar</li>
-            <li><span class="badge yellow">Morno</span> — em consideração, pode avançar com estímulo</li>
-            <li><span class="badge gray">Frio</span> — sem interesse imediato</li>
+            <li><strong>Carteira</strong> — o time de vendas (do Jueri) dono permanente daquela revendedora. Não muda por causa de quem respondeu uma mensagem.</li>
+            <li><strong>Atendente</strong> — quem está respondendo a conversa <em>agora</em>. É temporário: quando a conversa fecha, o CRM devolve o responsável de volta pra Carteira automaticamente.</li>
           </ul>
+          <p class="note">Antes esses dois conceitos ficavam misturados num campo só chamado "Usuário responsável" (herança de um CRM genérico) — foram separados porque geravam confusão sobre quem realmente é dono da revendedora.</p>
 
           <h2>Notas</h2>
           <p>Na aba <strong>Notas</strong> do contato, qualquer agente pode registrar observações que ficam visíveis para toda a equipe. As notas têm data, hora e nome de quem registrou.</p>
 
           <h2>Mesclar contatos</h2>
-          <p>Quando a mesma revendedora aparece duplicada, use <strong>Contatos → Mesclar</strong>. O sistema mantém o histórico completo do contato principal e descarta o duplicado.</p>
+          <p>Quando a mesma revendedora aparece duplicada, use <strong>Mesclar contato</strong> no menu "⋮" da conversa. O sistema mantém o histórico completo do contato principal e descarta o duplicado.</p>
 
           <h2>Bloquear contato</h2>
-          <p>Contatos bloqueados não ativam mais a IA e são marcados com status inativo. Use para revendedoras que solicitaram não ser contactadas.</p>
+          <p>Contatos bloqueados não ativam mais a IA. Use para revendedoras que solicitaram não ser contactadas.</p>
         </section>
 
         <div class="divider" />
@@ -312,30 +366,68 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
           <p>O job de régua move a revendedora para <strong>suspensa_atraso</strong> quando ela permanece atrasada e o mês vira sem acerto. A partir daí ela some da Carteira Ativa e aparece aqui até reiniciar o ciclo.</p>
 
           <h2>Reativando o ciclo</h2>
-          <p>Ao mover o status de volta para <strong>Ativa</strong>, o ciclo reinicia automaticamente — <code>cycle_started_at</code> é atualizado para a data atual e a contagem da régua recomeça do zero.</p>
+          <p>Ao mover o status de volta para <strong>Ativa</strong>, o ciclo reinicia automaticamente e a contagem da régua recomeça do zero. Exceção: <strong>Resgate</strong> nunca reativa sozinho, precisa de mudança manual (ver seção Régua Consignado).</p>
+        </section>
+
+        <div class="divider" />
+
+        <!-- ══════════════════════════════════════ ATACADO -->
+        <section id="atacado">
+          <h1>Atacado</h1>
+          <p class="lead">Clientes do Jueri que compram à vista, fora do modelo de revenda consignada — não passam pela régua de 3º/10º/20º dia. Ficam numa lista própria pra não misturar com a carteira de revendedoras.</p>
+        </section>
+
+        <div class="divider" />
+
+        <!-- ══════════════════════════════════════ ETIQUETAS -->
+        <section id="etiquetas">
+          <h1>Etiquetas</h1>
+          <p class="lead">Etiquetas existem pra <strong>facilitar filtragem</strong> — de conversas e de revendedoras. Todas as etiquetas da conta ficam num catálogo único (uma tabela de verdade), então a mesma etiqueta é sempre a mesma, em qualquer lugar do sistema.</p>
+
+          <h2>Como criar/usar uma etiqueta</h2>
+          <ol>
+            <li>Clique no campo de etiqueta (na conversa ou no perfil da revendedora)</li>
+            <li>Abre um dropdown com <strong>todas as etiquetas já usadas</strong> em qualquer lead da conta — clique numa pra aplicar na hora</li>
+            <li>Se a etiqueta que você precisa ainda não existe, digite o nome novo e confirme — ela entra pro catálogo e já fica disponível pra reaproveitar em outros leads</li>
+          </ol>
+          <p class="note">Reaproveitar a etiqueta já existente (em vez de criar "vip" e depois "VIP importante" como coisas separadas) é o que faz a filtragem funcionar de verdade — etiqueta espalhada e duplicada quebra qualquer relatório por etiqueta.</p>
+
+          <h2>Onde etiquetas aparecem</h2>
+          <ul>
+            <li><strong>Na conversa</strong> — etiqueta a conversa em si (ex: <code>agente_off</code>, marcada automaticamente quando um humano assume o atendimento)</li>
+            <li><strong>Na revendedora</strong> — etiqueta o cadastro dela, independente de qual conversa está aberta</li>
+          </ul>
+
+          <h2>Gerenciar o catálogo</h2>
+          <p>Em <strong>Configurações → Etiquetas</strong>, a Diretoria vê a lista completa de etiquetas da conta, edita cor/nome e apaga as que não fazem mais sentido.</p>
         </section>
 
         <div class="divider" />
 
         <!-- ══════════════════════════════════════ TAREFAS -->
         <section id="tarefas">
-          <h1>Tarefas / Régua</h1>
-          <p class="lead">Consolida as ações que a equipe precisa tomar em cada etapa da régua de relacionamento (3º, 10º e 20º dia, agendamento e cobrança de atraso).</p>
+          <h1>Tarefas</h1>
+          <p class="lead">Lista de ações que a equipe precisa tomar, geradas automaticamente pela régua (3º, 10º, 20º dia e Atrasada) e também criadas manualmente. Diferente de antes, toda tarefa é um registro de verdade — fica salva mesmo depois de concluída, pra auditoria.</p>
 
-          <h2>Etapas da régua</h2>
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>Etapa</th><th>Significado</th></tr></thead>
-              <tbody>
-                <tr><td><span class="badge green">Ativa</span></td><td>Ciclo recém-iniciado, revendedora com peças em mãos</td></tr>
-                <tr><td><span class="badge yellow">3º dia</span></td><td>Primeiro check-in de acompanhamento</td></tr>
-                <tr><td><span class="badge yellow">10º dia</span></td><td>Segundo check-in</td></tr>
-                <tr><td><span class="badge blue">20º dia</span></td><td>Aproximando do prazo de acerto</td></tr>
-                <tr><td><span class="badge blue">Agendado</span></td><td>Acerto marcado com a revendedora</td></tr>
-                <tr><td><span class="badge red">Atrasada</span></td><td>Passou do prazo sem acerto</td></tr>
-              </tbody>
-            </table>
-          </div>
+          <h2>Como uma tarefa nasce</h2>
+          <p>Quando a régua avança o status de uma revendedora (3º/10º/20º dia ou Atrasada), o sistema cria a tarefa correspondente sozinho, com um checklist fixo de passos esperados naquela etapa. Ninguém precisa criar essas manualmente. Tarefas manuais (Ligar, Enviar mensagem, Agendar acerto, Cobrança, Acompanhamento, Outro) são criadas por Gerente/Diretoria pra qualquer revendedora, a qualquer momento.</p>
+
+          <h2>Abas Pendentes / Concluídas</h2>
+          <p>Tarefa concluída não desaparece — vai pra aba <strong>Concluídas</strong>, com data de conclusão e o resultado registrado (ver abaixo). A aba <strong>Pendentes</strong> agrupa automaticamente em Atrasadas / Hoje / Amanhã / Mais adiante, conforme o vencimento.</p>
+
+          <h2>Concluindo uma tarefa</h2>
+          <p>Clicar em <strong>Concluir</strong> abre um modal (não é um clique só):</p>
+          <ul>
+            <li><strong>Resultado</strong> — texto livre com o que aconteceu (ex: "Liguei, ela vai fechar até sexta"). Fica gravado e visível depois na aba Concluídas, pra gerência acompanhar.</li>
+            <li><strong>Criar próxima tarefa</strong> (opcional) — marque a caixa, escolha o tipo (Ligar/Mensagem/Agendar acerto/Cobrança/Acompanhamento/Outro) e a data — a tarefa seguinte já nasce criada no mesmo clique.</li>
+          </ul>
+
+          <h2>Ordenar e filtrar</h2>
+          <ul>
+            <li><strong>Ordenar por data</strong> (crescente/decrescente) — botão ao lado dos filtros</li>
+            <li><strong>Filtro de período</strong> (de/até) — nas pendentes filtra por vencimento, nas concluídas filtra por data de conclusão</li>
+            <li>Filtros por responsável, prioridade e carteira (time do Jueri)</li>
+          </ul>
         </section>
 
         <div class="divider" />
@@ -350,32 +442,73 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
 
         <!-- ══════════════════════════════════════ FUNIL -->
         <section id="funil">
-          <h1>Funil (Kanban)</h1>
-          <p class="lead">Visualize e gerencie a régua em formato Kanban, movendo revendedoras entre etapas com arrastar e soltar.</p>
+          <h1>Pipelines (Kanban)</h1>
+          <p class="lead">Visualização em quadro das revendedoras, arrastando cards entre colunas. Existe o pipeline fixo <strong>Consignado</strong> (segue a régua automática) e pipelines próprios que a Diretoria/Gerência pode criar (ex: Varejo, Onboarding, Atacado, Prospecção).</p>
 
-          <h2>Etapas do funil</h2>
+          <h2>Consignado (fixo)</h2>
+          <p>Colunas: <strong>Revendedor Ativo → 3º Dia → 10º Dia → 20º Dia → Agendado</strong>, as mesmas etapas da régua. Mover um card de coluna muda o status oficial da revendedora — o mesmo status que aparece em Carteira Ativa/Tarefas.</p>
+
+          <h2>Pipelines próprios</h2>
+          <p>Em <strong>Pipelines → ⋮ → Adicionar funil de vendas</strong>, Gerente/Diretoria cria um funil com etapas livres (nome que quiser). Serve pra organizar processos que não são a régua consignada — ex: cadastro de revendedora nova (Onboarding) ou negociação de venda avulsa (Varejo).</p>
+
+          <h2>Regra importante: nunca cria revendedora do zero</h2>
+          <p>O botão <strong>"+"</strong> em qualquer coluna, de qualquer pipeline, <strong>busca uma revendedora que já existe</strong> (por nome ou telefone) e adiciona ela naquela etapa — nunca abre um formulário de cadastro novo. Toda revendedora só existe no CRM se veio de importação do Jueri.</p>
+
+          <h2>Como usar</h2>
+          <ul>
+            <li><strong>Mover revendedora:</strong> arraste o card de uma coluna para outra, ou use o menu "⋮" do card → "Mover para..."</li>
+            <li><strong>Adicionar à etapa:</strong> clique em "+" na coluna, busque pelo nome/telefone de quem já existe</li>
+            <li><strong>Ver detalhes:</strong> clique no card para abrir o perfil completo</li>
+            <li><strong>Ordenar A-Z:</strong> botão de ordenar ao lado do título do quadro</li>
+          </ul>
+        </section>
+
+        <div class="divider" />
+
+        <!-- ══════════════════════════════════════ GATILHOS -->
+        <section id="gatilhos">
+          <h1>Gatilhos de Pipeline</h1>
+          <p class="lead">Automação por etapa: quando um card entra numa coluna, o CRM pode executar uma ação sozinho — com ou sem atraso. Acessível pelo botão <strong>Automatize</strong> dentro de cada pipeline. Diferente dos <button type="button" class="inline-link" @click="scrollTo('fluxos')">Fluxos</button>: gatilho reage a <em>mudança de etapa no funil</em>, fluxo reage a <em>mensagem recebida no WhatsApp</em>.</p>
+
+          <h2>Ações disponíveis</h2>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Coluna</th><th>Significado</th></tr></thead>
+              <thead><tr><th>Ação</th><th>O que faz</th></tr></thead>
               <tbody>
-                <tr><td>Ativa</td><td>Ciclo recém-iniciado</td></tr>
-                <tr><td>3º dia</td><td>Primeiro check-in</td></tr>
-                <tr><td>10º dia</td><td>Segundo check-in</td></tr>
-                <tr><td>20º dia</td><td>Aproximando do acerto</td></tr>
-                <tr><td>Agendado</td><td>Acerto marcado</td></tr>
+                <tr><td>Mudar etapa do lead</td><td>Move o card pra outra coluna do mesmo pipeline</td></tr>
+                <tr><td>Alterar responsável</td><td>Reatribui a revendedora pra outro agente</td></tr>
+                <tr><td>Adicionar nota</td><td>Registra uma nota automática no histórico</td></tr>
+                <tr><td>Ligar / Pausar agente de IA</td><td>Liga ou pausa a resposta automática pra essa revendedora</td></tr>
+                <tr><td>Enviar webhook</td><td>Manda os dados por POST pra uma URL externa</td></tr>
+                <tr><td>Iniciar fluxo</td><td>Dispara um dos Fluxos de conversa já criados (ver seção Fluxos)</td></tr>
               </tbody>
             </table>
           </div>
 
-          <h2>Como usar</h2>
-          <ul>
-            <li><strong>Mover revendedora:</strong> Arraste o card de uma coluna para outra</li>
-            <li><strong>Criar contato direto:</strong> Clique em "+" em qualquer coluna para adicionar um contato manualmente</li>
-            <li><strong>Ver detalhes:</strong> Clique no card para abrir o perfil completo do contato</li>
-          </ul>
+          <h2>Condição de tempo</h2>
+          <p>Todo gatilho pode ser <strong>imediato</strong> (assim que o card entra na coluna) ou com <strong>atraso configurável</strong> (ex: "depois de 1h", "depois de 1 dia") — igual ao exemplo do Kommo que motivou o pedido.</p>
 
-          <h2>Informações nos cards</h2>
-          <p>Cada card mostra: nome da revendedora, temperatura (cor) e telefone.</p>
+          <h2>Como criar</h2>
+          <ol>
+            <li>Abra o pipeline → <strong>Automatize</strong></li>
+            <li>Na coluna desejada, clique em <strong>+ Adicionar gatilho</strong></li>
+            <li>Escolha a ação, configure o atraso e salve</li>
+          </ol>
+        </section>
+
+        <div class="divider" />
+
+        <!-- ══════════════════════════════════════ TIMES DE VENDAS -->
+        <section id="times-vendas">
+          <h1>Times de Vendas</h1>
+          <p class="lead">Toda revendedora sincronizada do Jueri já vem vinculada a um time de vendas (o campo "gerente" da API do Jueri, exibido como <strong>Carteira</strong> no CRM). Essa tela controla <em>quem no CRM enxerga a carteira de cada time</em> — não cria nem edita times, eles vêm prontos do Jueri.</p>
+
+          <h2>Os dois botões — o que cada um faz</h2>
+          <ul>
+            <li><strong>Gerenciar acesso</strong> — escolhe quais usuários do CRM podem ver e trabalhar a carteira <em>inteira</em> daquele time (ex: um gerente supervisionando várias consultoras de uma vez). Pode ter várias pessoas com acesso ao mesmo time.</li>
+            <li><strong>Atribuir carteira</strong> — só aparece quando existem revendedoras daquele time <em>ainda sem responsável individual</em> (chegaram do Jueri sem ninguém atribuído). Define, revendedora por revendedora, quem é a consultora dona dela.</li>
+          </ul>
+          <p class="note">São coisas diferentes por design: "Gerenciar acesso" é visibilidade ampla (supervisão), "Atribuir carteira" é dono individual (responsabilidade). Uma pessoa pode ter as duas coisas ou só uma.</p>
         </section>
 
         <div class="divider" />
@@ -412,14 +545,30 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
           <h1>Agentes</h1>
           <p class="lead">Gerencie os usuários que utilizam o CRM — consultoras, suporte, financeiro e manutenção.</p>
 
-          <h2>Departamentos disponíveis</h2>
+          <h2>Duas configurações diferentes, no mesmo cadastro de agente</h2>
+          <p>Ao criar um agente, você escolhe um <strong>Papel de acesso</strong> (o que ele pode ver/fazer no CRM) e um <strong>Departamento</strong> (só controla se ele recebe leads pelo rodízio do WhatsApp) — são independentes.</p>
+
+          <h2>Papel de acesso (permissões — ver seção Permissões pra detalhe completo)</h2>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Papel</th><th>Vê</th></tr></thead>
+              <tbody>
+                <tr><td>Consultor</td><td>Só a própria carteira</td></tr>
+                <tr><td>Gerente</td><td>Carteira inteira, reatribui responsáveis</td></tr>
+                <tr><td>Financeiro</td><td>Inadimplência/cobrança + carteira inteira pra cruzar dados</td></tr>
+                <tr><td>Diretoria</td><td>Acesso total, inclusive configurações críticas</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2>Departamento (rodízio de WhatsApp)</h2>
           <div class="table-wrap">
             <table>
               <thead><tr><th>Departamento</th><th>Função</th><th>Recebe leads via rodízio</th></tr></thead>
               <tbody>
                 <tr><td>Consultora</td><td>Atendimento e vendas</td><td>Sim</td></tr>
                 <tr><td>Suporte</td><td>Atendimento pós-venda</td><td>Não</td></tr>
-                <tr><td>Financeiro</td><td>Cobranças e pagamentos</td><td>Não</td></tr>
+                <tr><td>Financeiro</td><td>Cobranças e contratos</td><td>Não</td></tr>
                 <tr><td>Manutenção</td><td>Solicitações técnicas</td><td>Não</td></tr>
               </tbody>
             </table>
@@ -428,17 +577,12 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
           <h2>Criando um agente</h2>
           <ol>
             <li>Acesse <strong>Agentes → Novo Agente</strong></li>
-            <li>Preencha nome, e-mail, departamento e senha temporária</li>
-            <li>O agente receberá um e-mail com os dados de acesso automaticamente</li>
+            <li>Preencha nome, e-mail, telefone, senha temporária</li>
+            <li>Escolha o <strong>Papel de acesso</strong> e o <strong>Departamento</strong></li>
           </ol>
 
           <h2>Rodízio automático (Round Robin)</h2>
-          <p>O rodízio distribui leads automaticamente entre consultoras de forma equilibrada. Para cada consultora:</p>
-          <ul>
-            <li><strong>Ativar no rodízio:</strong> toggle verde na lista de agentes — a consultora entra na fila</li>
-            <li><strong>Desativar:</strong> toggle cinza — a consultora não recebe novos leads automáticos</li>
-          </ul>
-          <p>A fila de posição está visível em <strong>Agentes → Fila de Rodízio</strong>.</p>
+          <p>O rodízio distribui leads automaticamente entre consultoras (departamento "Consultora") de forma equilibrada. Ativar/desativar um agente no rodízio controla se ele entra na fila de novos leads.</p>
 
           <h2>Bloquear agente</h2>
           <p>Agentes bloqueados não conseguem mais fazer login. Use quando um funcionário sai da empresa.</p>
@@ -446,25 +590,55 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
 
         <div class="divider" />
 
+        <!-- ══════════════════════════════════════ WHATSAPP -->
+        <section id="whatsapp">
+          <h1>Conectar WhatsApp</h1>
+          <p class="lead">Cada número de WhatsApp conectado é uma <strong>Caixa de Entrada</strong> (Inbox). O CRM funciona com dois motores diferentes de conexão — você escolhe qual usar ao criar a caixa.</p>
+
+          <h2>Baileys × WAHA — qual escolher</h2>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Motor</th><th>Quando usar</th></tr></thead>
+              <tbody>
+                <tr><td><strong>WAHA</strong> <span class="badge green">Recomendado</span></td><td>Opção padrão sugerida na tela de conexão — mais estável no dia a dia</td></tr>
+                <tr><td>Baileys</td><td>Alternativa, mesmo conjunto de funções (texto, mídia, áudio, presença digitando)</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Também dá pra conectar <strong>Instagram</strong> como canal (mensagens diretas), via login oficial do Instagram — não precisa QR Code.</p>
+
+          <h2>Passo a passo</h2>
+          <ol>
+            <li><strong>Configurações → Caixas de Entrada → Nova Caixa</strong></li>
+            <li>Escolha o provedor de WhatsApp (WAHA vem marcado como recomendado) ou Instagram</li>
+            <li>Escaneie o <strong>QR Code</strong> com o celular do número que vai atender pelo CRM (Instagram usa login direto, sem QR)</li>
+            <li>Configure o <strong>prompt de IA</strong> desse canal (ver seção Inteligência Artificial)</li>
+            <li>Defina horário de funcionamento e mensagem fora do horário, se quiser</li>
+          </ol>
+
+          <h2>Se a caixa desconectar</h2>
+          <p>Um banner vermelho aparece no topo do CRM avisando qual caixa caiu. Em <strong>Configurações → Caixas de Entrada</strong>, use <strong>Reconectar</strong> (reabre o QR Code sem apagar a caixa nem o histórico de conversas) ou <strong>Desconectar</strong> (desloga a sessão de propósito, sem apagar nada).</p>
+        </section>
+
+        <div class="divider" />
+
         <!-- ══════════════════════════════════════ CONFIGURAÇÕES -->
         <section id="configuracoes">
           <h1>Configurações</h1>
-          <p class="lead">Área exclusiva do dono/administrador para configurar canais, integrações e personalizações do CRM.</p>
+          <p class="lead">Área exclusiva da Diretoria. Reúne tudo que é configuração de infraestrutura do CRM, não operação do dia a dia.</p>
 
-          <h2>Caixas de Entrada (Inboxes)</h2>
-          <p>Cada inbox representa um número de WhatsApp conectado. Para conectar:</p>
-          <ol>
-            <li>Acesse <strong>Configurações → Caixas de Entrada → Nova Caixa</strong></li>
-            <li>Escanear o QR Code com o WhatsApp do número que deseja conectar</li>
-            <li>Configure o <strong>prompt de IA</strong> para esse canal (tom de voz, apresentação, regras)</li>
-            <li>Defina <strong>horário de funcionamento</strong> e mensagem fora do horário</li>
-          </ol>
-
-          <h2>Etiquetas (Tags)</h2>
-          <p>Crie e personalize as etiquetas usadas nas conversas em <strong>Configurações → Etiquetas</strong>. Cada tag tem nome e cor.</p>
-
-          <h2>Conta</h2>
-          <p>Em <strong>Configurações → Conta</strong>, altere o nome da empresa e a senha de acesso.</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Item</th><th>Onde encontrar o detalhe neste manual</th></tr></thead>
+              <tbody>
+                <tr><td>Caixas de Entrada</td><td>Seção <strong>Conectar WhatsApp</strong></td></tr>
+                <tr><td>Etiquetas</td><td>Seção <strong>Etiquetas</strong></td></tr>
+                <tr><td>Agentes</td><td>Seção <strong>Agentes</strong></td></tr>
+                <tr><td>Atividades</td><td>Log de auditoria — quem fez o quê no sistema, só leitura</td></tr>
+                <tr><td>Conta</td><td>Nome da empresa e senha de acesso</td></tr>
+              </tbody>
+            </table>
+          </div>
         </section>
 
         <div class="divider" />
@@ -534,53 +708,45 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
         <!-- ══════════════════════════════════════ PERMISSÕES -->
         <section id="permissoes">
           <h1>Permissões por Papel</h1>
-          <p class="lead">O CRM tem dois papéis principais e quatro departamentos, cada um com níveis de acesso distintos.</p>
+          <p class="lead">O CRM tem 4 papéis de acesso. Todo usuário tem exatamente um.</p>
 
-          <h2>Papéis</h2>
           <div class="table-wrap">
             <table>
               <thead><tr><th>Papel</th><th>Descrição</th></tr></thead>
               <tbody>
-                <tr><td><strong>Empresa / Dono</strong></td><td>Acesso total ao CRM, configurações, agentes e relatórios</td></tr>
-                <tr><td><strong>Atendente</strong></td><td>Acesso às suas próprias conversas e revendedoras</td></tr>
-                <tr><td><strong>Admin (global)</strong></td><td>Painel administrativo do SaaS — exclusivo da equipe técnica</td></tr>
+                <tr><td><strong>Consultor</strong></td><td>Só enxerga a própria carteira de revendedoras e suas próprias conversas/tarefas</td></tr>
+                <tr><td><strong>Gerente</strong></td><td>Enxerga a carteira inteira (todos os consultores), reatribui responsáveis. Não mexe em Configurações</td></tr>
+                <tr><td><strong>Financeiro</strong></td><td>Enxerga a carteira inteira pra cruzar dados de inadimplência/cobrança. Não vê Minhas Revendedoras/Tarefas (telas operacionais do consultor) — trabalha em Inativas e Conversas</td></tr>
+                <tr><td><strong>Diretoria</strong></td><td>Acesso total: tudo dos outros três papéis + Configurações (Caixas de Entrada, Etiquetas, Agentes, Atividades, Conta), Automações e Fluxos</td></tr>
               </tbody>
             </table>
           </div>
 
-          <h2>Tabela de permissões por departamento</h2>
+          <h2>Tabela de acesso por módulo</h2>
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Função</th>
-                  <th>Consultora</th>
-                  <th>Suporte</th>
+                  <th>Módulo</th>
+                  <th>Consultor</th>
+                  <th>Gerente</th>
                   <th>Financeiro</th>
-                  <th>Manutenção</th>
+                  <th>Diretoria</th>
                 </tr>
               </thead>
               <tbody>
-                <tr><td>Ver suas conversas</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td></tr>
-                <tr><td>Ver todas as conversas</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td></tr>
-                <tr><td>Receber leads (rodízio)</td><td>✅</td><td>❌</td><td>❌</td><td>❌</td></tr>
-                <tr><td>Gerar cobrança PIX/Boleto</td><td>❌</td><td>✅</td><td>✅</td><td>✅</td></tr>
-                <tr><td>Gerenciar agentes</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td></tr>
-                <tr><td>Acessar configurações</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td></tr>
-                <tr><td>Ver relatórios</td><td>✅*</td><td>✅*</td><td>✅*</td><td>✅*</td></tr>
+                <tr><td>Minhas Revendedoras / Tarefas</td><td>✅ (só a própria)</td><td>✅ (toda a carteira)</td><td>❌</td><td>✅ (toda a carteira)</td></tr>
+                <tr><td>Inativas / Conversas / Atacado</td><td>✅ (só a própria)</td><td>✅ (toda a carteira)</td><td>✅ (toda a carteira)</td><td>✅ (toda a carteira)</td></tr>
+                <tr><td>Gerencial / Relatórios / Times de Vendas</td><td>❌</td><td>✅</td><td>❌</td><td>✅</td></tr>
+                <tr><td>Criar/reordenar pipelines</td><td>❌</td><td>✅</td><td>❌</td><td>✅</td></tr>
+                <tr><td>Automações / Fluxos</td><td>❌</td><td>❌</td><td>❌</td><td>✅</td></tr>
+                <tr><td>Configurações (Caixas, Etiquetas, Agentes, Atividades, Conta)</td><td>❌</td><td>❌</td><td>❌</td><td>✅</td></tr>
+                <tr><td>Criar etiqueta nova (não a lista existente)</td><td>❌</td><td>✅</td><td>❌</td><td>✅</td></tr>
+                <tr><td>Excluir campo/atributo personalizado</td><td>❌</td><td>❌</td><td>❌</td><td>✅</td></tr>
               </tbody>
             </table>
           </div>
-          <p class="note">* Relatórios mostram apenas dados do próprio atendente. Donos veem dados de toda a equipe.</p>
-
-          <h2>Permissões exclusivas do Dono/Admin</h2>
-          <ul>
-            <li>Criar, editar e bloquear agentes</li>
-            <li>Configurar canais WhatsApp (inboxes)</li>
-            <li>Gerenciar etiquetas</li>
-            <li>Ver relatórios de toda a equipe</li>
-            <li>Visualizar todos os leads e conversas</li>
-          </ul>
+          <p class="note">"Toda a carteira" = todas as revendedoras da conta, de todos os consultores. Consultor sempre vê só a sua própria.</p>
         </section>
 
         <div class="divider" />
@@ -833,6 +999,17 @@ ul, ol {
 }
 
 a { color: #ff007f; }
+
+.inline-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #ff007f;
+  font-size: inherit;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
 
 // Cards row
 .cards-row {
