@@ -1079,11 +1079,13 @@ onUnmounted(() => {
         <div class="details-header-actions">
           <div class="details-menu-wrapper">
             <button class="icon-btn" @click.stop="toggleDetailsMenu" title="Mais opções"><MoreVertical class="icon-sm" /></button>
+            <!-- "Editar contato"/"Apagar contato" saíram deste menu rápido
+                 (PDF Etapa 2, página 4) — continuam existindo, só em lugares
+                 mais deliberados: "Editar campos" na aba Dados e "Apagar este
+                 contato" dentro de Configurações do próprio painel. -->
             <div v-if="isDetailsMenuOpen" class="details-menu" @click.stop>
-              <button class="details-menu-item" @click="openEditModal(); isDetailsMenuOpen = false"><Edit2 class="icon-xs" /> Editar contato</button>
               <button class="details-menu-item" @click="openMergeModal(); isDetailsMenuOpen = false"><GitMerge class="icon-xs" /> Mesclar contato</button>
               <button class="details-menu-item danger" @click="openDeleteConversationModal(); isDetailsMenuOpen = false"><MessageCircle class="icon-xs" /> Apagar conversa</button>
-              <button class="details-menu-item danger" @click="openDeleteModal(); isDetailsMenuOpen = false"><Trash2 class="icon-xs" /> Apagar contato</button>
             </div>
           </div>
           <button class="icon-btn details-close-mobile" @click="mobileView = 'chat'" title="Voltar pra conversa"><X class="icon-sm" /></button>
