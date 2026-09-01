@@ -138,6 +138,16 @@ class ConversationsController < ApplicationController
         end
       end
 
+      # Atendente é temporário (PDF Etapa 2, página 5): quem responde agora
+      # não vira dona da revendedora. Ao fechar a conversa, volta sozinho pro
+      # responsável fixo (Contact#user_id = Carteira) — a menos que o próprio
+      # fechamento já tenha vindo com uma transferência explícita (aí respeita
+      # a transferência, não sobrescreve por cima).
+      if new_status_param == 'resolved' && !params[:conversation].key?(:user_id)
+        responsavel_id = conversation.contact&.user_id
+        conversation.update_column(:user_id, responsavel_id) if conversation.user_id != responsavel_id
+      end
+
       ActionCable.server.broadcast("conversations_channel_#{current_user.account_id}", {
         event: 'conversation_updated',
         conversation: format_conversation(conversation, users_hash)
