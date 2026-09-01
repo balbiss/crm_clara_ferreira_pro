@@ -85,6 +85,10 @@ class ContactsController < ApplicationController
   # GET /contacts/1
   def show
     @contact = Contact.includes(conversations: :messages, notes: :user, reseller_phones: {}, tags: {}, contact_audit_events: :changed_by).find(@contact.id)
+    # ultima_interacao_em não é coluna real — index já computa isso (maximum
+    # de conversations.last_activity_at), mas show nunca mandava, por isso
+    # "Última atividade" ficava com texto fixo "há pouco" sem dado nenhum
+    # por trás (reclamação real: "não está funcionando").
     render json: @contact.as_json(include: {
       conversations: {
         include: :messages
@@ -97,7 +101,7 @@ class ContactsController < ApplicationController
       contact_audit_events: {
         include: { changed_by: { only: %i[id first_name last_name] } }
       }
-    })
+    }).merge(ultima_interacao_em: @contact.conversations.maximum(:last_activity_at))
   end
 
   # POST /contacts

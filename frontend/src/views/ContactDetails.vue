@@ -7,6 +7,7 @@ import Swal from 'sweetalert2'
 import EditContactModal from '../components/EditContactModal.vue'
 import { useConversationsStore } from '../store/conversations'
 import { statusLabel } from '../constants/regua'
+import { relativeTimeBR } from '../utils/relativeTime'
 
 const route = useRoute()
 const router = useRouter()
@@ -106,6 +107,59 @@ const saveBio = async () => {
     isSavingBio.value = false
   }
 }
+
+// "Enviar mensagem"/"Bloquear contato" no topo da página — existiam sem
+// nenhum @click, não faziam nada (reclamação real). Mesmo padrão de
+// RevendedorasAtivas.vue/TarefasView.vue pro primeiro; block/unblock já
+// tinha rota no backend, só faltava usar aqui.
+const isStartingConversation = ref(false)
+const startConversation = async () => {
+  if (!contact.value) return
+  isStartingConversation.value = true
+  try {
+    const conv = await convStore.startConversation(contact.value.id)
+    router.push(`/conversas?abrir=${conv.id}`)
+  } catch (e) {
+    console.error('Erro ao iniciar conversa:', e)
+    const msg = e.response?.data?.message || 'Erro ao iniciar conversa.'
+    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: msg, showConfirmButton: false, timer: 3500 })
+  } finally {
+    isStartingConversation.value = false
+  }
+}
+
+const isTogglingBlock = ref(false)
+const toggleBlockContact = async () => {
+  if (!contact.value) return
+  const bloqueando = contact.value.status !== 'blocked'
+  const result = await Swal.fire({
+    title: bloqueando ? 'Bloquear contato?' : 'Desbloquear contato?',
+    text: bloqueando ? 'Mensagens desse contato vão parar de gerar resposta automática.' : 'O contato volta a poder ser atendido normalmente.',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: bloqueando ? 'Sim, bloquear' : 'Sim, desbloquear',
+    cancelButtonText: 'Cancelar'
+  })
+  if (!result.isConfirmed) return
+
+  isTogglingBlock.value = true
+  try {
+    await api.patch(`/contacts/${contact.value.id}/${bloqueando ? 'block' : 'unblock'}`)
+    contact.value.status = bloqueando ? 'blocked' : 'active'
+  } catch (e) {
+    console.error('Erro ao bloquear/desbloquear contato:', e)
+    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Não foi possível atualizar o bloqueio.', showConfirmButton: false, timer: 3500 })
+  } finally {
+    isTogglingBlock.value = false
+  }
+}
+
+const criadoAtividadeTexto = computed(() => {
+  if (!contact.value) return ''
+  const criado = relativeTimeBR(contact.value.created_at) || 'data desconhecida'
+  const atividade = relativeTimeBR(contact.value.ultima_interacao_em)
+  return atividade ? `Criado ${criado} • Última atividade ${atividade}` : `Criado ${criado} • Sem atividade ainda`
+})
 
 // Avatar Logic
 const getInitials = (name) => {
@@ -274,8 +328,12 @@ const removeTag = async (tagId) => {
         <span class="breadcrumb-current">{{ contact.name }}</span>
       </div>
       <div class="header-actions">
-        <button class="btn-secondary">Bloquear contato</button>
-        <button class="btn-primary">Enviar mensagem</button>
+        <button class="btn-secondary" :disabled="isTogglingBlock" @click="toggleBlockContact">
+          {{ contact.status === 'blocked' ? 'Desbloquear contato' : 'Bloquear contato' }}
+        </button>
+        <button class="btn-primary" :disabled="isStartingConversation" @click="startConversation">
+          {{ isStartingConversation ? 'Abrindo...' : 'Enviar mensagem' }}
+        </button>
       </div>
     </div>
 
@@ -291,7 +349,7 @@ const removeTag = async (tagId) => {
           <div class="profile-meta">
             <div class="meta-item"><Phone class="icon-xs" /> {{ formatPhoneDisplay(contact.phone) || 'Sem telefone' }}</div>
             <div class="meta-item"><AtSign class="icon-xs" /> {{ contact.email || 'Sem e-mail' }}</div>
-            <div class="meta-item"><Activity class="icon-xs" /> Criado há pouco • Última atividade há pouco</div>
+            <div class="meta-item"><Activity class="icon-xs" /> {{ criadoAtividadeTexto }}</div>
           </div>
           <div class="tags-row">
             <span v-for="tag in contact.tags" :key="tag.id" class="tag-chip" :style="{ background: tag.color }">

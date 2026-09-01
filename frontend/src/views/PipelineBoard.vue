@@ -26,6 +26,11 @@ const isLoading = ref(true)
 const cards = ref([])
 const searchQuery = ref('')
 
+// Botão "Ordenar" não tinha @click nenhum, não fazia nada (reclamação
+// real). Alterna entre a ordem de arraste (padrão) e nome A-Z.
+const sortByName = ref(false)
+const toggleSort = () => { sortByName.value = !sortByName.value }
+
 const cardsByStage = computed(() => {
   const map = {}
   if (!pipeline.value) return map
@@ -34,6 +39,11 @@ const cardsByStage = computed(() => {
     if (searchQuery.value && !(c.contact.name || '').toLowerCase().includes(searchQuery.value.toLowerCase())) return
     if (map[c.pipeline_stage_id]) map[c.pipeline_stage_id].push(c)
   })
+  if (sortByName.value) {
+    Object.keys(map).forEach(stageId => {
+      map[stageId] = [...map[stageId]].sort((a, b) => (a.contact.name || '').localeCompare(b.contact.name || '', 'pt-BR'))
+    })
+  }
   return map
 })
 
@@ -111,9 +121,12 @@ const removeCard = async (card) => {
 const showAddModal = ref(false)
 const targetStageId = ref(null)
 const addSearch = ref('')
-const creatingNew = ref(false)
-const newContact = ref({ first_name: '', last_name: '', phone: '' })
 
+// Revendedora só existe se vier de importação do Jueri — não pode ser
+// criada aqui (regra dura do projeto). Modal só busca/adiciona quem já
+// existe; a opção "+ Cadastrar nova revendedora" foi removida de propósito
+// (reclamação real: um pipeline deixava criar lead direto, o que não devia
+// ser possível de jeito nenhum).
 const availableContacts = computed(() => {
   const idsNoPipeline = new Set(cards.value.map(c => c.contact.id))
   const q = addSearch.value.toLowerCase()
@@ -126,8 +139,6 @@ const availableContacts = computed(() => {
 const openAddModal = (stageId) => {
   targetStageId.value = stageId
   addSearch.value = ''
-  creatingNew.value = false
-  newContact.value = { first_name: '', last_name: '', phone: '' }
   showAddModal.value = true
 }
 
@@ -141,29 +152,6 @@ const addExistingContact = async (contact) => {
     showAddModal.value = false
   } catch (e) {
     Swal.fire({ icon: 'error', title: 'Erro', text: e.response?.data?.errors?.join(', ') || 'Não foi possível adicionar.' })
-  }
-}
-
-const createAndAddContact = async () => {
-  if (!newContact.value.first_name) {
-    Swal.fire({ icon: 'warning', title: 'Atenção', text: 'O nome é obrigatório.' })
-    return
-  }
-  try {
-    const user = JSON.parse(localStorage.getItem('user') || '{}')
-    const contactRes = await api.post('/contacts', {
-      contact: {
-        first_name: newContact.value.first_name,
-        last_name: newContact.value.last_name,
-        name: `${newContact.value.first_name} ${newContact.value.last_name}`.trim(),
-        phone: newContact.value.phone,
-        account_id: user.account_id
-      }
-    })
-    await contactsStore.fetchContacts()
-    await addExistingContact(contactRes.data)
-  } catch (e) {
-    Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível criar o contato.' })
   }
 }
 
@@ -243,7 +231,7 @@ const getAvatarStyle = (name) => {
     <div class="page-header">
       <div class="header-left">
         <h1>{{ pipeline.name.toUpperCase() }}</h1>
-        <button class="icon-btn" title="Ordenar"><ArrowUpDown class="icon-sm" /></button>
+        <button class="icon-btn" :class="{ active: sortByName }" :title="sortByName ? 'Ordenado por nome (A-Z) — clique pra voltar à ordem de arraste' : 'Ordenar por nome (A-Z)'" @click="toggleSort"><ArrowUpDown class="icon-sm" /></button>
         <button class="icon-btn" title="Ver como lista"><MenuIcon class="icon-sm" /></button>
         <template v-if="isOwner && !pipeline.system">
           <button class="icon-btn" title="Renomear pipeline" @click="renamePipeline"><Pencil class="icon-sm" /></button>
@@ -328,7 +316,7 @@ const getAvatarStyle = (name) => {
           <button class="close-btn" @click="showAddModal = false"><X class="icon-sm" /></button>
         </div>
 
-        <div class="modal-body" v-if="!creatingNew">
+        <div class="modal-body">
           <input v-model="addSearch" type="text" placeholder="Buscar revendedora por nome ou telefone..." class="search-input" autofocus />
           <div class="contact-results">
             <button v-for="c in availableContacts" :key="c.id" class="contact-result" @click="addExistingContact(c)">
@@ -338,31 +326,9 @@ const getAvatarStyle = (name) => {
                 <span class="contact-result-phone">{{ c.phone || 'Sem telefone' }}</span>
               </div>
             </button>
-            <p v-if="availableContacts.length === 0" class="empty-column">Nenhum resultado.</p>
+            <p v-if="availableContacts.length === 0" class="empty-column">Nenhum resultado. Revendedora não encontrada precisa ser sincronizada do Jueri primeiro.</p>
           </div>
-          <button class="btn-link" @click="creatingNew = true">+ Cadastrar nova revendedora</button>
         </div>
-
-        <form v-else @submit.prevent="createAndAddContact" class="modal-form">
-          <div class="form-row">
-            <div class="form-group">
-              <label>Nome</label>
-              <input type="text" v-model="newContact.first_name" required />
-            </div>
-            <div class="form-group">
-              <label>Sobrenome</label>
-              <input type="text" v-model="newContact.last_name" />
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Telefone</label>
-            <input type="text" v-model="newContact.phone" placeholder="+55 11 99999-9999" />
-          </div>
-          <div class="modal-actions">
-            <button type="button" class="btn-cancel" @click="creatingNew = false">Voltar</button>
-            <button type="submit" class="btn-submit">Criar e Adicionar</button>
-          </div>
-        </form>
       </div>
     </div>
 
@@ -456,6 +422,7 @@ const getAvatarStyle = (name) => {
   display: flex; align-items: center; justify-content: center; padding: 0.2rem;
   &:hover { color: var(--text-main); }
   &.danger:hover { color: #dc2626; }
+  &.active { color: var(--primary, #ff007f); }
 }
 
 .move-menu-wrapper { position: relative; }
@@ -490,9 +457,6 @@ const getAvatarStyle = (name) => {
   .contact-result-name { font-size: 0.85rem; font-weight: 600; color: var(--text-main); }
   .contact-result-phone { font-size: 0.72rem; color: var(--text-muted); }
 }
-.btn-link { margin-top: 0.75rem; background: none; border: none; color: var(--primary); font-size: 0.82rem; font-weight: 600; cursor: pointer; padding: 0; &:hover { text-decoration: underline; } }
-
-.modal-form { padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
 .form-group {
   display: flex; flex-direction: column; gap: 0.4rem;
   label { font-size: 0.85rem; font-weight: 500; color: var(--text-main); }

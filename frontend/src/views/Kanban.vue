@@ -49,12 +49,12 @@ const searchQuery = ref('')
 const store = useConversationsStore()
 const contactsStore = useContactsStore()
 
-const newContact = ref({
-  first_name: '',
-  last_name: '',
-  email: '',
-  phone: ''
-})
+// Botão "Ordenar" não tinha @click nenhum, não fazia nada (reclamação real).
+const sortByName = ref(false)
+const toggleSort = () => {
+  sortByName.value = !sortByName.value
+  distributeContacts(contactsStore.contacts)
+}
 
 const distributeContacts = (contacts) => {
   columns.value.forEach(col => { col.cards = [] })
@@ -70,6 +70,9 @@ const distributeContacts = (contacts) => {
       raw: contact
     })
   })
+  if (sortByName.value) {
+    columns.value.forEach(col => col.cards.sort((a, b) => a.title.localeCompare(b.title, 'pt-BR')))
+  }
 }
 
 const fetchContacts = async (showLoading = true) => {
@@ -89,7 +92,6 @@ const fetchContacts = async (showLoading = true) => {
 }
 
 const totalLeads = computed(() => columns.value.reduce((s, c) => s + c.cards.length, 0))
-const totalValor = computed(() => columns.value.reduce((s, c) => s + c.cards.reduce((cs, card) => cs + card.venda, 0), 0))
 const brl = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 const columnTotal = (col) => col.cards.reduce((s, c) => s + c.venda, 0)
 
@@ -166,34 +168,29 @@ const dropCard = async (event, columnId) => {
   try { await moveCardToStage(card, columnId) } finally { draggedCard.value = null }
 }
 
-const openCreateModal = (columnId) => { targetColumnId.value = columnId; showModal.value = true }
+// Revendedora só existe se vier de importação do Jueri — não pode ser
+// criada aqui (regra dura do projeto). O modal virou busca de quem já
+// existe (mesma ideia de PipelineBoard.vue); antes deixava criar "Lead"
+// direto no Consignado, o que não devia ser possível (reclamação real).
+const addSearch = ref('')
+const openCreateModal = (columnId) => { targetColumnId.value = columnId; addSearch.value = ''; showModal.value = true }
 
-const handleCreateContact = async () => {
-  if (!newContact.value.first_name) {
-    Swal.fire({ icon: 'warning', title: 'Atenção', text: 'O nome é obrigatório!', confirmButtonColor: '#ff007f' })
-    return
-  }
+const availableContactsForColumn = computed(() => {
+  const q = addSearch.value.toLowerCase()
+  return contactsStore.contacts
+    .filter(c => (c.status || 'revendedor_ativo') !== targetColumnId.value)
+    .filter(c => !q || (c.name || '').toLowerCase().includes(q) || (c.phone || '').includes(q))
+    .slice(0, 20)
+})
+
+const addExistingToColumn = async (contact) => {
   try {
-    const user = JSON.parse(localStorage.getItem('user'))
-    const account_id = user ? user.account_id : null
-    await api.post('/contacts', {
-      contact: {
-        first_name: newContact.value.first_name,
-        last_name: newContact.value.last_name,
-        name: `${newContact.value.first_name} ${newContact.value.last_name}`.trim(),
-        email: newContact.value.email,
-        phone: newContact.value.phone,
-        status: targetColumnId.value,
-        account_id: account_id
-      }
-    })
-    Swal.fire({ icon: 'success', title: 'Lead criado', text: 'Revendedora adicionada ao pipeline!', timer: 1500, showConfirmButton: false })
+    await api.put(`/contacts/${contact.id}`, { contact: { status: targetColumnId.value } })
     showModal.value = false
-    newContact.value = { first_name: '', last_name: '', email: '', phone: '' }
     fetchContacts()
   } catch (error) {
-    console.error('Error creating contact from Kanban:', error)
-    Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível adicionar o contato.' })
+    console.error('Error updating contact status from Kanban:', error)
+    Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível adicionar a revendedora nessa etapa.' })
   }
 }
 </script>
@@ -203,7 +200,7 @@ const handleCreateContact = async () => {
     <div class="page-header">
       <div class="header-left">
         <h1>CONSIGNADO</h1>
-        <button class="icon-btn" title="Ordenar"><ArrowUpDown class="icon-sm" /></button>
+        <button class="icon-btn" :class="{ active: sortByName }" :title="sortByName ? 'Ordenado por nome (A-Z) — clique pra desfazer' : 'Ordenar por nome (A-Z)'" @click="toggleSort"><ArrowUpDown class="icon-sm" /></button>
         <button class="icon-btn" title="Ver como lista"><MenuIcon class="icon-sm" /></button>
       </div>
       <div class="header-search">
@@ -211,7 +208,7 @@ const handleCreateContact = async () => {
         <input v-model="searchQuery" @input="distributeContacts(contactsStore.contacts)" type="text" placeholder="Pesquisar e filtrar" />
       </div>
       <div class="header-right">
-        <span class="board-total">{{ totalLeads }} revendedoras: {{ brl(totalValor) }}</span>
+        <span class="board-total">{{ totalLeads }} revendedoras</span>
         <button class="btn-secondary" @click="$router.push('/funil/automatize')"><Zap class="icon-sm" /> Automatize</button>
         <button class="btn-primary" @click="openCreateModal('revendedor_ativo')"><Plus class="icon-sm" /> Nova Revendedora</button>
       </div>
@@ -290,32 +287,19 @@ const handleCreateContact = async () => {
           <h3>Adicionar Revendedora ao Pipeline</h3>
           <button class="close-btn" @click="showModal = false"><X class="icon-sm" /></button>
         </div>
-        <form @submit.prevent="handleCreateContact" class="modal-form">
-          <div class="form-row">
-            <div class="form-group">
-              <label for="first_name">Nome</label>
-              <input type="text" id="first_name" v-model="newContact.first_name" placeholder="Ex: Amanda" required />
-            </div>
-            <div class="form-group">
-              <label for="last_name">Sobrenome</label>
-              <input type="text" id="last_name" v-model="newContact.last_name" placeholder="Ex: Rocha" />
-            </div>
+        <div class="modal-body">
+          <input v-model="addSearch" type="text" placeholder="Buscar revendedora por nome ou telefone..." class="search-input" autofocus />
+          <div class="contact-results">
+            <button v-for="c in availableContactsForColumn" :key="c.id" class="contact-result" @click="addExistingToColumn(c)">
+              <div class="avatar-sm" :style="getAvatarStyle(c.name)">{{ (c.name || '?').substring(0,2).toUpperCase() }}</div>
+              <div class="contact-result-info">
+                <span class="contact-result-name">{{ c.name || `${c.first_name} ${c.last_name}` }}</span>
+                <span class="contact-result-phone">{{ c.phone || 'Sem telefone' }}</span>
+              </div>
+            </button>
+            <p v-if="availableContactsForColumn.length === 0" class="empty-column">Nenhum resultado. Revendedora não encontrada precisa ser sincronizada do Jueri primeiro.</p>
           </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label for="email">E-mail</label>
-              <input type="email" id="email" v-model="newContact.email" placeholder="amanda@email.com" />
-            </div>
-            <div class="form-group">
-              <label for="phone">Telefone</label>
-              <input type="text" id="phone" v-model="newContact.phone" placeholder="+55 11 99999-9999" />
-            </div>
-          </div>
-          <div class="modal-actions">
-            <button type="button" class="btn-cancel" @click="showModal = false">Cancelar</button>
-            <button type="submit" class="btn-submit">Criar Lead</button>
-          </div>
-        </form>
+        </div>
       </div>
     </div>
   </div>
@@ -621,6 +605,7 @@ const handleCreateContact = async () => {
   align-items: center;
   justify-content: center;
   &:hover { color: var(--text-main); }
+  &.active { color: var(--primary, #ff007f); }
 }
 
 .move-menu-wrapper { position: relative; }
@@ -710,11 +695,17 @@ const handleCreateContact = async () => {
   }
 }
 
-.modal-form {
-  padding: 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+.modal-body { padding: 1.25rem 1.5rem; overflow-y: auto; }
+.search-input { width: 100%; padding: 0.65rem 0.75rem; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-main); border-radius: 6px; font-size: 0.9rem; outline: none; margin-bottom: 0.75rem; &:focus { border-color: var(--primary); } }
+.contact-results { display: flex; flex-direction: column; gap: 0.3rem; max-height: 280px; overflow-y: auto; }
+.contact-result {
+  display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0.6rem; border-radius: 8px; border: none;
+  background: none; cursor: pointer; text-align: left; width: 100%;
+  &:hover { background: var(--bg-hover); }
+  .avatar-sm { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; flex-shrink: 0; }
+  .contact-result-info { display: flex; flex-direction: column; }
+  .contact-result-name { font-size: 0.85rem; font-weight: 600; color: var(--text-main); }
+  .contact-result-phone { font-size: 0.72rem; color: var(--text-muted); }
 }
 
 .form-group {

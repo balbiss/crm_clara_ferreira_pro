@@ -21,8 +21,6 @@ import {
   Mail,
   Phone,
   Copy,
-  Users,
-  Building,
   MessageCircle,
   Edit2,
   GitMerge,
@@ -488,11 +486,16 @@ const handleConversationDeleted = () => {
   // Conversas store já limpa a conversa da lista e o activeConversationId
 }
 
+// O foco em si já funcionava, mas sem feedback visual nenhum parecia que o
+// botão não fazia nada (reclamação real) — adiciona um flash rápido pra
+// deixar claro que o campo foi encontrado e focado.
 const focusMessageInput = () => {
   const input = document.querySelector('.chat-input-area textarea')
-  if (input) {
-    input.focus()
-  }
+  if (!input) return
+  input.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  input.focus()
+  input.classList.add('input-focus-flash')
+  setTimeout(() => input.classList.remove('input-focus-flash'), 600)
 }
 
 const messagesContainerRef = ref(null)
@@ -1085,21 +1088,11 @@ onUnmounted(() => {
             <Mail class="icon-xs" />
             <span>{{ store.activeConversation.contact.email || 'Indisponível' }}</span>
           </div>
-          <div class="attr-row">
-            <Users class="icon-xs" />
-            <span>{{ store.activeConversation.contact.jid || store.activeConversation.contact.socialProfile || 'Indisponível' }}</span>
-          </div>
-          <div class="attr-row">
-            <Building class="icon-xs" />
-            <span>{{ store.activeConversation.contact.location || 'Indisponível' }}</span>
-          </div>
         </div>
 
         <div class="contact-actions-row">
           <button class="action-btn" title="Focar Mensagem" @click="focusMessageInput"><MessageCircle class="icon-sm" /></button>
-          <button class="action-btn" title="Editar Contato" @click="openEditModal"><Edit2 class="icon-sm" /></button>
           <button class="action-btn" title="Mesclar Contato" @click="openMergeModal"><GitMerge class="icon-sm" /></button>
-          <button class="action-btn danger" title="Apagar Contato" @click="openDeleteModal"><Trash2 class="icon-sm" /></button>
         </div>
       </div>
 
@@ -2274,6 +2267,15 @@ onUnmounted(() => {
 .chat-input-area {
   padding: 1rem 1.5rem;
   background: var(--bg-secondary);
+}
+
+.input-focus-flash {
+  animation: input-focus-flash-anim 0.6s ease-out;
+}
+
+@keyframes input-focus-flash-anim {
+  0% { box-shadow: 0 0 0 3px var(--primary, #ff007f); }
+  100% { box-shadow: 0 0 0 0 transparent; }
 }
 
 .btn-magic-sm {

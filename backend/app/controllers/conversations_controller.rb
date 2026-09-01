@@ -363,6 +363,11 @@ class ConversationsController < ApplicationController
       source: conv.source || 'whatsapp',
       preview: last_message&.text || 'Nova Conversa',
       timestamp: last_message ? last_message.created_at.strftime('%H:%M') : conv.created_at.strftime('%H:%M'),
+      # timestamp acima é só "HH:MM" pra exibir na lista — não dá pra ordenar
+      # por ele (new Date("14:08") vira Invalid Date, todo mundo "empatado",
+      # é por isso que o botão Ordenar parecia não fazer nada). Esse aqui é
+      # o valor de verdade que a store usa pra ordenar.
+      last_activity_iso: (last_message&.created_at || conv.last_activity_at || conv.created_at).iso8601,
       unread: conv.unread_count,
       messages: sorted_messages.map do |msg|
         sender_type = msg.sender_type.downcase

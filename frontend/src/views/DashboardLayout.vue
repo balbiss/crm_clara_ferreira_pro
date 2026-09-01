@@ -620,11 +620,6 @@ const saveReorder = async () => {
           <span>Atacado</span>
         </router-link>
 
-        <router-link to="/pedidos-pendentes" class="nav-item">
-          <FileText class="icon" />
-          <span>Pedidos Pendentes</span>
-        </router-link>
-
         <router-link v-if="!isFinanceiro" to="/tarefas" class="nav-item">
           <ListChecks class="icon" />
           <span>Tarefas</span>
@@ -633,11 +628,6 @@ const saveReorder = async () => {
         <router-link v-if="isFullPortfolio" to="/gerencial" class="nav-item">
           <BarChart2 class="icon" />
           <span>Gerencial</span>
-        </router-link>
-
-        <router-link v-if="isFullPortfolio" to="/atividades" class="nav-item">
-          <Activity class="icon" />
-          <span>Atividades</span>
         </router-link>
 
         <router-link v-if="isFullPortfolio" to="/relatorios" class="nav-item">
@@ -767,6 +757,7 @@ const saveReorder = async () => {
             <router-link to="/settings/inboxes" class="nav-item sub-item"><Inbox class="icon-sm" /> Caixas de Entrada</router-link>
             <router-link to="/settings/tags" class="nav-item sub-item" active-class="active"><Tag class="icon-sm" /> Etiquetas</router-link>
             <router-link to="/agentes" class="nav-item sub-item" active-class="active"><Badge class="icon-sm" /> Agentes</router-link>
+            <router-link to="/atividades" class="nav-item sub-item" active-class="active"><Activity class="icon-sm" /> Atividades</router-link>
           </div>
         </div>
 
@@ -1718,6 +1709,16 @@ const saveReorder = async () => {
   overflow-x: hidden;
   min-width: 0;
   height: 100%;
+
+  // O CSS scoped do Vue aplica regra do pai no elemento-raiz do filho — isso
+  // alcança a página que o <router-view> renderiza. Sem min-width:0 aqui,
+  // uma página com tabela larga (ex: Minhas Revendedoras) crescia mais que
+  // o .main-content em vez de deixar a rolagem própria da tabela agir, e o
+  // overflow-x:hidden acima cortava o resto (reclamação real: "a tabela
+  // corta com zoom 100%, só aparece tudo reduzindo o zoom").
+  > * {
+    min-width: 0;
+  }
 }
 
 .mobile-topbar {

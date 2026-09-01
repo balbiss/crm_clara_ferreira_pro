@@ -108,11 +108,16 @@ export const useConversationsStore = defineStore('conversations', {
         });
       }
 
-      // Apply Sort By — spread to avoid mutating state.conversations in place
+      // Apply Sort By — spread to avoid mutating state.conversations in place.
+      // `timestamp` é só "HH:MM" (exibição) — sem data, new Date() dava
+      // Invalid Date pra tudo e o sort não reordenava nada na prática
+      // (reclamação real: "Ordenar não está ordenando"). last_activity_iso
+      // é o valor de verdade (data completa) que o backend manda pra isso.
+      const sortValue = (c) => new Date(c.last_activity_iso || c.timestamp).getTime() || 0
       if (state.sortBy === 'oldest') {
-        filtered = [...filtered].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+        filtered = [...filtered].sort((a, b) => sortValue(a) - sortValue(b))
       } else {
-        filtered = [...filtered].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+        filtered = [...filtered].sort((a, b) => sortValue(b) - sortValue(a))
       }
 
       return filtered

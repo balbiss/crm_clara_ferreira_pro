@@ -169,6 +169,24 @@ const formatPreviewTime = (iso) => {
 
 const getInitials = (name) => (name || '?').substring(0, 2).toUpperCase()
 
+// Separador de dia (reclamação real: mensagens de dias diferentes ficavam
+// tudo junto, sem indicação nenhuma de onde um dia termina e outro começa).
+const formatDateDivider = (iso) => {
+  const d = new Date(iso)
+  const today = new Date()
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+  if (d.toDateString() === today.toDateString()) return 'Hoje'
+  if (d.toDateString() === yesterday.toDateString()) return 'Ontem'
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
+}
+
+const isNewDay = (msg, index) => {
+  if (index === 0) return true
+  const prev = store.activeMessages[index - 1]
+  return new Date(msg.created_at).toDateString() !== new Date(prev.created_at).toDateString()
+}
+
 watch(() => store.activeMessages.length, scrollToBottom)
 
 onMounted(() => {
@@ -234,12 +252,12 @@ onUnmounted(() => {
       <div class="messages-area">
         <div v-if="store.isLoadingMessages" class="empty-state"><p>Carregando conversa...</p></div>
         <template v-else>
-          <div
-            v-for="m in store.activeMessages"
-            :key="m.id"
-            class="message-bubble"
-            :class="{ 'from-me': m.sender_id === currentUser.id, 'has-attachment': !!m.attachment_url }"
-          >
+          <template v-for="(m, index) in store.activeMessages" :key="m.id">
+            <div v-if="isNewDay(m, index)" class="date-divider"><span>{{ formatDateDivider(m.created_at) }}</span></div>
+            <div
+              class="message-bubble"
+              :class="{ 'from-me': m.sender_id === currentUser.id, 'has-attachment': !!m.attachment_url }"
+            >
             <div v-if="m.attachment_url" class="bubble-attachment">
               <a v-if="m.attachment_type?.startsWith('image/')" :href="m.attachment_url" target="_blank" title="Clique para ampliar">
                 <img :src="m.attachment_url" class="attachment-image" @load="scrollToBottom" />
@@ -253,7 +271,8 @@ onUnmounted(() => {
             </div>
             <div class="bubble-text" v-if="m.text">{{ m.text }}</div>
             <div class="bubble-time">{{ formatTime(m.created_at) }}</div>
-          </div>
+            </div>
+          </template>
           <p v-if="store.activeMessages.length === 0" class="empty-thread-text">
             Nenhuma mensagem ainda. Diga oi!
           </p>
@@ -476,6 +495,21 @@ onUnmounted(() => {
   gap: 0.6rem;
   background:
     linear-gradient(var(--bg-primary), var(--bg-primary));
+}
+
+.date-divider {
+  display: flex;
+  justify-content: center;
+  margin: 0.5rem 0;
+
+  span {
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+  }
 }
 
 .message-bubble {

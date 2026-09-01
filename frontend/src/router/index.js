@@ -71,7 +71,7 @@ const router = createRouter({
           path: 'atividades',
           name: 'atividades',
           component: () => import('../views/AtividadesView.vue'),
-          meta: { requiresFullPortfolio: true }
+          meta: { requiresCriticalConfig: true }
         },
         {
           path: 'conversas',
