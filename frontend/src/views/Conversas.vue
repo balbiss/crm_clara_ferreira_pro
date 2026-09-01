@@ -557,14 +557,17 @@ onMounted(async () => {
   window.addEventListener('new-message', handleNewMessage)
   document.addEventListener('click', closeEmojiPicker)
   document.addEventListener('click', closeFilterPopover)
+  document.addEventListener('click', closeTagSuggestions)
   store.setupWebSocket()
   scrollToBottom()
+  fetchAllTags()
 })
 
 onUnmounted(() => {
   window.removeEventListener('new-message', handleNewMessage)
   document.removeEventListener('click', closeEmojiPicker)
   document.removeEventListener('click', closeFilterPopover)
+  document.removeEventListener('click', closeTagSuggestions)
   clearInterval(aiStatusInterval.value)
 })
 
@@ -718,6 +721,36 @@ const newTagName = ref('')
 const TAG_COLORS = ['#6b7280', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899']
 const newTagColor = ref(TAG_COLORS[0])
 
+// Autocomplete de etiquetas já existentes na conta (mesma lista do
+// Gerenciador de Etiquetas em Configurações) — antes só dava pra digitar
+// um nome livre, o que deixava fácil criar "vip" e "VIP importante" como
+// duas etiquetas soltas em vez de reusar a mesma (PDF Etapa 2).
+const allTags = ref([])
+const showTagSuggestions = ref(false)
+const fetchAllTags = async () => {
+  try {
+    const { data } = await api.get('/tags')
+    allTags.value = data
+  } catch (e) {
+    console.error('Erro ao buscar etiquetas da conta:', e)
+  }
+}
+const tagSuggestions = computed(() => {
+  const q = newTagName.value.trim().toLowerCase()
+  const already = new Set((store.activeConversation?.tags || []).map(t => t.id))
+  return allTags.value
+    .filter(t => !already.has(t.id))
+    .filter(t => !q || t.name.toLowerCase().includes(q))
+    .slice(0, 8)
+})
+const pickTagSuggestion = (tag) => {
+  newTagName.value = tag.name
+  newTagColor.value = tag.color
+  showTagSuggestions.value = false
+  addTag()
+}
+const closeTagSuggestions = () => { showTagSuggestions.value = false }
+
 const removeTag = async (tagId) => {
   const convId = store.activeConversationId
   if (!convId) return
@@ -737,6 +770,10 @@ const addTag = async () => {
     await api.post(`/conversations/${convId}/tags`, { name, color: newTagColor.value })
     newTagName.value = ''
     newTagColor.value = TAG_COLORS[0]
+    showTagSuggestions.value = false
+    // Se era etiqueta nova (não veio do autocomplete), passa a existir pra
+    // conta inteira — atualiza a lista pra já aparecer em outras conversas.
+    fetchAllTags()
   } catch (e) {
     console.error('Erro ao adicionar etiqueta:', e)
     const msg = e.response?.data?.message || 'Erro ao adicionar etiqueta.'
@@ -1212,16 +1249,31 @@ onUnmounted(() => {
             </span>
             <span v-if="!store.activeConversation?.tags?.length" class="empty-text">Nenhuma etiqueta</span>
           </div>
-          <div class="tag-add-row">
+          <div class="tag-add-row" style="position: relative;">
             <input
               v-model="newTagName"
               @keyup.enter="addTag"
-              placeholder="Nova etiqueta..."
+              @focus="showTagSuggestions = true"
+              @click.stop="showTagSuggestions = true"
+              placeholder="Nova etiqueta ou escolha uma já existente..."
               class="tag-input"
+              autocomplete="off"
             />
             <button class="btn-add-tag" @click="addTag" :disabled="!newTagName.trim()">
               <Plus class="icon-xs" /> Adicionar
             </button>
+            <div v-if="showTagSuggestions && tagSuggestions.length" class="tag-suggestions" @click.stop>
+              <button
+                v-for="tag in tagSuggestions"
+                :key="tag.id"
+                type="button"
+                class="tag-suggestion-item"
+                @click="pickTagSuggestion(tag)"
+              >
+                <span class="tag-suggestion-dot" :style="{ background: tag.color }"></span>
+                {{ tag.name }}
+              </button>
+            </div>
           </div>
           <div class="tag-color-picker">
             <button
@@ -1720,6 +1772,48 @@ onUnmounted(() => {
     display: flex;
     gap: 0.5rem;
     align-items: stretch;
+  }
+
+  .tag-suggestions {
+    position: absolute;
+    top: calc(100% + 0.3rem);
+    left: 0;
+    right: 0;
+    z-index: 20;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+    padding: 0.3rem;
+    max-height: 220px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .tag-suggestion-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.4rem 0.5rem;
+    border: none;
+    background: none;
+    border-radius: 6px;
+    color: var(--text-main);
+    font-size: 0.82rem;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover { background: var(--bg-hover); }
+  }
+
+  .tag-suggestion-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
   }
 
   .tag-color-picker {
