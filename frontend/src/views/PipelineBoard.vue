@@ -48,9 +48,7 @@ const cardsByStage = computed(() => {
 })
 
 const totalLeads = computed(() => cards.value.length)
-const totalValor = computed(() => cards.value.reduce((s, c) => s + (parseFloat(c.contact.venda) || 0), 0))
 const brl = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-const columnTotal = (stageId) => (cardsByStage.value[stageId] || []).reduce((s, c) => s + (parseFloat(c.contact.venda) || 0), 0)
 
 const fetchCards = async () => {
   if (!pipeline.value) return
@@ -243,7 +241,7 @@ const getAvatarStyle = (name) => {
         <input v-model="searchQuery" type="text" placeholder="Pesquisar e filtrar" />
       </div>
       <div class="header-right">
-        <span class="board-total">{{ totalLeads }} leads: {{ brl(totalValor) }}</span>
+        <span class="board-total">{{ totalLeads }} leads</span>
         <button class="btn-secondary" @click="router.push(`/pipelines/${pipeline.slug}/automatize`)"><Zap class="icon-sm" /> Automatize</button>
         <button v-if="isOwner" class="btn-secondary" @click="addStage"><Plus class="icon-sm" /> Nova Etapa</button>
         <button class="btn-primary" @click="openAddModal(pipeline.pipeline_stages[0]?.id)"><Plus class="icon-sm" /> Novo Lead</button>
@@ -270,7 +268,7 @@ const getAvatarStyle = (name) => {
             </template>
           </div>
         </div>
-        <div class="column-totals">{{ (cardsByStage[stage.id] || []).length }} leads: {{ brl(columnTotal(stage.id)) }}</div>
+        <div class="column-totals">{{ (cardsByStage[stage.id] || []).length }} leads</div>
 
         <div class="column-content">
           <div

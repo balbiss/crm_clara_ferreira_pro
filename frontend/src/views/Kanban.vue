@@ -93,7 +93,6 @@ const fetchContacts = async (showLoading = true) => {
 
 const totalLeads = computed(() => columns.value.reduce((s, c) => s + c.cards.length, 0))
 const brl = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-const columnTotal = (col) => col.cards.reduce((s, c) => s + c.venda, 0)
 
 const colors = [
   { bg: '#ffd9ec', color: '#a80050' },
@@ -230,7 +229,7 @@ const addExistingToColumn = async (contact) => {
           </div>
           <button class="icon-btn" @click="openCreateModal(col.id)"><Plus class="icon-sm" /></button>
         </div>
-        <div class="column-totals">{{ col.cards.length }} leads: {{ brl(columnTotal(col)) }}</div>
+        <div class="column-totals">{{ col.cards.length }} leads</div>
 
         <div v-if="col.checklist" class="column-checklist">
           <p class="checklist-title">Check-list de {{ col.name.toLowerCase() }}:</p>
