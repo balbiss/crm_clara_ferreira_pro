@@ -734,6 +734,11 @@ const saveReorder = async () => {
           <span>Calendário</span>
         </router-link>
 
+        <router-link to="/manual" class="nav-item">
+          <BookOpen class="icon" />
+          <span>Manual do Sistema</span>
+        </router-link>
+
         <router-link v-if="isCriticalConfig" to="/automacoes" class="nav-item">
           <Zap class="icon" />
           <span>Automações</span>
