@@ -41,7 +41,6 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
-  Zap,
   UserX,
   ListChecks,
   Plus,
@@ -737,11 +736,6 @@ const saveReorder = async () => {
         <router-link to="/manual" class="nav-item">
           <BookOpen class="icon" />
           <span>Manual do Sistema</span>
-        </router-link>
-
-        <router-link v-if="isCriticalConfig" to="/automacoes" class="nav-item">
-          <Zap class="icon" />
-          <span>Automações</span>
         </router-link>
 
         <router-link v-if="isCriticalConfig" to="/fluxos" class="nav-item">

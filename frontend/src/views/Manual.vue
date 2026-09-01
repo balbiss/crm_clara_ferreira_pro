@@ -142,7 +142,7 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
                 <tr><td>Comunicações</td><td>Todos</td><td>Inbox de chat (WhatsApp/Instagram) + Chat da Equipe</td></tr>
                 <tr><td>Pipelines</td><td>Todos (criar pipeline novo é só Gerente/Diretoria)</td><td>Consignado (fixo, segue a régua) + pipelines próprios (Varejo etc.)</td></tr>
                 <tr><td>Calendário</td><td>Todos</td><td>Agendamentos de acerto e mensagens programadas</td></tr>
-                <tr><td>Automações / Fluxos</td><td>Diretoria</td><td>Robô de conversa no WhatsApp e automações do pipeline</td></tr>
+                <tr><td>Fluxos</td><td>Diretoria</td><td>Robô de conversa no WhatsApp (automação por etapa de pipeline é o botão "Automatize" dentro de cada Pipeline, ver seção Gatilhos)</td></tr>
                 <tr><td>Configurações</td><td>Diretoria</td><td>Conta, Caixas de Entrada (WhatsApp), Etiquetas, Agentes, Atividades</td></tr>
               </tbody>
             </table>
@@ -717,7 +717,7 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
                 <tr><td><strong>Consultor</strong></td><td>Só enxerga a própria carteira de revendedoras e suas próprias conversas/tarefas</td></tr>
                 <tr><td><strong>Gerente</strong></td><td>Enxerga a carteira inteira (todos os consultores), reatribui responsáveis. Não mexe em Configurações</td></tr>
                 <tr><td><strong>Financeiro</strong></td><td>Enxerga a carteira inteira pra cruzar dados de inadimplência/cobrança. Não vê Minhas Revendedoras/Tarefas (telas operacionais do consultor) — trabalha em Inativas e Conversas</td></tr>
-                <tr><td><strong>Diretoria</strong></td><td>Acesso total: tudo dos outros três papéis + Configurações (Caixas de Entrada, Etiquetas, Agentes, Atividades, Conta), Automações e Fluxos</td></tr>
+                <tr><td><strong>Diretoria</strong></td><td>Acesso total: tudo dos outros três papéis + Configurações (Caixas de Entrada, Etiquetas, Agentes, Atividades, Conta) e Fluxos</td></tr>
               </tbody>
             </table>
           </div>
@@ -739,7 +739,7 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
                 <tr><td>Inativas / Conversas / Atacado</td><td>✅ (só a própria)</td><td>✅ (toda a carteira)</td><td>✅ (toda a carteira)</td><td>✅ (toda a carteira)</td></tr>
                 <tr><td>Gerencial / Relatórios / Times de Vendas</td><td>❌</td><td>✅</td><td>❌</td><td>✅</td></tr>
                 <tr><td>Criar/reordenar pipelines</td><td>❌</td><td>✅</td><td>❌</td><td>✅</td></tr>
-                <tr><td>Automações / Fluxos</td><td>❌</td><td>❌</td><td>❌</td><td>✅</td></tr>
+                <tr><td>Fluxos</td><td>❌</td><td>❌</td><td>❌</td><td>✅</td></tr>
                 <tr><td>Configurações (Caixas, Etiquetas, Agentes, Atividades, Conta)</td><td>❌</td><td>❌</td><td>❌</td><td>✅</td></tr>
                 <tr><td>Criar etiqueta nova (não a lista existente)</td><td>❌</td><td>✅</td><td>❌</td><td>✅</td></tr>
                 <tr><td>Excluir campo/atributo personalizado</td><td>❌</td><td>❌</td><td>❌</td><td>✅</td></tr>
