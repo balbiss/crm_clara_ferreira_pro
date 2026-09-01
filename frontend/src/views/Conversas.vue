@@ -1057,11 +1057,16 @@ onUnmounted(() => {
           <ExternalLink class="icon-xs contact-open-profile" title="Abrir perfil completo" @click="router.push(`/contatos/${store.activeConversation.contact.id}`)" />
         </div>
 
+        <!-- "REVENDEDORA" e "CONSIGNADO" saíram daqui — eram etiquetas fixas
+             (não removíveis, não ligadas ao sistema de etiquetas de verdade
+             logo abaixo) que só repetiam informação já mostrada em outro
+             lugar: "CONSIGNADO" duplicava .stage-pipeline (linha de baixo) e
+             "REVENDEDORA" não acrescentava nada que o nível/etapa já não
+             deixasse claro. Cliente reportou que pareciam "perdidas"/soltas
+             do sistema real de tags (PDF Etapa 2). -->
         <div class="lead-badges" v-if="store.activeConversation.contact.id">
           <span class="lead-id-badge">#{{ store.activeConversation.contact.id }}</span>
           <template v-if="store.activeConversation.contact.id_jueri">
-            <span class="lead-tag lead-tag-revendedora">REVENDEDORA</span>
-            <span class="lead-tag lead-tag-consignado">CONSIGNADO</span>
             <span
               v-if="store.activeConversation.contact.nivel"
               class="lead-tag nivel-tag"
@@ -2620,8 +2625,6 @@ onUnmounted(() => {
       text-transform: uppercase;
       letter-spacing: 0.02em;
     }
-    .lead-tag-revendedora { background: #d1fae5; color: #065f46; }
-    .lead-tag-consignado { background: #ffd9ec; color: #a80050; }
     .lead-tag-novo { background: var(--bg-tertiary); color: var(--text-muted); }
   }
 
