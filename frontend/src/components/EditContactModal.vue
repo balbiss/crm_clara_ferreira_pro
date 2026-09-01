@@ -39,52 +39,34 @@
               </select>
             </div>
 
-            <div class="form-row">
-              <div class="form-group half">
-                <label>CPF</label>
-                <input type="text" v-model="formData.cpf" placeholder="000.000.000-00" autocomplete="off" />
-              </div>
-              <div class="form-group half">
-                <label>Data de Nascimento</label>
-                <input type="date" v-model="formData.birth_date" autocomplete="off" />
-              </div>
-            </div>
+            <!-- CPF, Data de Nascimento e Instagram saíram daqui: são dado de
+                 cadastro sincronizado do Jueri (briefing/PDF Etapa 2 — "não deve
+                 trazer campos do Jueri"). O CRM não edita esses valores; eles
+                 continuam existindo normalmente, só não aparecem mais neste
+                 formulário. Mantido: Nome, Responsável, E-mail e Telefone, que
+                 são de fato editáveis/gerenciados aqui. -->
 
             <div class="form-group">
               <label>Endereço de e-mail</label>
               <input type="email" v-model="formData.email" placeholder="Insira o endereço de e-mail do contato" autocomplete="off" />
             </div>
 
-            <div class="form-row">
-              <div class="form-group half">
-                <label>Número de Telefone</label>
-                <div class="phone-input-wrapper">
-                  <select class="country-select">
-                    <option value="BR">BR ▾</option>
-                  </select>
-                  <input type="text" v-model="formData.phone" placeholder="+5511999999999" autocomplete="off" />
-                </div>
-              </div>
-              <div class="form-group half">
-                <label>Instagram</label>
-                <input type="text" v-model="formData.cadastro.instagram" placeholder="@perfil" autocomplete="off" />
+            <div class="form-group">
+              <label>Número de Telefone</label>
+              <div class="phone-input-wrapper">
+                <select class="country-select">
+                  <option value="BR">BR ▾</option>
+                </select>
+                <input type="text" v-model="formData.phone" placeholder="+5511999999999" autocomplete="off" />
               </div>
             </div>
           </div>
 
-          <div class="form-section">
-            <h3>Dados de Cadastro</h3>
-            <div class="form-row">
-              <div class="form-group half">
-                <label>ID Jueri (ERP)</label>
-                <input type="text" v-model="formData.cadastro.id_jueri" placeholder="Código no Jueri" autocomplete="off" />
-              </div>
-              <div class="form-group half">
-                <label>Origem do lead</label>
-                <input type="text" v-model="formData.cadastro.origem" placeholder="Ex: Indicação, Instagram" autocomplete="off" />
-              </div>
-            </div>
-          </div>
+          <!-- Seção "Dados de Cadastro" (ID Jueri, Origem do lead) e "Endereço
+               Completo" (CEP/Rua/Número/Bairro/Cidade/Estado/País) removidas
+               daqui pelo mesmo motivo: é tudo dado de cadastro do Jueri, não
+               editável por aqui. Os valores continuam salvos no contato — só
+               pararam de aparecer/serem editáveis neste modal. -->
 
           <div class="form-section">
             <h3>Telefones Adicionais</h3>
@@ -156,57 +138,6 @@
               + Adicionar novo atributo
             </button>
             <p v-else style="font-size: 0.8rem; color: #9ca3af; margin: 4px 0 0;">Só gerente ou superior pode criar campos novos — você pode editar os valores acima.</p>
-          </div>
-
-          <div class="form-section">
-            <h3>Endereço Completo</h3>
-            
-            <div class="form-group">
-              <label>CEP</label>
-              <div class="cep-wrapper">
-                <input type="text" v-model="formData.cep" @blur="buscarCep" placeholder="00000-000" autocomplete="off" />
-                <div v-if="loadingCep" class="cep-spinner"></div>
-              </div>
-              <small v-if="cepError" class="cep-error">{{ cepError }}</small>
-            </div>
-
-            <div class="form-row">
-              <div class="form-group flex-2">
-                <label>Rua / Logradouro</label>
-                <input type="text" v-model="formData.street" placeholder="Nome da rua" autocomplete="off" />
-              </div>
-              <div class="form-group flex-1">
-                <label>Número</label>
-                <input type="text" v-model="formData.address_number" placeholder="Nº" autocomplete="off" />
-              </div>
-            </div>
-
-            <div class="form-row">
-              <div class="form-group half">
-                <label>Complemento</label>
-                <input type="text" v-model="formData.address_complement" placeholder="Ex: Apto 101" autocomplete="off" />
-              </div>
-              <div class="form-group half">
-                <label>Bairro</label>
-                <input type="text" v-model="formData.neighborhood" placeholder="Bairro" autocomplete="off" />
-              </div>
-            </div>
-
-            <div class="form-row">
-              <div class="form-group half">
-                <label>Cidade</label>
-                <input type="text" v-model="formData.city" placeholder="Cidade" autocomplete="off" />
-              </div>
-              <div class="form-group half">
-                <label>Estado</label>
-                <input type="text" v-model="formData.state" placeholder="Estado (UF)" autocomplete="off" />
-              </div>
-            </div>
-            
-            <div class="form-group" style="margin-top: 10px;">
-              <label>País</label>
-              <input type="text" v-model="formData.country" placeholder="Digite o país" autocomplete="off" />
-            </div>
           </div>
 
         </form>
@@ -311,39 +242,11 @@ const formData = ref({
   _originalCustomAttributes: {}
 })
 const loading = ref(false)
-const loadingCep = ref(false)
-const cepError = ref('')
-
-const buscarCep = async () => {
-  if (!formData.value.cep) return;
-  const cleanCep = formData.value.cep.replace(/\D/g, '');
-  if (cleanCep.length !== 8) {
-    cepError.value = 'CEP inválido.';
-    return;
-  }
-  
-  cepError.value = '';
-  loadingCep.value = true;
-  
-  try {
-    const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
-    const data = await res.json();
-    
-    if (data.erro) {
-      cepError.value = 'CEP não encontrado.';
-    } else {
-      formData.value.street = data.logradouro || '';
-      formData.value.neighborhood = data.bairro || '';
-      formData.value.city = data.localidade || '';
-      formData.value.state = data.uf || '';
-      if (!formData.value.country) formData.value.country = 'Brasil';
-    }
-  } catch (err) {
-    cepError.value = 'Erro ao buscar o CEP.';
-  } finally {
-    loadingCep.value = false;
-  }
-}
+// buscarCep/loadingCep/cepError removidos junto com o campo CEP (seção
+// "Endereço Completo" tirada do form — endereço é dado sincronizado do
+// Jueri). formData.cep/street/... continuam existindo abaixo só pra
+// carregar/reenviar o valor já salvo sem alteração (round-trip seguro,
+// sem risco de apagar endereço real do Jueri).
 
 watch(() => props.contact, (newContact) => {
   if (newContact) {
@@ -666,46 +569,6 @@ const save = async () => {
   background: white;
   color: #374151;
   font-size: 0.9rem;
-}
-
-.flex-2 {
-  flex: 2 !important;
-}
-
-.flex-1 {
-  flex: 1 !important;
-}
-
-.cep-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.cep-wrapper input {
-  width: 100%;
-}
-
-.cep-spinner {
-  position: absolute;
-  right: 10px;
-  width: 16px;
-  height: 16px;
-  border: 2px solid #e5e7eb;
-  border-top-color: #ff007f;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.cep-error {
-  color: #ef4444;
-  font-size: 0.8rem;
-  margin-top: 4px;
-  display: block;
 }
 
 .avatar-preview {
