@@ -101,13 +101,13 @@ onMounted(async () => {
       <table v-if="!isLoading && filteredContacts.length > 0" class="revendedoras-table">
         <thead>
           <tr>
-            <th>Revendedora</th>
-            <th>Status</th>
-            <th>Telefone</th>
-            <th>Cidade</th>
-            <th>Responsável anterior</th>
-            <th>Motivo</th>
-            <th>Atualizado em</th>
+            <th class="cell-name">Revendedora</th>
+            <th class="cell-status">Status</th>
+            <th class="cell-tel">Telefone</th>
+            <th class="cell-cidade">Cidade</th>
+            <th class="cell-resp">Responsável anterior</th>
+            <th class="cell-motivo">Motivo</th>
+            <th class="cell-data">Atualizado</th>
           </tr>
         </thead>
         <tbody>
@@ -116,12 +116,12 @@ onMounted(async () => {
               <div class="row-avatar">{{ (c.name || c.first_name || '?').charAt(0).toUpperCase() }}</div>
               <span>{{ c.name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Sem nome' }}</span>
             </td>
-            <td><span class="status-badge" :class="statusBadgeClass(c.status)">{{ statusLabel(c.status) }}</span></td>
-            <td>{{ c.phone || '...' }}</td>
-            <td>{{ c.city || '...' }}</td>
-            <td>{{ responsavelNome(c) || 'Não atribuído' }}</td>
-            <td>{{ c.custom_attributes?.motivo_inativacao || '...' }}</td>
-            <td>{{ formatDate(c.updated_at) || '...' }}</td>
+            <td class="cell-status"><span class="status-badge" :class="statusBadgeClass(c.status)">{{ statusLabel(c.status) }}</span></td>
+            <td class="cell-tel">{{ c.phone || '...' }}</td>
+            <td class="cell-cidade">{{ c.city || '...' }}</td>
+            <td class="cell-resp">{{ responsavelNome(c) || 'Não atribuído' }}</td>
+            <td class="cell-motivo">{{ c.custom_attributes?.motivo_inativacao || '...' }}</td>
+            <td class="cell-data">{{ formatDate(c.updated_at) || '...' }}</td>
           </tr>
         </tbody>
       </table>
@@ -141,7 +141,9 @@ onMounted(async () => {
 
 <style lang="scss" scoped>
 .revendedoras-page {
-  padding: 1.5rem 2rem;
+  // Padding lateral enxuto (mesmo ajuste da tela Ativas) — cada cm de
+  // largura conta pra tabela caber sem cortar coluna.
+  padding: 1.25rem 0.9rem;
   height: 100%;
   overflow-y: auto;
 }
@@ -207,27 +209,47 @@ onMounted(async () => {
 
 .table-wrapper {
   background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  overflow: hidden;
+  // Sem borda/raio lateral — deixa a tabela usar a largura disponível
+  // até a borda da tela em vez de ficar "encaixotada" (mesmo ajuste da
+  // tela Ativas).
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 0;
+  overflow-x: hidden;
 }
 
 .revendedoras-table {
+  // table-layout: fixed + largura % por coluna + quebra de linha (em vez
+  // de nowrap) — garante que as 7 colunas cabem na tela sem cortar
+  // "Motivo"/"Atualizado" pra fora da área visível, sem precisar de zoom
+  // out nem rolagem horizontal (mesmo pedido resolvido na tela Ativas).
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
 
   thead th {
     text-align: left;
-    padding: 0.75rem 1rem;
-    font-size: 0.72rem;
+    padding: 0.6rem 0.6rem;
+    font-size: 0.68rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.02em;
     color: var(--text-muted);
     background: var(--bg-tertiary);
     border-bottom: 1px solid var(--border-color);
+    // Quebra só entre palavras, nunca no meio delas.
+    word-break: keep-all;
+    overflow-wrap: normal;
   }
+
+  .cell-name { width: 24%; }
+  .cell-status { width: 13%; }
+  .cell-tel { width: 14%; }
+  .cell-cidade { width: 12%; }
+  .cell-resp { width: 14%; }
+  .cell-motivo { width: 15%; }
+  .cell-data { width: 8%; }
 
   tbody tr {
     cursor: pointer;
@@ -239,15 +261,17 @@ onMounted(async () => {
   }
 
   td {
-    padding: 0.7rem 1rem;
+    padding: 0.55rem 0.6rem;
     color: var(--text-main);
-    white-space: nowrap;
+    white-space: normal;
+    word-break: keep-all;
+    overflow-wrap: normal;
   }
 
   .cell-name {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
+    gap: 0.5rem;
     font-weight: 600;
   }
 
