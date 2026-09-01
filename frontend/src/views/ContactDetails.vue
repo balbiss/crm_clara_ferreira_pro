@@ -233,6 +233,11 @@ const RESERVED_CUSTOM_KEYS = [
   'gerente_jueri_id', 'gerente_jueri_nome', 'supervisor_nome',
   'rg', 'profissao', 'razao_social', 'nome_fantasia', 'cnpj',
   'observacao_jueri', 'observacao_interna_jueri', 'data_inativacao_jueri',
+  // Faltavam essas — mesma lista completa do Jueri já removida da aba "Dados"
+  // de Conversas.vue, essa lista aqui tinha ficado incompleta e deixava
+  // vazar pra "Informações" (bug real reportado de novo pela Clara).
+  'local_trabalho', 'website_jueri', 'referencia_nome', 'referencia_telefone',
+  'status_cadastral_jueri', 'data_criacao_jueri', 'data_ultima_alteracao_jueri',
   'pedidos', 'telefones_adicionais'
 ]
 const informacoesPersonalizadas = computed(() => {

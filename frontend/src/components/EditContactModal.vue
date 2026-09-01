@@ -215,6 +215,11 @@ const JUERI_CADASTRO_KEYS = [
   'gerente_jueri_id', 'gerente_jueri_nome', 'supervisor_nome',
   'rg', 'profissao', 'razao_social', 'nome_fantasia', 'cnpj',
   'observacao_jueri', 'observacao_interna_jueri', 'data_inativacao_jueri',
+  // Faltavam essas — lista tinha ficado incompleta e deixava vazar pra
+  // "Atributos Personalizados" (mesmo bug encontrado de novo em
+  // ContactDetails.vue, PDF Etapa 2).
+  'local_trabalho', 'website_jueri', 'referencia_nome', 'referencia_telefone',
+  'status_cadastral_jueri', 'data_criacao_jueri', 'data_ultima_alteracao_jueri',
 ]
 const RESERVED_KEYS = [...REVENDA_FIELDS.map(f => f.key), ...CADASTRO_KEYS, ...JUERI_CADASTRO_KEYS, 'pedidos', 'telefones_adicionais']
 
