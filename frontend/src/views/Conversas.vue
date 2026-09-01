@@ -738,10 +738,11 @@ const fetchAllTags = async () => {
 const tagSuggestions = computed(() => {
   const q = newTagName.value.trim().toLowerCase()
   const already = new Set((store.activeConversation?.tags || []).map(t => t.id))
+  // Sem limite de itens (pedido explícito: "dropbox com TODAS as etiquetas
+  // já usadas") — a lista já rola dentro de max-height no CSS.
   return allTags.value
     .filter(t => !already.has(t.id))
     .filter(t => !q || t.name.toLowerCase().includes(q))
-    .slice(0, 8)
 })
 const pickTagSuggestion = (tag) => {
   newTagName.value = tag.name
