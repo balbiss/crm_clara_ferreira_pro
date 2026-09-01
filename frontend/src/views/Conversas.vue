@@ -348,17 +348,21 @@ const lastMessageAt = computed(() => {
 })
 const activeTagsCount = computed(() => store.activeConversation?.tags?.length || 0)
 
-// Tooltip rápido do ícone (i) ao lado do nome — telefone/e-mail sem precisar
-// abrir nada, só passar o mouse.
-const contactQuickInfo = computed(() => {
+// Info rápida do ícone (i) ao lado do nome — telefone/e-mail/cidade. Era só
+// um `title` (tooltip nativo do navegador via hover) e a reclamação real foi
+// "não mostra nada" — hover é pouco descobrível e não existe em touch, então
+// virou popover que abre no clique, igual todo o resto do sistema.
+const showQuickInfo = ref(false)
+const contactQuickInfoLines = computed(() => {
   const contact = store.activeConversation?.contact
-  if (!contact) return ''
+  if (!contact) return []
   const lines = []
-  if (contact.phone) lines.push(`Telefone: ${contact.phone}`)
-  if (contact.email) lines.push(`E-mail: ${contact.email}`)
-  if (contact.city) lines.push(`Cidade: ${contact.city}${contact.state ? '/' + contact.state : ''}`)
-  return lines.join('\n') || 'Sem informações adicionais'
+  if (contact.phone) lines.push({ label: 'Telefone', value: contact.phone })
+  if (contact.email) lines.push({ label: 'E-mail', value: contact.email })
+  if (contact.city) lines.push({ label: 'Cidade', value: `${contact.city}${contact.state ? '/' + contact.state : ''}` })
+  return lines
 })
+const closeQuickInfo = () => { showQuickInfo.value = false }
 
 // Linha do tempo de marcos de ciclo de vida (lifecycle_events) — Iniciada,
 // Churn e Reativação, na ordem em que aconteceram de verdade (histórico,
@@ -558,6 +562,7 @@ onMounted(async () => {
   document.addEventListener('click', closeEmojiPicker)
   document.addEventListener('click', closeFilterPopover)
   document.addEventListener('click', closeTagSuggestions)
+  document.addEventListener('click', closeQuickInfo)
   store.setupWebSocket()
   scrollToBottom()
   fetchAllTags()
@@ -568,6 +573,7 @@ onUnmounted(() => {
   document.removeEventListener('click', closeEmojiPicker)
   document.removeEventListener('click', closeFilterPopover)
   document.removeEventListener('click', closeTagSuggestions)
+  document.removeEventListener('click', closeQuickInfo)
   clearInterval(aiStatusInterval.value)
 })
 
@@ -1089,10 +1095,17 @@ onUnmounted(() => {
           <img v-if="store.activeConversation.contact.avatar_url" :src="store.activeConversation.contact.avatar_url" alt="avatar" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" />
           <span v-else>{{ store.activeConversation.contact.avatarInitials }}</span>
         </div>
-        <div class="contact-name-row">
+        <div class="contact-name-row" style="position: relative;">
           <h4>{{ store.activeConversation.contact.name }}</h4>
-          <Info class="icon-xs contact-quick-info" :title="contactQuickInfo" />
+          <Info class="icon-xs contact-quick-info" title="Ver telefone/e-mail/cidade" @click.stop="showQuickInfo = !showQuickInfo" />
           <ExternalLink class="icon-xs contact-open-profile" title="Abrir perfil completo" @click="router.push(`/contatos/${store.activeConversation.contact.id}`)" />
+          <div v-if="showQuickInfo" class="quick-info-popover" @click.stop>
+            <div v-if="contactQuickInfoLines.length" class="quick-info-row" v-for="line in contactQuickInfoLines" :key="line.label">
+              <span class="quick-info-label">{{ line.label }}</span>
+              <span class="quick-info-value">{{ line.value }}</span>
+            </div>
+            <p v-else class="quick-info-empty">Sem informações adicionais</p>
+          </div>
         </div>
 
         <!-- "REVENDEDORA" e "CONSIGNADO" saíram daqui — eram etiquetas fixas
@@ -2703,6 +2716,35 @@ onUnmounted(() => {
     .icon-xs { color: var(--text-muted); cursor: pointer; }
     .contact-open-profile:hover, .contact-quick-info:hover { color: var(--primary); }
   }
+
+  .quick-info-popover {
+    position: absolute;
+    top: calc(100% + 0.3rem);
+    left: 0;
+    z-index: 20;
+    min-width: 220px;
+    max-width: 280px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+    padding: 0.6rem 0.75rem;
+    cursor: default;
+  }
+
+  .quick-info-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.25rem 0;
+    font-size: 0.8rem;
+
+    & + .quick-info-row { border-top: 1px solid var(--border-color); }
+  }
+
+  .quick-info-label { color: var(--text-muted); font-weight: 600; }
+  .quick-info-value { color: var(--text-main); text-align: right; overflow-wrap: anywhere; }
+  .quick-info-empty { font-size: 0.8rem; color: var(--text-muted); margin: 0; }
 
   .lead-badges {
     display: flex;
