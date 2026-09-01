@@ -1226,17 +1226,14 @@ onUnmounted(() => {
 
       <template v-if="activeDetailsTab === 'dados'">
       <div class="lead-fields">
-        <div class="lead-field" v-for="f in dadosFields" :key="f.key">
-          <span class="lf-label">{{ f.label }}</span>
-          <span class="lf-value" :class="{ empty: !getDadoValue(f) }">{{ getDadoValue(f) || '...' }}</span>
-        </div>
+        <!-- Antes tinha CPF/RG/Instagram/ID Jueri/Gerente Jueri/CNPJ/Endereço
+             etc — tudo dado de cadastro sincronizado do Jueri, sem nada de
+             CRM ali (reclamação real: "não deve trazer campos do Jueri" —
+             o CRM não edita/mostra esse tipo de dado, só o que é de
+             verdade gerenciado aqui). Ficou só o que é do CRM mesmo. -->
         <div class="lead-field">
           <span class="lf-label">E-mail</span>
           <span class="lf-value" :class="{ empty: !store.activeConversation.contact.email }">{{ store.activeConversation.contact.email || '...' }}</span>
-        </div>
-        <div class="lead-field">
-          <span class="lf-label">Endereço</span>
-          <span class="lf-value" :class="{ empty: !enderecoCompleto }">{{ enderecoCompleto || '...' }}</span>
         </div>
         <div class="lead-field" v-for="tel in (store.activeConversation.contact.reseller_phones || [])" :key="'tel-' + tel.id">
           <span class="lf-label">{{ tel.label || 'Telefone adicional' }}</span>

@@ -363,19 +363,19 @@ onMounted(async () => {
         <thead>
           <tr>
             <th v-if="isFullPortfolio" class="cell-check"><input type="checkbox" :checked="allVisibleSelected" @click.stop="toggleSelectAllVisible" /></th>
-            <th>Revendedora</th>
-            <th>Nível</th>
-            <th>Etapa</th>
-            <th>Próxima tarefa</th>
-            <th>Dias com maleta</th>
-            <th>Peças em aberto</th>
-            <th>Valor em aberto</th>
-            <th>Previsão de acerto</th>
-            <th>Próximo agendamento</th>
-            <th>Última interação</th>
-            <th>Alerta</th>
-            <th>Carteira</th>
-            <th>Ação</th>
+            <th class="cell-name">Revendedora</th>
+            <th class="cell-nivel">Nível</th>
+            <th class="cell-etapa">Etapa</th>
+            <th class="cell-tarefa">Próxima tarefa</th>
+            <th class="cell-dias">Dias com maleta</th>
+            <th class="cell-pecas">Peças em aberto</th>
+            <th class="cell-valor">Valor em aberto</th>
+            <th class="cell-previsao">Previsão de acerto</th>
+            <th class="cell-agendamento">Próximo agendamento</th>
+            <th class="cell-interacao">Última interação</th>
+            <th class="cell-alerta">Alerta</th>
+            <th class="cell-carteira">Carteira</th>
+            <th class="cell-acao">Ação</th>
           </tr>
         </thead>
         <tbody>
@@ -387,7 +387,7 @@ onMounted(async () => {
               <div class="row-avatar">{{ (c.name || c.first_name || '?').charAt(0).toUpperCase() }}</div>
               <span>{{ c.name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Sem nome' }}</span>
             </td>
-            <td>
+            <td class="cell-nivel">
               <span
                 v-if="c.nivel"
                 class="nivel-badge"
@@ -395,20 +395,20 @@ onMounted(async () => {
               >{{ nivelInfo(c.nivel).emoji }} {{ nivelInfo(c.nivel).nome }}</span>
               <span v-else>...</span>
             </td>
-            <td><span class="stage-badge" :class="stageBadgeClass(c.status)">{{ stageLabel(c.status) }}</span></td>
+            <td class="cell-etapa"><span class="stage-badge" :class="stageBadgeClass(c.status)">{{ stageLabel(c.status) }}</span></td>
             <td class="cell-tarefa">{{ proximaTarefa(c) || '—' }}</td>
-            <td>{{ daysInCycle(c) !== null ? daysInCycle(c) + ' dias' : '...' }}</td>
-            <td>{{ c.pecas_abertas_atual ?? '...' }}</td>
-            <td>{{ brl(c.valor_aberto) || '—' }}</td>
-            <td>{{ formatDate(c.data_prevista_acerto) || '—' }}</td>
-            <td>{{ formatDateTime(c.proximo_agendamento_em) || '—' }}</td>
-            <td>{{ formatDateTime(c.ultima_interacao_em) || '—' }}</td>
-            <td>
+            <td class="cell-dias">{{ daysInCycle(c) !== null ? daysInCycle(c) + ' dias' : '...' }}</td>
+            <td class="cell-pecas">{{ c.pecas_abertas_atual ?? '...' }}</td>
+            <td class="cell-valor">{{ brl(c.valor_aberto) || '—' }}</td>
+            <td class="cell-previsao">{{ formatDate(c.data_prevista_acerto) || '—' }}</td>
+            <td class="cell-agendamento">{{ formatDateTime(c.proximo_agendamento_em) || '—' }}</td>
+            <td class="cell-interacao">{{ formatDateTime(c.ultima_interacao_em) || '—' }}</td>
+            <td class="cell-alerta">
               <span v-if="isAtrasada(c)" class="alerta-badge"><AlertTriangle class="icon-xxs" /> Atrasada</span>
               <span v-else class="alerta-ok">Em dia</span>
             </td>
-            <td>{{ carteiraNome(c) || 'Sem time' }}</td>
-            <td @click.stop>
+            <td class="cell-carteira">{{ carteiraNome(c) || 'Sem time' }}</td>
+            <td class="cell-acao" @click.stop>
               <button
                 class="btn-start-conversation"
                 :disabled="isStartingConversation === c.id"
@@ -608,32 +608,47 @@ onMounted(async () => {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 10px;
-  overflow-x: auto;
+  // Cliente pediu pra caber todas as colunas na tela sem precisar dar
+  // zoom out no navegador (antes só resolvia com rolagem horizontal, que
+  // ele não queria). Solução: table-layout: fixed com largura por coluna
+  // (abaixo) + quebra de linha no texto em vez de cortar/rolar — troca
+  // linha mais alta por não perder nenhuma coluna de vista.
+  overflow-x: hidden;
 }
 
 .revendedoras-table {
-  // width: 100% junto com "white-space: nowrap" nas células fazia o
-  // navegador espremer as colunas pra caber na tela em vez de deixar a
-  // barra de rolagem horizontal do .table-wrapper aparecer — cortava
-  // dado (ex: coluna "Carteira" sumia depois de "Alerta"). width:
-  // max-content deixa a tabela crescer além da tela quando o conteúdo
-  // pede (aciona a rolagem) — sem min-width:100%, que forçava esticar e
-  // abrir vão entre colunas quando o conteúdo já era curto.
-  width: max-content;
+  width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
-  font-size: 0.85rem;
+  font-size: 0.78rem;
 
   thead th {
     text-align: left;
-    padding: 0.75rem 1rem;
-    font-size: 0.72rem;
+    padding: 0.6rem 0.6rem;
+    font-size: 0.66rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.02em;
     color: var(--text-muted);
     background: var(--bg-tertiary);
     border-bottom: 1px solid var(--border-color);
+    overflow-wrap: break-word;
   }
+
+  .cell-check { width: 2.5%; }
+  .cell-name { width: 13%; }
+  .cell-nivel { width: 8%; }
+  .cell-etapa { width: 7%; }
+  .cell-tarefa { width: 11%; }
+  .cell-dias { width: 6.5%; }
+  .cell-pecas { width: 5.5%; }
+  .cell-valor { width: 7.5%; }
+  .cell-previsao { width: 6.5%; }
+  .cell-agendamento { width: 7.5%; }
+  .cell-interacao { width: 7.5%; }
+  .cell-alerta { width: 6%; }
+  .cell-carteira { width: 6.5%; }
+  .cell-acao { width: 4%; text-align: center; }
 
   tbody tr {
     cursor: pointer;
@@ -647,15 +662,18 @@ onMounted(async () => {
   }
 
   td {
-    padding: 0.7rem 1rem;
+    padding: 0.55rem 0.6rem;
     color: var(--text-main);
-    white-space: nowrap;
+    // Quebra em vez de cortar/rolar — é o que garante que as 13 colunas
+    // cabem na largura da tela (pedido do cliente).
+    white-space: normal;
+    overflow-wrap: break-word;
   }
 
-  .cell-name {
+  td.cell-name {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
+    gap: 0.5rem;
     font-weight: 600;
   }
 
@@ -663,17 +681,15 @@ onMounted(async () => {
     display: inline-flex;
     align-items: center;
     gap: 0.2rem;
-    font-size: 0.68rem;
+    font-size: 0.66rem;
     font-weight: 700;
-    padding: 0.15rem 0.5rem;
+    padding: 0.15rem 0.4rem;
     border-radius: 20px;
     white-space: nowrap;
   }
 
   .cell-tarefa {
-    white-space: normal;
-    max-width: 220px;
-    font-size: 0.8rem;
+    font-size: 0.76rem;
     color: var(--text-muted);
   }
 
