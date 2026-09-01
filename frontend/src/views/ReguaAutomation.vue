@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { X, Plus, Zap, MessageCircle } from '@lucide/vue'
 import Swal from 'sweetalert2'
+import api from '../api'
 import { useReguaTriggersStore } from '../store/reguaTriggers'
 import { useAgentsStore } from '../store/agents'
 import { useInboxesStore } from '../store/inboxes'
@@ -26,10 +27,21 @@ const columns = [
   { id: 'agendado', name: 'AGENDADO' }
 ]
 
+const flows = ref([])
+const fetchFlows = async () => {
+  try {
+    const { data } = await api.get('/flows')
+    flows.value = (data || []).filter(f => f.active)
+  } catch (e) {
+    console.error('Erro ao buscar fluxos:', e)
+  }
+}
+
 onMounted(async () => {
   if (!reguaTriggersStore.isLoadedOnce) await reguaTriggersStore.fetchTriggers()
   if (!agentsStore.isLoadedOnce) await agentsStore.fetchAgents()
   if (!inboxesStore.isLoadedOnce) await inboxesStore.fetchInboxes()
+  fetchFlows()
 })
 
 const goBack = () => router.push('/funil')
@@ -40,11 +52,20 @@ const ACTION_TYPES = [
   { value: 'create_note', label: 'Adicionar nota' },
   { value: 'ai_start', label: 'Ligar agente de IA' },
   { value: 'ai_stop', label: 'Pausar agente de IA' },
-  { value: 'send_webhook', label: 'Enviar webhook' }
+  { value: 'send_webhook', label: 'Enviar webhook' },
+  { value: 'start_flow', label: 'Iniciar fluxo' }
 ]
 const actionLabel = (type) => ACTION_TYPES.find(a => a.value === type)?.label || type
 
 const statusLabel = (status) => columns.find(c => c.id === status)?.name || status
+
+const delaySummary = (trigger) => {
+  const m = trigger.delay_minutes || 0
+  if (!m) return 'Imediatamente'
+  const h = Math.floor(m / 60)
+  const min = m % 60
+  return `Depois de ${h ? `${h}h` : ''}${h && min ? ' ' : ''}${min ? `${min}min` : ''}`
+}
 
 const triggerSummary = (trigger) => {
   if (trigger.action_type === 'change_status') {
@@ -54,16 +75,21 @@ const triggerSummary = (trigger) => {
     const agent = agentsStore.agents.find(a => a.id === trigger.config.user_id)
     return `${actionLabel(trigger.action_type)} → ${agent ? `${agent.first_name} ${agent.last_name}` : '?'}`
   }
+  if (trigger.action_type === 'start_flow') {
+    const flow = flows.value.find(f => f.id === trigger.config.flow_id)
+    return `${actionLabel(trigger.action_type)} → ${flow ? flow.name : '?'}`
+  }
   return actionLabel(trigger.action_type)
 }
 
 const showTriggerModal = ref(false)
 const triggerStatus = ref(null)
-const newTrigger = ref({ action_type: '', target_status: null, user_id: null, content: '', url: '' })
+const emptyTrigger = () => ({ action_type: '', target_status: null, user_id: null, content: '', url: '', flow_id: null, delay_hours: 0, delay_minutes: 0 })
+const newTrigger = ref(emptyTrigger())
 
 const openTriggerModal = (status) => {
   triggerStatus.value = status
-  newTrigger.value = { action_type: '', target_status: null, user_id: null, content: '', url: '' }
+  newTrigger.value = emptyTrigger()
   showTriggerModal.value = true
 }
 
@@ -86,10 +112,15 @@ const saveTrigger = async () => {
   } else if (t.action_type === 'send_webhook') {
     if (!t.url.trim()) return Swal.fire({ icon: 'warning', title: 'Atenção', text: 'Informe a URL do webhook.' })
     config = { url: t.url.trim() }
+  } else if (t.action_type === 'start_flow') {
+    if (!t.flow_id) return Swal.fire({ icon: 'warning', title: 'Atenção', text: 'Escolha o fluxo.' })
+    config = { flow_id: t.flow_id }
   }
 
+  const delay_minutes = (parseInt(t.delay_hours) || 0) * 60 + (parseInt(t.delay_minutes) || 0)
+
   try {
-    await reguaTriggersStore.createTrigger(triggerStatus.value, { action_type: t.action_type, config })
+    await reguaTriggersStore.createTrigger(triggerStatus.value, { action_type: t.action_type, config, delay_minutes })
     showTriggerModal.value = false
   } catch (e) {
     Swal.fire({ icon: 'error', title: 'Erro', text: e.response?.data?.errors?.join(', ') || 'Não foi possível criar o gatilho.' })
@@ -143,7 +174,7 @@ const removeTrigger = async (triggerId) => {
           <div class="trigger-list">
             <div v-for="trigger in reguaTriggersStore.triggersForStatus(col.id)" :key="trigger.id" class="trigger-chip">
               <Zap class="icon-xs" />
-              <span>{{ triggerSummary(trigger) }}</span>
+              <span>{{ triggerSummary(trigger) }} <em class="trigger-delay">— {{ delaySummary(trigger) }}</em></span>
               <button class="trigger-chip-remove" @click="removeTrigger(trigger.id)"><X class="icon-xs" /></button>
             </div>
           </div>
@@ -196,9 +227,30 @@ const removeTrigger = async (triggerId) => {
             <input type="text" v-model="newTrigger.url" placeholder="https://..." />
           </div>
 
+          <div class="form-group" v-if="newTrigger.action_type === 'start_flow'">
+            <label>Fluxo</label>
+            <select v-model="newTrigger.flow_id">
+              <option :value="null" disabled>Escolha o fluxo...</option>
+              <option v-for="f in flows" :key="f.id" :value="f.id">{{ f.name }}</option>
+            </select>
+            <p v-if="!flows.length" class="empty-hint">Nenhum fluxo ativo ainda — crie um em "Fluxos" no menu.</p>
+          </div>
+
           <p v-if="['ai_start', 'ai_stop'].includes(newTrigger.action_type)" class="empty-hint">
             Sem configuração extra — dispara direto quando a revendedora entra nesse status.
           </p>
+
+          <div class="form-group" v-if="newTrigger.action_type">
+            <label>Quando executar</label>
+            <div class="delay-row">
+              <span>Depois de</span>
+              <input type="number" min="0" v-model.number="newTrigger.delay_hours" class="delay-input" />
+              <span>h</span>
+              <input type="number" min="0" max="59" v-model.number="newTrigger.delay_minutes" class="delay-input" />
+              <span>min</span>
+            </div>
+            <p class="empty-hint">Deixe 0 e 0 pra disparar imediatamente ao entrar nessa etapa.</p>
+          </div>
 
           <div class="modal-actions">
             <button type="button" class="btn-cancel" @click="showTriggerModal = false">Cancelar</button>
@@ -293,6 +345,7 @@ const removeTrigger = async (triggerId) => {
   span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
 .trigger-chip-remove { background: none; border: none; color: inherit; cursor: pointer; display: flex; opacity: 0.7; &:hover { opacity: 1; } }
+.trigger-delay { font-style: normal; opacity: 0.75; font-weight: 500; }
 
 .trigger-add-btn {
   display: flex; align-items: center; justify-content: center; gap: 0.35rem; background: none;
@@ -328,6 +381,15 @@ const removeTrigger = async (triggerId) => {
     &:focus { border-color: var(--primary); }
   }
   textarea { resize: vertical; }
+}
+.delay-row {
+  display: flex; align-items: center; gap: 0.4rem;
+  span { font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; }
+}
+.delay-input {
+  width: 64px; padding: 0.5rem 0.6rem; border: 1px solid var(--border-color); background: var(--bg-primary);
+  color: var(--text-main); border-radius: 6px; font-size: 0.9rem; outline: none;
+  &:focus { border-color: var(--primary); }
 }
 .modal-actions {
   display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1rem;

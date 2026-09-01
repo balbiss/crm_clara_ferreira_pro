@@ -44,6 +44,36 @@ class FlowRunnerService
     false
   end
 
+  # Início programático de um fluxo — chamado por PipelineTriggerRunnerService/
+  # ReguaTriggerRunnerService quando o gatilho configurado é "Iniciar fluxo"
+  # (PDF Etapa 2, página 11: fluxos disponíveis como Ação nos gatilhos).
+  # Precisa de uma caixa (Flow#inbox) pra saber por onde mandar mensagem —
+  # sem isso não tem como abrir/achar a conversa. Não empilha um 2º fluxo
+  # rodando na mesma conversa (mesma guarda que trigger_by_keyword ganha de
+  # graça por só ter 1 FlowRun em waiting_reply por vez sendo escutado).
+  def self.start_for_contact(flow, contact)
+    return false unless flow&.active? && flow.inbox.present? && contact.present?
+
+    trigger_node = flow.flow_nodes.find { |n| n.node_type == 'trigger' }
+    return false unless trigger_node
+
+    conversation = Conversation.find_or_create_by(contact: contact, inbox: flow.inbox) do |conv|
+      conv.account = flow.account
+      conv.status = :open
+      conv.user_id = contact.user_id
+      conv.source = 'whatsapp'
+    end
+
+    return false if FlowRun.exists?(conversation: conversation, status: %w[running waiting_reply])
+
+    flow_run = FlowRun.create!(flow: flow, conversation: conversation, contact: contact)
+    new(flow_run).call(trigger_node.key)
+    true
+  rescue StandardError => e
+    Rails.logger.error("FlowRunnerService (start_for_contact, flow=#{flow&.id}, contact=#{contact&.id}) falhou: #{e.message}")
+    false
+  end
+
   # Chamado ANTES de trigger_by_keyword pra toda mensagem recebida — se essa
   # conversa tem um FlowRun esperando resposta (Perguntar ou Botões/Lista),
   # essa mensagem é a resposta, não um gatilho novo nem algo pra IA.

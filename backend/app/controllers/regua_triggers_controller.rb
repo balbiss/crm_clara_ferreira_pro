@@ -41,6 +41,6 @@ class ReguaTriggersController < ApplicationController
   end
 
   def trigger_params
-    params.require(:regua_trigger).permit(:status, :action_type, :active, config: {})
+    params.require(:regua_trigger).permit(:status, :action_type, :active, :delay_minutes, config: {})
   end
 end

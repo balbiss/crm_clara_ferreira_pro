@@ -41,6 +41,6 @@ class PipelineTriggersController < ApplicationController
   end
 
   def trigger_params
-    params.require(:pipeline_trigger).permit(:action_type, :active, config: {})
+    params.require(:pipeline_trigger).permit(:action_type, :active, :delay_minutes, config: {})
   end
 end

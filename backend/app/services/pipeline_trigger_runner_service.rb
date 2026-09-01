@@ -16,8 +16,24 @@ class PipelineTriggerRunnerService
     return if chain_depth >= MAX_CHAIN
 
     @card.pipeline_stage.pipeline_triggers.where(active: true).order(:position).each do |trigger|
-      run_trigger(trigger, chain_depth)
+      if trigger.delay_minutes.to_i.positive?
+        # Condição de tempo (PDF Etapa 2, página 11 — "X horas após o lead
+        # entrar nessa etapa"): agenda em vez de rodar na hora. O job
+        # confere de novo se o card ainda tá na mesma etapa antes de
+        # executar — se já saiu, a ação não roda (mesmo comportamento do
+        # Kommo mostrado no exemplo).
+        PipelineTriggerFireJob.set(wait: trigger.delay_minutes.minutes).perform_later(trigger.id, @card.id, chain_depth)
+      else
+        run_trigger(trigger, chain_depth)
+      end
     end
+  end
+
+  # Ponto de entrada usado pelo PipelineTriggerFireJob pra rodar 1 gatilho
+  # isolado depois do atraso — precisa ser público, o resto do fluxo (call)
+  # continua privado.
+  def run_single_trigger(trigger, chain_depth:)
+    run_trigger(trigger, chain_depth)
   end
 
   private
@@ -36,9 +52,16 @@ class PipelineTriggerRunnerService
       set_ai_paused(true)
     when 'send_webhook'
       send_webhook(trigger)
+    when 'start_flow'
+      start_flow(trigger)
     end
   rescue StandardError => e
     Rails.logger.error("PipelineTrigger##{trigger.id} (#{trigger.action_type}) falhou pro card #{@card.id}: #{e.message}")
+  end
+
+  def start_flow(trigger)
+    flow = Flow.find_by(id: trigger.config['flow_id'], account_id: @card.pipeline.account_id)
+    FlowRunnerService.start_for_contact(flow, @card.contact) if flow
   end
 
   def move_stage(trigger, chain_depth)

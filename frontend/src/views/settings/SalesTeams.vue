@@ -141,7 +141,9 @@ const confirmAssign = async () => {
       <div class="header-content">
         <h1>Times de Vendas</h1>
         <p class="description">
-          Times sincronizados automaticamente do Jueri. Escolha quem, além do responsável direto de cada revendedora, pode ver a carteira inteira de cada time.
+          Times sincronizados automaticamente do Jueri. Aqui você configura duas coisas diferentes por time:
+          <strong>Gerenciar acesso</strong> (várias pessoas podem enxergar a carteira inteira do time, ex: gerente supervisionando) e
+          <strong>Atribuir carteira</strong> (define QUEM é o responsável individual — 1 só pessoa por revendedora — pra quem ainda chegou do Jueri sem ninguém atribuído).
         </p>
       </div>
     </div>

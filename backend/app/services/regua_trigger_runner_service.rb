@@ -13,8 +13,20 @@ class ReguaTriggerRunnerService
     return if chain_depth >= MAX_CHAIN
 
     ReguaTrigger.where(account_id: @contact.account_id, status: @contact.status, active: true).order(:position).each do |trigger|
-      run_trigger(trigger, chain_depth)
+      if trigger.delay_minutes.to_i.positive?
+        # Condição de tempo (PDF Etapa 2, página 11). O job confere de novo
+        # se a revendedora ainda está no mesmo status antes de executar.
+        ReguaTriggerFireJob.set(wait: trigger.delay_minutes.minutes).perform_later(trigger.id, @contact.id, chain_depth)
+      else
+        run_trigger(trigger, chain_depth)
+      end
     end
+  end
+
+  # Ponto de entrada usado pelo ReguaTriggerFireJob pra rodar 1 gatilho
+  # isolado depois do atraso.
+  def run_single_trigger(trigger, chain_depth:)
+    run_trigger(trigger, chain_depth)
   end
 
   private
@@ -33,9 +45,16 @@ class ReguaTriggerRunnerService
       set_ai_paused(true)
     when 'send_webhook'
       send_webhook(trigger)
+    when 'start_flow'
+      start_flow(trigger)
     end
   rescue StandardError => e
     Rails.logger.error("ReguaTrigger##{trigger.id} (#{trigger.action_type}) falhou pro contato #{@contact.id}: #{e.message}")
+  end
+
+  def start_flow(trigger)
+    flow = Flow.find_by(id: trigger.config['flow_id'], account_id: @contact.account_id)
+    FlowRunnerService.start_for_contact(flow, @contact) if flow
   end
 
   def change_status(trigger, chain_depth)

@@ -12,6 +12,7 @@ class ReguaTrigger < ApplicationRecord
     ai_start
     ai_stop
     send_webhook
+    start_flow
   ].freeze
 
   ACTION_LABELS = {
@@ -20,11 +21,13 @@ class ReguaTrigger < ApplicationRecord
     'create_note'   => 'Adicionar nota',
     'ai_start'      => 'Ligar agente de IA',
     'ai_stop'       => 'Pausar agente de IA',
-    'send_webhook'  => 'Enviar webhook'
+    'send_webhook'  => 'Enviar webhook',
+    'start_flow'    => 'Iniciar fluxo'
   }.freeze
 
   validates :status, presence: true
   validates :action_type, presence: true, inclusion: { in: ACTION_TYPES }
+  validates :delay_minutes, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
   validate :config_has_required_fields
 
   def label
@@ -43,6 +46,8 @@ class ReguaTrigger < ApplicationRecord
       errors.add(:config, 'precisa de um texto de nota') if config['content'].blank?
     when 'send_webhook'
       errors.add(:config, 'precisa de uma URL') if config['url'].blank?
+    when 'start_flow'
+      errors.add(:config, 'precisa de um fluxo escolhido') if config['flow_id'].blank?
     end
   end
 end
