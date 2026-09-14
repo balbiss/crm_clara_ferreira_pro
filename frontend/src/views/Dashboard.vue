@@ -79,8 +79,11 @@ const refreshAll = () => {
 }
 
 // ── Régua (funil) + Distribuição por status — paleta monocromática vinho,
-// só o alerta crítico (Atrasada) sai do tom institucional.
-const WINE_SHADES = ['#2b0016', '#5c1a35', '#8a3355', '#b45a78', '#ff007f']
+// só o alerta crítico (Atrasada) sai do tom institucional. Interpolação linear
+// de #2b0016 (âncora escura, precisa pra contraste) até #d49ba7 (cor real da
+// marca — hsl(347,40%,72%), passada pelo dono 2026-09-14), terminando no
+// --primary #ff007f já estabelecido — antes ia até um #b45a78 inventado.
+const WINE_SHADES = ['#2b0016', '#633446', '#9c6777', '#d49ba7', '#ff007f']
 const ALERT_COLOR = '#a24a3a'
 
 const funnelTotal = computed(() => {

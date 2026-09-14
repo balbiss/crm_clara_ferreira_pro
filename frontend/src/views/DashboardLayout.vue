@@ -943,14 +943,17 @@ const saveReorder = async () => {
   position: relative;
   transition: width 0.18s ease;
 
-  /* Sobrescreve as variáveis de tema só dentro do menu lateral — o resto do app continua claro */
-  --bg-secondary: #2b0016;
-  --bg-tertiary: rgba(255, 255, 255, 0.08);
-  --bg-hover: rgba(255, 255, 255, 0.08);
-  --text-main: #ffffff;
-  --text-muted: rgba(255, 255, 255, 0.65);
-  --border-color: rgba(255, 255, 255, 0.12);
-  --input-focus: rgba(255, 255, 255, 0.14);
+  /* Sobrescreve as variáveis de tema só dentro do menu lateral — o resto do app continua claro.
+     Cores reais da marca (hsl(347,52%,88%) e hsl(347,40%,72%), passadas pelo dono em
+     2026-09-14) — antes era um "vinho institucional" (#2b0016) inventado à parte da
+     identidade, e o dono reclamou que ficava difícil de ler no celular. */
+  --bg-secondary: #f0d0d7;
+  --bg-tertiary: rgba(43, 0, 22, 0.07);
+  --bg-hover: rgba(43, 0, 22, 0.11);
+  --text-main: #4a1626;
+  --text-muted: rgba(74, 22, 38, 0.62);
+  --border-color: rgba(43, 0, 22, 0.12);
+  --input-focus: rgba(212, 155, 167, 0.55);
 
   background-color: var(--bg-secondary);
   border-right: 1px solid var(--border-color);
@@ -1181,6 +1184,14 @@ const saveReorder = async () => {
 .icon-sm { width: 16px; height: 16px; color: rgba(255,255,255,0.7); }
 .icon-xs { width: 14px; height: 14px; color: rgba(255,255,255,0.7); }
 
+// Fundo do menu lateral virou claro (ver override de --text-muted acima) — os
+// ícones brancos do default global ficariam invisíveis nele, então dentro do
+// .sidebar eles seguem a cor de texto do próprio tema local.
+.sidebar .icon-sm,
+.sidebar .icon-xs {
+  color: var(--text-muted);
+}
+
 .nav-menu {
   flex: 1;
   overflow-y: auto;
@@ -1246,7 +1257,7 @@ const saveReorder = async () => {
     font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: rgba(255, 255, 255, 0.5);
+    color: var(--text-muted);
     font-weight: 600;
     padding: 0 0.75rem;
     margin-bottom: 0.5rem;
