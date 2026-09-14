@@ -62,13 +62,7 @@ module Webhooks
     private
 
     # Avisa dono/gerente (pedido do cliente: só esses dois perfis, não
-    # consultor/financeiro) quando entra revendedora nova no Jueri. O nome do
-    # campo "quem cadastrou" no payload ainda não foi confirmado contra um
-    # evento real (não achamos nos logs — provavelmente rotacionados por
-    # deploy) — tenta as chaves mais prováveis (mesmo padrão do campo
-    # "vendedor" já visto no payload de pedido) com fallback silencioso.
-    # Payload completo já fica no log logo acima, então dá pra ajustar o
-    # nome certo da chave assim que um evento real passar por aqui.
+    # consultor/financeiro) quando entra revendedora nova no Jueri.
     def notificar_novo_cadastro(account, payload)
       mensagem = descricao_para('revendedor.created', payload)
 
@@ -116,9 +110,7 @@ module Webhooks
         revendedor = payload['revendedor'].is_a?(Hash) ? payload['revendedor'] : payload
         nome = revendedor['nome'].presence || 'Revendedora sem nome'
         if evento == 'revendedor.created'
-          autor = payload['usuario'].presence || payload['criado_por'].presence ||
-            payload.dig('revendedor', 'usuario').presence || 'não identificado'
-          "#{nome} — cadastro novo (por #{autor})"
+          "#{nome} — cadastro novo"
         else
           "#{nome} — cadastro atualizado"
         end
