@@ -387,7 +387,7 @@ onMounted(async () => {
               <div class="row-avatar">{{ (c.name || c.first_name || '?').charAt(0).toUpperCase() }}</div>
               <span>{{ c.name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Sem nome' }}</span>
             </td>
-            <td class="cell-nivel">
+            <td class="cell-nivel" data-label="Nível">
               <span
                 v-if="c.nivel"
                 class="nivel-badge"
@@ -395,19 +395,19 @@ onMounted(async () => {
               >{{ nivelInfo(c.nivel).emoji }} {{ nivelInfo(c.nivel).nome }}</span>
               <span v-else>...</span>
             </td>
-            <td class="cell-etapa"><span class="stage-badge" :class="stageBadgeClass(c.status)">{{ stageLabel(c.status) }}</span></td>
-            <td class="cell-tarefa">{{ proximaTarefa(c) || '—' }}</td>
-            <td class="cell-dias">{{ daysInCycle(c) !== null ? daysInCycle(c) + ' dias' : '...' }}</td>
-            <td class="cell-pecas">{{ c.pecas_abertas_atual ?? '...' }}</td>
-            <td class="cell-valor">{{ brl(c.valor_aberto) || '—' }}</td>
-            <td class="cell-previsao">{{ formatDate(c.data_prevista_acerto) || '—' }}</td>
-            <td class="cell-agendamento">{{ formatDateTime(c.proximo_agendamento_em) || '—' }}</td>
-            <td class="cell-interacao">{{ formatDateTime(c.ultima_interacao_em) || '—' }}</td>
-            <td class="cell-alerta">
+            <td class="cell-etapa" data-label="Etapa"><span class="stage-badge" :class="stageBadgeClass(c.status)">{{ stageLabel(c.status) }}</span></td>
+            <td class="cell-tarefa" data-label="Tarefa">{{ proximaTarefa(c) || '—' }}</td>
+            <td class="cell-dias" data-label="Dias maleta">{{ daysInCycle(c) !== null ? daysInCycle(c) + ' dias' : '...' }}</td>
+            <td class="cell-pecas" data-label="Peças aberto">{{ c.pecas_abertas_atual ?? '...' }}</td>
+            <td class="cell-valor" data-label="Valor aberto">{{ brl(c.valor_aberto) || '—' }}</td>
+            <td class="cell-previsao" data-label="Previsão acerto">{{ formatDate(c.data_prevista_acerto) || '—' }}</td>
+            <td class="cell-agendamento" data-label="Agendamento">{{ formatDateTime(c.proximo_agendamento_em) || '—' }}</td>
+            <td class="cell-interacao" data-label="Interação">{{ formatDateTime(c.ultima_interacao_em) || '—' }}</td>
+            <td class="cell-alerta" data-label="Alerta">
               <span v-if="isAtrasada(c)" class="alerta-badge"><AlertTriangle class="icon-xxs" /> Atrasada</span>
               <span v-else class="alerta-ok">Em dia</span>
             </td>
-            <td class="cell-carteira">{{ carteiraNome(c) || 'Sem time' }}</td>
+            <td class="cell-carteira" data-label="Carteira">{{ carteiraNome(c) || 'Sem time' }}</td>
             <td class="cell-acao" @click.stop>
               <button
                 class="btn-start-conversation"
@@ -797,5 +797,93 @@ onMounted(async () => {
   }
 
   p { font-size: 0.85rem; }
+}
+
+// Abaixo de 768px a tabela de 13 colunas fica ilegível (colunas espremidas,
+// texto sobrepondo texto — reportado pelo dono no celular). Layout de
+// desktop acima desse breakpoint fica intocado; aqui a tabela vira uma
+// lista de cards (1 card por revendedora, linha "rótulo: valor" por dado)
+// usando o data-label de cada <td> como rótulo.
+@media (max-width: 768px) {
+  .table-wrapper {
+    overflow-x: visible;
+    border: none;
+    background: transparent;
+  }
+
+  .revendedoras-table {
+    table-layout: auto;
+
+    thead { display: none; }
+
+    tbody, tr, td { display: block; width: 100% !important; }
+
+    tbody {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    tr {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 0.75rem 0.9rem;
+
+      &.row-atrasada { border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.05); }
+    }
+
+    td {
+      padding: 0.3rem 0;
+      border-bottom: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      text-align: right;
+      font-size: 0.82rem;
+
+      &::before {
+        content: attr(data-label);
+        font-size: 0.66rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        color: var(--text-muted);
+        text-align: left;
+        flex-shrink: 0;
+      }
+    }
+
+    td.cell-check {
+      justify-content: flex-start;
+      padding-bottom: 0.5rem;
+    }
+
+    td.cell-name {
+      justify-content: flex-start;
+      padding-bottom: 0.6rem;
+      margin-bottom: 0.4rem;
+      border-bottom: 1px solid var(--border-color);
+
+      span { font-size: 0.95rem; }
+    }
+
+    td.cell-acao {
+      justify-content: stretch;
+      padding-top: 0.6rem;
+      margin-top: 0.4rem;
+      border-top: 1px solid var(--border-color);
+
+      .btn-start-conversation {
+        width: 100%;
+        height: 36px;
+        border-radius: 8px;
+        gap: 0.4rem;
+
+        &::after { content: "Iniciar conversa"; font-size: 0.8rem; font-weight: 600; }
+      }
+    }
+  }
 }
 </style>
