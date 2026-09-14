@@ -22,7 +22,8 @@ export const useDashboardStore = defineStore('dashboard', {
     todayLeads: [],
     isOwner: false,
     isLoading: false,
-    isLoadedOnce: false
+    isLoadedOnce: false,
+    lastFetchedAt: null
   }),
 
   actions: {
@@ -54,6 +55,7 @@ export const useDashboardStore = defineStore('dashboard', {
         }
 
         this.isLoadedOnce = true
+        this.lastFetchedAt = Date.now()
       } catch (error) {
         console.error('Error fetching dashboard data', error)
       } finally {

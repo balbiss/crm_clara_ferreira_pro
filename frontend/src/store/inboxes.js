@@ -7,7 +7,8 @@ export const useInboxesStore = defineStore('inboxes', {
   state: () => ({
     inboxes: [],
     isLoading: false,
-    isLoadedOnce: false
+    isLoadedOnce: false,
+    lastFetchedAt: null
   }),
 
   getters: {
@@ -35,6 +36,7 @@ export const useInboxesStore = defineStore('inboxes', {
         })
 
         this.isLoadedOnce = true
+        this.lastFetchedAt = Date.now()
 
         // Busca os status do Baileys/Instagram em background
         this.inboxes.forEach(inbox => {

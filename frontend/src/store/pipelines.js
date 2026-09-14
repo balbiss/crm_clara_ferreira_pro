@@ -7,7 +7,8 @@ export const usePipelinesStore = defineStore('pipelines', {
   state: () => ({
     pipelines: [],
     isLoading: false,
-    isLoadedOnce: false
+    isLoadedOnce: false,
+    lastFetchedAt: null
   }),
 
   actions: {
@@ -17,6 +18,7 @@ export const usePipelinesStore = defineStore('pipelines', {
         const response = await api.get('/pipelines')
         this.pipelines = response.data
         this.isLoadedOnce = true
+        this.lastFetchedAt = Date.now()
       } catch (error) {
         console.error('Failed to fetch pipelines:', error)
       } finally {

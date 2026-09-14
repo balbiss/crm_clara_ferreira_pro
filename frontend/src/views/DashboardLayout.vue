@@ -370,12 +370,29 @@ const handlePaletteKeydown = (e) => {
   }
 }
 
+// Carteira/agentes/caixas/pipelines só buscam uma vez por sessão de aba (guarda
+// isLoadedOnce nas stores, ver store/*.js) — bom pra não refazer a chamada toda
+// vez que o usuário troca de tela, mas isso deixava os dados congelados pra
+// sempre numa aba esquecida aberta (dono reportou: só via dado novo saindo e
+// logando de novo). Aqui a gente revalida sozinho quando a aba volta a ficar
+// visível, só se já faz tempo (evita refetch à toa ao só trocar de aba rápido).
+const STALE_AFTER_MS = 5 * 60 * 1000
+const isStale = (store) => !store.lastFetchedAt || (Date.now() - store.lastFetchedAt) > STALE_AFTER_MS
+
+const revalidateStaleStores = () => {
+  if (isStale(inboxesStore)) inboxesStore.fetchInboxes()
+  if (isStale(contactsStore)) contactsStore.fetchContacts()
+  if (isStale(agentsStore)) agentsStore.fetchAgents()
+  if (isStale(pipelinesStore)) pipelinesStore.fetchPipelines()
+}
+
 const handleVisibilityChange = () => {
   if (document.visibilityState === 'visible') {
     fetchNotifications()
     if (!notificationInterval) {
       notificationInterval = setInterval(fetchNotifications, 10000)
     }
+    revalidateStaleStores()
   } else if (document.visibilityState === 'hidden') {
     if (notificationInterval) {
       clearInterval(notificationInterval)

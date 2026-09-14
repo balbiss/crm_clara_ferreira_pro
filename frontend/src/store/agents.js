@@ -5,7 +5,8 @@ export const useAgentsStore = defineStore('agents', {
   state: () => ({
     agents: [],
     isLoading: false,
-    isLoadedOnce: false
+    isLoadedOnce: false,
+    lastFetchedAt: null
   }),
   
   actions: {
@@ -18,6 +19,7 @@ export const useAgentsStore = defineStore('agents', {
         const response = await api.get('/agents')
         this.agents = response.data
         this.isLoadedOnce = true
+        this.lastFetchedAt = Date.now()
       } catch (error) {
         console.error('Failed to fetch agents:', error)
       } finally {

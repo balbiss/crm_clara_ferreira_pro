@@ -5,7 +5,8 @@ export const useContactsStore = defineStore('contacts', {
   state: () => ({
     contacts: [],
     isLoading: false,
-    isLoadedOnce: false
+    isLoadedOnce: false,
+    lastFetchedAt: null
   }),
   
   actions: {
@@ -31,6 +32,7 @@ export const useContactsStore = defineStore('contacts', {
         }
         this.contacts = all
         this.isLoadedOnce = true
+        this.lastFetchedAt = Date.now()
       } catch (error) {
         console.error('Failed to fetch contacts:', error)
       } finally {
