@@ -8,18 +8,24 @@
   // Clara Ferreira (config/brand.js) mas nunca tinha sido conectada aqui.
   --primary: #ff007f;
   --primary-hover: #cc0066;
-  
+
+  // Cores de identidade visual passadas pelo dono em 2026-09-14 (hsl(347,52%,88%)
+  // e hsl(347,40%,72%) — essa segunda é a mesma do #d49ba7 acima, por isso não
+  // vira --primary de novo: usada só como acento/detalhe, não em botão.
+  --brand-soft: #f0d0d7;
+  --brand-accent: #d49ba7;
+
   /* Light Theme Variables */
   --bg-primary: #f5f0f2;
   --bg-secondary: #ffffff;
-  --bg-tertiary: #f1e9ed;
-  --bg-hover: #f6eef2;
-  
+  --bg-tertiary: var(--brand-soft);
+  --bg-hover: #f6e3e8;
+
   --text-main: #111827;
   --text-muted: #6b7280;
   --text-inverse: #ffffff;
-  
-  --border-color: #e2dde0;
+
+  --border-color: #e8ccd2;
   --input-focus: rgba(255, 0, 127, 0.2);
   --shadow-color: rgba(43, 0, 22, 0.14);
   --shadow-sm: rgba(43, 0, 22, 0.07);
