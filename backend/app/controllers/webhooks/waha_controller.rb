@@ -222,48 +222,66 @@ module Webhooks
         mimetype = media[:mimetype].presence || 'application/octet-stream'
 
         if media_url.present?
-          decoded_media = nil
-          [0, 2, 4].each do |wait_seconds|
-            sleep wait_seconds if wait_seconds.positive?
+          # Download roda em background: cada tentativa contra a WAHA pode
+          # demorar até open_timeout+read_timeout (visto ao vivo travando o
+          # processo Rails inteiro por 4-6min em mídia de status@broadcast
+          # que a WAHA não consegue servir — sem timeout explícito o
+          # Net::HTTP.start usava o default de 60s, 3x seguidas, dentro da
+          # própria request do webhook, esgotando as threads do Puma e
+          # travando até o login). Timeouts curtos aqui = falha rápido;
+          # rodar em Thread.new = nunca bloqueia o worker que responde ao
+          # webhook, igual ao padrão já usado abaixo pra foto de perfil/IA.
+          Thread.new do
             begin
-              uri = URI.parse(media_url)
-              req = Net::HTTP::Get.new(uri)
-              req['X-Api-Key'] = inbox.api_key.presence || ENV['WAHA_API_KEY']
-              res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == 'https') { |http| http.request(req) }
-              decoded_media = res.body if res.is_a?(Net::HTTPSuccess)
-            rescue => e
-              Rails.logger.error("Failed to download Waha media for message #{source_id} (tentativa #{wait_seconds}s): #{e.message}")
-            end
-            break if decoded_media.present?
-          end
-
-          if decoded_media.present?
-            extension = mimetype.split('/').last&.split(';')&.first || 'bin'
-            message_record.attachment.attach(
-              io: StringIO.new(decoded_media),
-              filename: media[:filename].presence || "#{source_id}.#{extension}",
-              content_type: mimetype
-            )
-
-            if mimetype.start_with?('audio/') && inbox.ai_enabled
-              begin
-                transcription = AiAssistantService.transcribe_audio(decoded_media, "#{source_id}.#{extension}", inbox)
-                message_record.update(text: "[Áudio Transcrito] #{transcription}") if transcription.present?
-              rescue => e
-                Rails.logger.error("Erro no Whisper (Waha): #{e.message}")
+              decoded_media = nil
+              [0, 2, 4].each do |wait_seconds|
+                sleep wait_seconds if wait_seconds.positive?
+                begin
+                  uri = URI.parse(media_url)
+                  req = Net::HTTP::Get.new(uri)
+                  req['X-Api-Key'] = inbox.api_key.presence || ENV['WAHA_API_KEY']
+                  res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == 'https', open_timeout: 5, read_timeout: 10) { |http| http.request(req) }
+                  decoded_media = res.body if res.is_a?(Net::HTTPSuccess)
+                rescue => e
+                  Rails.logger.error("Failed to download Waha media for message #{source_id} (tentativa #{wait_seconds}s): #{e.message}")
+                end
+                break if decoded_media.present?
               end
-            end
 
-            message_record.update(text: '📎 Anexo recebido') if message_record.text.blank?
-          else
-            message_record.update(text: '📎 Arquivo não pôde ser baixado') if message_record.text.blank?
+              if decoded_media.present?
+                extension = mimetype.split('/').last&.split(';')&.first || 'bin'
+                message_record.attachment.attach(
+                  io: StringIO.new(decoded_media),
+                  filename: media[:filename].presence || "#{source_id}.#{extension}",
+                  content_type: mimetype
+                )
+
+                if mimetype.start_with?('audio/') && inbox.ai_enabled
+                  begin
+                    transcription = AiAssistantService.transcribe_audio(decoded_media, "#{source_id}.#{extension}", inbox)
+                    message_record.update(text: "[Áudio Transcrito] #{transcription}") if transcription.present?
+                  rescue => e
+                    Rails.logger.error("Erro no Whisper (Waha): #{e.message}")
+                  end
+                end
+
+                message_record.update(text: '📎 Anexo recebido') if message_record.text.blank?
+              else
+                message_record.update(text: '📎 Arquivo não pôde ser baixado') if message_record.text.blank?
+              end
+
+              message_record.rebroadcast
+            rescue => e
+              Rails.logger.error("Erro fatal no download de mídia (Waha) para #{source_id}: #{e.message}")
+            end
           end
         end
       elsif message_record.text.blank?
         message_record.update(text: '📎 Arquivo não suportado ou vazio')
       end
 
-      message_record.rebroadcast
+      media_download_started_in_background = payload[:hasMedia] && payload[:media].is_a?(Hash) && payload[:media][:url].present?
+      message_record.rebroadcast unless media_download_started_in_background
 
       # Fluxos — se essa conversa tem um Fluxo esperando resposta (Perguntar/
       # Botões), essa mensagem É a resposta, checado antes do gatilho por
