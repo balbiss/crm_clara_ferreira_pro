@@ -96,6 +96,13 @@ module Webhooks
           return
         end
 
+        # Eco de mensagem que o próprio CRM acabou de mandar (MessagesController#create)
+        # chegando antes do source_id ser gravado no Message original — ver comentário
+        # em messages_controller.rb. Sem isso, viraria uma SEGUNDA mensagem duplicada.
+        if Rails.cache.read("sending_from_crm_#{inbox.id}_#{chat_id}")
+          return
+        end
+
         # Intervenção humana real, feita direto pelo celular — precisa ser
         # salva (senão nunca aparece na conversa) e pausa a IA, igual ao
         # comportamento equivalente no webhook do Baileys.

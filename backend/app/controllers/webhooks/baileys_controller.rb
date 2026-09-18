@@ -126,6 +126,12 @@ module Webhooks
           if inbox.ai_enabled && Rails.cache.read("ai_is_replying_#{inbox.id}_#{remote_jid}")
             next
           end
+          # Eco de mensagem que o próprio CRM acabou de mandar (MessagesController#create)
+          # chegando antes do source_id ser gravado no Message original — mesma corrida
+          # documentada em messages_controller.rb, agora coberta pro Baileys também.
+          if Rails.cache.read("sending_from_crm_#{inbox.id}_#{remote_jid}")
+            next
+          end
           # Chegou até aqui: é intervenção humana real, respondida direto pelo
           # celular (não pelo CRM) — precisa ser salva igual a qualquer outra
           # mensagem, senão ela nunca aparece na conversa (antes o código dava

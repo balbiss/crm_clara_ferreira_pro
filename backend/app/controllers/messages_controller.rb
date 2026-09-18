@@ -25,6 +25,16 @@ class MessagesController < ApplicationController
       if !is_private_msg && %w[baileys waha instagram].include?(conversation.inbox&.provider)
         begin
           recipient = conversation.contact.channel_identifier
+          # Flag de curta duração ANTES de mandar pra API — o eco (fromMe:
+          # true) do webhook pode chegar e ser processado antes da resposta
+          # do send_message voltar aqui (visto ao vivo: com o backend
+          # rápido, o webhook ganha a corrida do source_id quase toda vez).
+          # Sem essa flag, o eco não acha o Message (source_id ainda nil) e
+          # cria uma SEGUNDA mensagem duplicada. Mesmo padrão do
+          # ai_is_replying_* já usado pro eco da IA, agora pro envio manual.
+          chat_id = conversation.contact.jid
+          Rails.cache.write("sending_from_crm_#{conversation.inbox.id}_#{chat_id}", true, expires_in: 20.seconds) if chat_id.present?
+
           external_id = conversation.inbox.messaging_service.send_message(recipient, message.text, message.attachment)
           # Guarda o id retornado pela API como source_id — sem isso o eco
           # dessa mesma mensagem (fromMe: true) que chega depois pelo webhook
