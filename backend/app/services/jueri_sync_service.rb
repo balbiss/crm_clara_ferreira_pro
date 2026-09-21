@@ -143,6 +143,23 @@ class JueriSyncService
     resultado
   end
 
+  # Fast path SÓ de cadastro (nome/telefone/endereço/nível etc), sem tocar em
+  # pedido/régua/status. A API do Jueri não manda webhook pra mudança de
+  # cadastro (só existe pedido.*/venda.*/financeiro.* — confirmado nos docs,
+  # ver comentário da classe), então isso é a única forma de pegar uma troca
+  # de telefone rápido sem esperar o `call` completo (~157s, caro demais pra
+  # rodar mais que a cada 30min). Bem mais barato: só pagina /revendedor
+  # (dezenas de requests pra base inteira), sem find_revendedor nem histórico
+  # de pedido — dono reclamou que 30min pra ver telefone atualizado era muito
+  # (2026-09-21), roda em paralelo via JueriCadastroSyncJob a cada 5min.
+  def sync_cadastro
+    resultado = { atualizados: 0, erros: 0 }
+    cadastro_por_revendedor = buscar_todo_cadastro_de_revendedores
+    contatos_existentes = @account.contacts.where.not(id_jueri: nil).index_by(&:id_jueri)
+    atualizar_cadastro_existentes(cadastro_por_revendedor, contatos_existentes, resultado)
+    resultado
+  end
+
   # Fast path do webhook: aplica só o pedido do próprio evento
   # (pedido.created/updated/deleted) e recalcula o snapshot da revendedora
   # afetada, sem esperar o resync histórico completo (`call`, que busca

@@ -25,6 +25,13 @@ production:
   jueri_sync:
     class: JueriSyncJob
     schedule: every 30 minutes
+  # Só cadastro (telefone/nome/endereço), separado do sync completo acima —
+  # o Jueri não avisa por webhook quando o cadastro muda (só pedido/venda/
+  # financeiro), então sem isso uma troca de telefone só aparecia depois de
+  # até 30min. Fast path bem mais barato, seguro rodar mais frequente.
+  jueri_cadastro_sync:
+    class: JueriCadastroSyncJob
+    schedule: every 5 minutes
   regua_auto_advance:
     class: ReguaAutoAdvanceJob
     schedule: every hour
