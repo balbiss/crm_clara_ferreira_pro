@@ -8,6 +8,7 @@ import { useContactsStore } from '../store/contacts'
 import { useAgentsStore } from '../store/agents'
 import { usePipelinesStore } from '../store/pipelines'
 import { useInternalChatStore } from '../store/internalChat'
+import { useConversationsStore } from '../store/conversations'
 import {
   Search,
   Inbox,
@@ -142,6 +143,7 @@ const contactsStore = useContactsStore()
 const agentsStore = useAgentsStore()
 const pipelinesStore = usePipelinesStore()
 const internalChatStore = useInternalChatStore()
+const conversationsStore = useConversationsStore()
 
 // Dados reais do usuário logado
 const currentUser = ref({ first_name: '', last_name: '', email: '', account_name: '' })
@@ -384,6 +386,21 @@ const revalidateStaleStores = () => {
   if (isStale(contactsStore)) contactsStore.fetchContacts()
   if (isStale(agentsStore)) agentsStore.fetchAgents()
   if (isStale(pipelinesStore)) pipelinesStore.fetchPipelines()
+
+  // Conversas (tela principal) ficou de fora da revalidação original — o
+  // dado mais reclamado ("sumiu tudo, precisei logar de novo") é justamente
+  // essa lista. Além do refetch, força fechar o WebSocket existente: depois
+  // de o PC dormir por horas a conexão morre sem disparar `onclose` de
+  // forma confiável, e o socket fica "zumbi" (readyState ainda OPEN),
+  // fazendo o health-check de conversations.js achar que está tudo bem e
+  // nunca reconectar sozinho.
+  if (isStale(conversationsStore)) {
+    if (conversationsStore.ws) {
+      try { conversationsStore.ws.close() } catch {}
+      conversationsStore.ws = null
+    }
+    conversationsStore.fetchConversations()
+  }
 }
 
 const handleVisibilityChange = () => {

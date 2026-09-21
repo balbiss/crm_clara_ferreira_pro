@@ -14,6 +14,7 @@ export const useConversationsStore = defineStore('conversations', {
     sortType: 'all',
     advancedFilters: [],
     ws: null,
+    lastFetchedAt: null,
     currentUser: (() => {
       try {
         return JSON.parse(localStorage.getItem('user')) || { first_name: 'Usuário', email: '' }
@@ -129,6 +130,7 @@ export const useConversationsStore = defineStore('conversations', {
       try {
         const response = await api.get('/conversations')
         this.conversations = response.data
+        this.lastFetchedAt = Date.now()
         if (!this.activeConversationId) {
           this.activeConversationId = this.sidebarFilteredConversations[0]?.id || null
         }

@@ -193,6 +193,36 @@ module Webhooks
 
       contact.update(jid: chat_id) if contact.jid != chat_id
 
+      # Auto-cura pra contato @lid que nasceu com o telefone errado: na
+      # primeira mensagem, às vezes a WAHA ainda não tinha aprendido o
+      # número real por trás do lid (visto ao vivo, 2026-09-21 — "Victor
+      # Ferreira" ficou com telefone "+43692870107202", que são só os
+      # dígitos do lid, não um telefone de verdade). resolve_contact
+      # (mesma chamada de linha 156 acima) costuma resolver certo depois
+      # que a WAHA teve tempo de sincronizar o contato — tenta de novo em
+      # background a cada mensagem nova enquanto o telefone salvo ainda for
+      # literalmente os dígitos do lid.
+      if chat_id.end_with?('@lid') && contact.phone == "+#{chat_id.split('@').first}"
+        Thread.new do
+          begin
+            retry_resolved = WhatsappWahaService.new(inbox).resolve_contact(chat_id)
+            real_number = retry_resolved && retry_resolved['id'].present? ? retry_resolved['id'].to_s.split('@').first : nil
+            if real_number.present? && real_number != chat_id.split('@').first
+              real_phone_formatted = "+#{real_number}"
+              updates = { phone: real_phone_formatted }
+              if contact.name == contact_phone_formatted
+                saved_name = retry_resolved['name'].presence
+                saved_name = nil if saved_name == retry_resolved['number']
+                updates[:name] = saved_name || retry_resolved['pushname'].presence || real_phone_formatted
+              end
+              contact.update(updates)
+            end
+          rescue => e
+            Rails.logger.error("Failed to re-resolve lid contact (Waha) for #{chat_id}: #{e.message}")
+          end
+        end
+      end
+
       if contact.avatar_url.blank?
         Thread.new do
           begin
