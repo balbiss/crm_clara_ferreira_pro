@@ -674,8 +674,17 @@ class JueriSyncService
     # pra dar pra filtrar/indexar (usado na fila de Acertos do Agendamento).
     contact.nivel = revendedor['level_revendedor'].presence || contact.nivel
 
+    # Antes só copiava o telefone do Jueri quando o campo estava em branco —
+    # depois da 1ª vez, ficava congelado pra sempre, mesmo em contato que
+    # nunca trocou mensagem de WhatsApp por aqui (bug real: dono corrigiu o
+    # telefone no Jueri e o CRM nunca refletia, 2026-09-21). Se já existe
+    # `jid` (jogou conversa de verdade pelo WhatsApp), não sobrescreve — esse
+    # número já provou que é o canal ativo. Sem jid, o telefone salvo é só
+    # cadastro puro do Jueri, então segue a atualização de lá sem risco.
     telefone_principal = formatar_telefone(revendedor['telefone_1'])
-    contact.phone = telefone_principal if telefone_principal.present? && contact.phone.blank?
+    if telefone_principal.present? && (contact.phone.blank? || contact.jid.blank?)
+      contact.phone = telefone_principal
+    end
 
     gerente_id = revendedor['gerente'] || revendedor['fk_revendedor_gerente_id']
 
