@@ -201,48 +201,58 @@ module Webhooks
 
       contact.update(jid: chat_id) if contact.jid != chat_id
 
-      # Auto-cura pra contato @lid que nasceu com o telefone errado: na
-      # primeira mensagem, às vezes a WAHA ainda não tinha aprendido o
-      # número real por trás do lid (visto ao vivo, 2026-09-21 — "Victor
-      # Ferreira" ficou com telefone "+43692870107202", que são só os
-      # dígitos do lid, não um telefone de verdade). resolve_contact
-      # (mesma chamada de linha 156 acima) costuma resolver certo depois
-      # que a WAHA teve tempo de sincronizar o contato — tenta de novo em
-      # background a cada mensagem nova enquanto o telefone salvo ainda for
-      # literalmente os dígitos do lid.
-      if chat_id.end_with?('@lid') && contact.phone == "+#{chat_id.split('@').first}"
+      # Auto-cura pra contato @lid, em 2 passos independentes — rodam a cada
+      # mensagem nova, em background:
+      #
+      # 1) Se o telefone salvo ainda for literalmente os dígitos do lid (ver
+      #    "Victor Ferreira" ficou com "+43692870107202", 2026-09-21), tenta
+      #    resolver o número real de novo — a WAHA pode ter aprendido o
+      #    contato depois da 1ª mensagem.
+      #
+      # 2) SEMPRE checa se já existe outro contato de verdade com esse
+      #    telefone (ex: sincronizado do Jueri) — não só quando acabou de
+      #    resolver agora. Bug real achado ao vivo: telefone do #615 já
+      #    tinha sido corrigido numa mensagem anterior, então o passo 1 não
+      #    rodava mais nunca, e a checagem de duplicata (que só existia
+      #    DENTRO do passo 1) nunca chegava a rodar — o #618 "Testes Victor"
+      #    (mesma pessoa, cadastro do Jueri) só ganhou o telefone certo
+      #    DEPOIS, numa sincronização posterior, e a mensagem nova do Victor
+      #    não disparou a mesclagem. Separar os dois passos cobre isso.
+      if chat_id.end_with?('@lid')
         Thread.new do
           begin
-            retry_resolved = WhatsappWahaService.new(inbox).resolve_contact(chat_id)
-            real_number = retry_resolved && retry_resolved['id'].present? ? retry_resolved['id'].to_s.split('@').first : nil
-            if real_number.present? && real_number != chat_id.split('@').first
-              real_phone_formatted = "+#{real_number}"
-              existing_match = Contact.find_by_any_phone(account.id, real_phone_formatted)
+            lid_digits = chat_id.split('@').first
 
-              if existing_match && existing_match.id != contact.id
-                # Já existe um cadastro de verdade com esse telefone (ex:
-                # revendedora sincronizada do Jueri) — o contato criado às
-                # cegas pelo @lid é só um duplicado temporário, então a
-                # conversa (com o histórico já trocado) vai pro cadastro
-                # certo em vez de deixar o dono vendo um "novo contato" vazio
-                # ao lado dos dados reais da pessoa. Mesma mecânica do
-                # ContactsController#merge (mover conversas + destruir o
-                # duplicado), só que automática.
-                existing_match.update(jid: chat_id) if existing_match.jid != chat_id
-                contact.conversations.update_all(contact_id: existing_match.id)
-                contact.destroy
-              else
-                updates = { phone: real_phone_formatted }
+            if contact.phone == "+#{lid_digits}"
+              retry_resolved = WhatsappWahaService.new(inbox).resolve_contact(chat_id)
+              real_number = retry_resolved && retry_resolved['id'].present? ? retry_resolved['id'].to_s.split('@').first : nil
+
+              if real_number.present? && real_number != lid_digits
+                updates = { phone: "+#{real_number}" }
                 if contact.name == contact_phone_formatted
                   saved_name = retry_resolved['name'].presence
                   saved_name = nil if saved_name == retry_resolved['number']
-                  updates[:name] = saved_name || retry_resolved['pushname'].presence || real_phone_formatted
+                  updates[:name] = saved_name || retry_resolved['pushname'].presence || updates[:phone]
                 end
                 contact.update(updates)
               end
             end
+
+            existing_match = Contact.find_by_any_phone(account.id, contact.phone)
+            if existing_match && existing_match.id != contact.id
+              # Já existe um cadastro de verdade com esse telefone (ex:
+              # revendedora sincronizada do Jueri) — o contato criado às
+              # cegas pelo @lid é só um duplicado temporário, então a
+              # conversa vai pro cadastro certo em vez de deixar o dono
+              # vendo um "novo contato" vazio ao lado dos dados reais da
+              # pessoa. Mesma mecânica do ContactsController#merge (mover
+              # conversas + destruir o duplicado), só que automática.
+              existing_match.update(jid: chat_id) if existing_match.jid != chat_id
+              contact.conversations.update_all(contact_id: existing_match.id)
+              contact.destroy
+            end
           rescue => e
-            Rails.logger.error("Failed to re-resolve lid contact (Waha) for #{chat_id}: #{e.message}")
+            Rails.logger.error("Failed to re-resolve/merge lid contact (Waha) for #{chat_id}: #{e.message}")
           end
         end
       end
