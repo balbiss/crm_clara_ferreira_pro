@@ -209,13 +209,29 @@ module Webhooks
             real_number = retry_resolved && retry_resolved['id'].present? ? retry_resolved['id'].to_s.split('@').first : nil
             if real_number.present? && real_number != chat_id.split('@').first
               real_phone_formatted = "+#{real_number}"
-              updates = { phone: real_phone_formatted }
-              if contact.name == contact_phone_formatted
-                saved_name = retry_resolved['name'].presence
-                saved_name = nil if saved_name == retry_resolved['number']
-                updates[:name] = saved_name || retry_resolved['pushname'].presence || real_phone_formatted
+              existing_match = Contact.find_by_any_phone(account.id, real_phone_formatted)
+
+              if existing_match && existing_match.id != contact.id
+                # Já existe um cadastro de verdade com esse telefone (ex:
+                # revendedora sincronizada do Jueri) — o contato criado às
+                # cegas pelo @lid é só um duplicado temporário, então a
+                # conversa (com o histórico já trocado) vai pro cadastro
+                # certo em vez de deixar o dono vendo um "novo contato" vazio
+                # ao lado dos dados reais da pessoa. Mesma mecânica do
+                # ContactsController#merge (mover conversas + destruir o
+                # duplicado), só que automática.
+                existing_match.update(jid: chat_id) if existing_match.jid != chat_id
+                contact.conversations.update_all(contact_id: existing_match.id)
+                contact.destroy
+              else
+                updates = { phone: real_phone_formatted }
+                if contact.name == contact_phone_formatted
+                  saved_name = retry_resolved['name'].presence
+                  saved_name = nil if saved_name == retry_resolved['number']
+                  updates[:name] = saved_name || retry_resolved['pushname'].presence || real_phone_formatted
+                end
+                contact.update(updates)
               end
-              contact.update(updates)
             end
           rescue => e
             Rails.logger.error("Failed to re-resolve lid contact (Waha) for #{chat_id}: #{e.message}")
