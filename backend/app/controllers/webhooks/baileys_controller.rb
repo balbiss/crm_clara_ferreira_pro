@@ -95,6 +95,13 @@ module Webhooks
         # Ignorar mensagens de grupos
         next if remote_jid.include?('@g.us')
 
+        # "status@broadcast" é Status/Stories do WhatsApp (atualização que um
+        # contato posta), não conversa — o Baileys também repassa isso pro
+        # webhook. Mesmo bug real achado no webhook da WAHA (2026-09-21, ver
+        # waha_controller.rb): sem filtrar, vira "contato" com telefone
+        # literalmente "status" e o Story de alguém aparece como mensagem.
+        next if remote_jid == 'status@broadcast'
+
         # Baileys às vezes entrega primeiro um evento "stub" sem conteúdo (ex:
         # messageStubType 2 "Message absent from node", comum durante o handshake
         # de criptografia) e só segundos depois reenvia o mesmo id de mensagem já

@@ -78,6 +78,14 @@ module Webhooks
       # Ignora mensagens de grupo
       return if chat_id.include?('@g.us')
 
+      # "status@broadcast" é o Status/Stories do WhatsApp (atualização que um
+      # contato posta, não conversa nenhuma) — o whatsapp-web.js/WAHA repassa
+      # isso pro webhook igual a mensagem de verdade. Sem esse filtro virava
+      # um "contato" com telefone literalmente "status" e o vídeo/foto do
+      # Story de alguém aparecendo como se fosse mensagem recebida (visto ao
+      # vivo, 2026-09-21 — contato "status" #609 com vídeo de story anexado).
+      return if chat_id == 'status@broadcast'
+
       from_me = payload[:fromMe]
       human_reply_via_phone = false
 
