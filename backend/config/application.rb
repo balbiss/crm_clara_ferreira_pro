@@ -21,7 +21,16 @@ module CrmBackend
     # These settings can be overridden in specific environments using the files
     # in config/environments, which are processed later.
     #
-    # config.time_zone = "Central Time (US & Canada)"
+    # Sem isso, Rails.zone (e todo .strftime feito em cima de created_at/
+    # Time.current) caía no default UTC -- horário certo só aparecia onde o
+    # frontend formatava a partir de um timestamp cru (ex: mensagem dentro
+    # da conversa, que manda ISO8601 e o navegador formata local). Lugares
+    # que já formatam "HH:MM" pronto no backend (ex: preview da lista de
+    # conversas, conversations_controller.rb) mostravam 3h a mais que o
+    # horário real (dono reportou, 2026-09-25). Continua gravando em UTC no
+    # banco (padrão do Postgres/Rails) -- só a INTERPRETAÇÃO/exibição via
+    # Time.zone muda.
+    config.time_zone = "America/Sao_Paulo"
     # config.eager_load_paths << Rails.root.join("extras")
 
     # Only loads a smaller set of middleware suitable for API only apps.
