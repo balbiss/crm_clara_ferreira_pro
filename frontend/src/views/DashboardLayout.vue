@@ -418,6 +418,7 @@ const handleVisibilityChange = () => {
   }
 }
 
+
 onMounted(() => {
   loadUser()
   checkIosInstallBanner()
@@ -454,6 +455,23 @@ onMounted(() => {
   fetchNotifications()
   notificationInterval = setInterval(fetchNotifications, 10000)
   document.addEventListener('visibilitychange', handleVisibilityChange)
+
+  // `visibilitychange` só dispara quando a ABA fica oculta e volta — se o
+  // dono só deixa a janela do CRM parada na tela (sem trocar de aba,
+  // minimizar nem fechar), esse evento nunca acontece e os dados ficam
+  // parados do mesmo jeito que o revalidateStaleStores foi feito pra evitar
+  // (dono reclamou de novo do mesmo sintoma, 2026-09-24, mesmo com aquele
+  // fix já no ar). Dois gatilhos a mais, que não dependem da aba ter ficado
+  // oculta:
+  // - `focus` da janela: cobre voltar de outro app/janela sem a aba em si
+  //   ter mudado de visibilidade.
+  // - 1ª interação real (clique/tecla) depois de um tempo parado: rede de
+  //   segurança final — garante que assim que o dono voltar a usar o CRM de
+  //   verdade, os dados já estão frescos, mesmo que os eventos acima falhem
+  //   por algum motivo (throttling do navegador, timer que não rodou etc).
+  window.addEventListener('focus', revalidateStaleStores)
+  document.addEventListener('click', revalidateStaleStores, { capture: true })
+  document.addEventListener('keydown', revalidateStaleStores, { capture: true })
 
   fetchTags()
   window.addEventListener('tags-updated', fetchTags)
@@ -525,6 +543,9 @@ onUnmounted(() => {
   window.removeEventListener('keydown', handlePaletteKeydown)
   if (notificationInterval) clearInterval(notificationInterval)
   document.removeEventListener('visibilitychange', handleVisibilityChange)
+  window.removeEventListener('focus', revalidateStaleStores)
+  document.removeEventListener('click', revalidateStaleStores, { capture: true })
+  document.removeEventListener('keydown', revalidateStaleStores, { capture: true })
   window.removeEventListener('tags-updated', fetchTags)
   window.removeEventListener('lead-atribuido', handleLeadAtribuido)
   window.removeEventListener('snooze-expired', handleSnoozeExpired)
