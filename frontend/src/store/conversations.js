@@ -143,8 +143,10 @@ export const useConversationsStore = defineStore('conversations', {
     // Inicia (ou reabre) a conversa de uma revendedora que ainda não trocou
     // mensagem nenhuma — sem isso não tinha como mandar a "mensagem de
     // incentivo" do 3º/10º/20º dia da régua manualmente.
-    async startConversation(contactId) {
-      const { data } = await api.post('/conversations', { contact_id: contactId })
+    async startConversation(contactId, inboxId = null) {
+      const payload = { contact_id: contactId }
+      if (inboxId) payload.inbox_id = inboxId
+      const { data } = await api.post('/conversations', payload)
       const existing = this.conversations.findIndex(c => c.id === data.id)
       if (existing !== -1) {
         this.conversations[existing] = data

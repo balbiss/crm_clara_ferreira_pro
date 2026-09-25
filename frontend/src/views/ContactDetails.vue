@@ -6,6 +6,7 @@ import api from '../api'
 import Swal from 'sweetalert2'
 import EditContactModal from '../components/EditContactModal.vue'
 import { useConversationsStore } from '../store/conversations'
+import { pickWhatsappInbox } from '../composables/useInboxPicker'
 import { statusLabel } from '../constants/regua'
 import { relativeTimeBR } from '../utils/relativeTime'
 
@@ -121,9 +122,13 @@ const saveBio = async () => {
 const isStartingConversation = ref(false)
 const startConversation = async () => {
   if (!contact.value) return
+
+  const { inboxId, cancelled } = await pickWhatsappInbox()
+  if (cancelled) return
+
   isStartingConversation.value = true
   try {
-    const conv = await convStore.startConversation(contact.value.id)
+    const conv = await convStore.startConversation(contact.value.id, inboxId)
     router.push(`/conversas?abrir=${conv.id}`)
   } catch (e) {
     console.error('Erro ao iniciar conversa:', e)

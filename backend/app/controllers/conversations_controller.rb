@@ -34,7 +34,16 @@ class ConversationsController < ApplicationController
   # de incentivo no 3º/10º/20º dia, briefing seção 12/23, e não tinha como).
   def create
     contact = visible_contacts_scope.find(params[:contact_id])
-    inbox = pick_inbox_for(contact)
+
+    # inbox_id explícito (frontend deixa escolher quando a conta tem mais de
+    # uma caixa de WhatsApp — sem isso, com 2+ caixas o sistema sempre
+    # mandava pela mais antiga sem avisar, dono achou confuso quando a conta
+    # ganhou uma 2ª linha, "Comercial- Consultores", 2026-09-25). Só aceita
+    # se a caixa pedida for mesmo de WhatsApp e pertencer a essa conta.
+    inbox = if params[:inbox_id].present?
+      current_user.account.inboxes.where(provider: WHATSAPP_PROVIDERS).find_by(id: params[:inbox_id])
+    end
+    inbox ||= pick_inbox_for(contact)
 
     unless inbox
       return render json: { error: 'sem_caixa_conectada', message: 'Nenhuma caixa de WhatsApp conectada nesta conta ainda.' }, status: :unprocessable_entity

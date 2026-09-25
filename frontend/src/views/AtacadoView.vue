@@ -5,6 +5,7 @@ import { Search, Package, MessageCircle } from '@lucide/vue'
 import Swal from 'sweetalert2'
 import { useContactsStore } from '../store/contacts'
 import { useConversationsStore } from '../store/conversations'
+import { pickWhatsappInbox } from '../composables/useInboxPicker'
 
 // Clientes "Atacado" do Jueri (compra à vista, fora do modelo consignado) —
 // são clientes de verdade da empresa, só que fora da régua de revenda
@@ -35,9 +36,12 @@ const openContact = (contact) => router.push(`/contatos/${contact.id}`)
 
 const isStartingConversation = ref(null)
 const startConversation = async (contact) => {
+  const { inboxId, cancelled } = await pickWhatsappInbox()
+  if (cancelled) return
+
   isStartingConversation.value = contact.id
   try {
-    const conv = await convStore.startConversation(contact.id)
+    const conv = await convStore.startConversation(contact.id, inboxId)
     router.push(`/conversas?abrir=${conv.id}`)
   } catch (e) {
     console.error('Erro ao iniciar conversa:', e)

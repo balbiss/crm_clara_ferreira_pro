@@ -5,6 +5,7 @@ import { Search, ListChecks, Check, MessageCircle, ArrowUpDown, CheckCheck, Plus
 import api from '../api'
 import Swal from 'sweetalert2'
 import { useConversationsStore } from '../store/conversations'
+import { pickWhatsappInbox } from '../composables/useInboxPicker'
 
 // Tela de Tarefas (briefing seção 28.4). Antes as tarefas eram DERIVADAS em
 // tempo real (status + dias no ciclo, sem persistir nada) — não dava pra
@@ -203,9 +204,12 @@ const openContact = (contact) => contact && router.push(`/contatos/${contact.id}
 const isStartingConversation = ref(null)
 const startConversation = async (contact) => {
   if (!contact) return
+  const { inboxId, cancelled } = await pickWhatsappInbox()
+  if (cancelled) return
+
   isStartingConversation.value = contact.id
   try {
-    const conv = await convStore.startConversation(contact.id)
+    const conv = await convStore.startConversation(contact.id, inboxId)
     router.push(`/conversas?abrir=${conv.id}`)
   } catch (e) {
     console.error('Erro ao iniciar conversa:', e)

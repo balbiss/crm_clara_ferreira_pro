@@ -6,6 +6,7 @@ import Swal from 'sweetalert2'
 import api from '../api'
 import { useContactsStore } from '../store/contacts'
 import { useConversationsStore } from '../store/conversations'
+import { pickWhatsappInbox } from '../composables/useInboxPicker'
 import { ACTIVE_STATUS_LABELS, statusLabel } from '../constants/regua'
 import { isFullPortfolio as isFullPortfolioRole } from '../config/roles'
 import { nivelInfo, nivelLimpo, NIVEL_META } from '../constants/nivel'
@@ -243,9 +244,12 @@ const openContact = (contact) => router.push(`/contatos/${contact.id}`)
 
 const isStartingConversation = ref(null)
 const startConversation = async (contact) => {
+  const { inboxId, cancelled } = await pickWhatsappInbox()
+  if (cancelled) return
+
   isStartingConversation.value = contact.id
   try {
-    const conv = await convStore.startConversation(contact.id)
+    const conv = await convStore.startConversation(contact.id, inboxId)
     router.push(`/conversas?abrir=${conv.id}`)
   } catch (e) {
     console.error('Erro ao iniciar conversa:', e)
