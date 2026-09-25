@@ -54,6 +54,11 @@ import {
 
 const router = useRouter()
 useRoute()
+const headerSearchQuery = ref('')
+const goToContactSearch = () => {
+  if (!headerSearchQuery.value.trim()) return
+  router.push({ path: '/contatos', query: { q: headerSearchQuery.value.trim() } })
+}
 const isSettingsOpen = ref(false)
 const showUserMenu = ref(false)
 const autoOffline = ref(false)
@@ -613,7 +618,12 @@ const saveReorder = async () => {
       <div class="header-actions">
         <div class="search-bar">
           <Search class="icon-sm" />
-          <input type="text" placeholder="Pesquisar contatos..." />
+          <input
+            type="text"
+            placeholder="Pesquisar contatos..."
+            v-model="headerSearchQuery"
+            @keyup.enter="goToContactSearch"
+          />
         </div>
 
         <div class="notifications-wrapper">

@@ -1,12 +1,13 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { Plus, Search, Filter, ChevronDown, ArrowDownUp, MoreVertical, X, MessageCircle, Download, Check } from '@lucide/vue'
 import api from '../api'
 import { useContactsStore } from '../store/contacts'
 import { storeToRefs } from 'pinia'
 
 const router = useRouter()
+const route = useRoute()
 const contactsStore = useContactsStore()
 const { contacts, isLoading } = storeToRefs(contactsStore)
 
@@ -124,6 +125,15 @@ const closeAll = (e) => {
 onMounted(() => {
   contactsStore.fetchContacts()
   document.addEventListener('click', closeAll)
+
+  // Caixa de busca do topo (header, ver DashboardLayout.vue) era só um
+  // <input> decorativo sem nenhum v-model/handler — dono reclamou que não
+  // funcionava (2026-09-25). Agora ela navega pra cá passando o termo como
+  // query param, e essa tela pega e já preenche a busca que já existia
+  // aqui (reaproveita o filteredContacts já pronto, sem duplicar lógica).
+  if (route.query.q) {
+    searchQuery.value = String(route.query.q)
+  }
 })
 onUnmounted(() => document.removeEventListener('click', closeAll))
 
