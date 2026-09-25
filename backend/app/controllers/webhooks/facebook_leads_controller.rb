@@ -63,7 +63,10 @@ module Webhooks
       contact.source = 'Meta Ads'
       contact.save!
 
-      inbox = account.inboxes.where(provider: 'baileys').first
+      # Mesmo bug do ConversationsController#pick_inbox_for — só considerava
+      # 'baileys', esquecendo a WAHA (integrada 2026-08-30). Conta que usa só
+      # WAHA nunca conseguia abrir conversa a partir de um lead do Meta Ads.
+      inbox = account.inboxes.where(provider: %w[baileys waha]).first
       unless inbox
         Rails.logger.warn("Lead Ads: conta #{account.id} sem inbox de WhatsApp configurada")
         return

@@ -285,11 +285,21 @@ class ConversationsController < ApplicationController
   private
 
   # Prioriza uma caixa de WhatsApp que o usuário tem acesso (InboxMembers);
-  # sem nenhuma específica, usa a primeira caixa Baileys conectada da conta
-  # (caso comum: só existe uma linha de WhatsApp na empresa toda).
+  # sem nenhuma específica, usa a primeira caixa de WhatsApp conectada da
+  # conta (caso comum: só existe uma linha de WhatsApp na empresa toda).
+  #
+  # CORRIGIDO 2026-09-25: só considerava provider 'baileys' — resquício de
+  # antes da integração da WAHA (2026-08-30, ver whatsapp_waha_service.rb).
+  # A conta da Clara usa WAHA, não Baileys, então "Enviar mensagem" (iniciar
+  # conversa nova) sempre batia em "Nenhuma caixa de WhatsApp conectada",
+  # mesmo com a WAHA no ar e funcionando — mesma classe de bug já corrigida
+  # em ai_followup_job.rb/send_scheduled_message_job.rb (hardcoded pro
+  # Baileys, esquecendo o provider novo).
+  WHATSAPP_PROVIDERS = %w[baileys waha].freeze
+
   def pick_inbox_for(_contact)
-    current_user.assigned_inboxes.where(provider: 'baileys').first ||
-      current_user.account.inboxes.where(provider: 'baileys').first
+    current_user.assigned_inboxes.where(provider: WHATSAPP_PROVIDERS).first ||
+      current_user.account.inboxes.where(provider: WHATSAPP_PROVIDERS).first
   end
 
   # Mesma lógica de ContactsController#visible_contacts_scope — consultor só
