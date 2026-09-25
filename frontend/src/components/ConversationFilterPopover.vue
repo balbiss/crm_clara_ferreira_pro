@@ -1,6 +1,8 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { Plus, Trash2 } from 'lucide-vue-next'
+import api from '../api'
+import { useAgentsStore } from '../store/agents'
 
 const props = defineProps({
   isOpen: {
@@ -18,19 +20,32 @@ const emit = defineEmits(['close', 'apply'])
 // Local state for filters while editing
 const localFilters = ref([])
 
-onMounted(() => {
+const agentsStore = useAgentsStore()
+const teams = ref([])
+
+onMounted(async () => {
   if (props.initialFilters.length > 0) {
     localFilters.value = JSON.parse(JSON.stringify(props.initialFilters))
   } else {
     // Start with one empty filter row by default if none exist
     addFilter()
   }
+
+  if (!agentsStore.isLoadedOnce) agentsStore.fetchAgents()
+  try {
+    const { data } = await api.get('/sales_teams')
+    teams.value = data
+  } catch (error) {
+    console.error('Erro ao buscar times de vendas (filtro Carteira):', error)
+  }
 })
 
 const attributes = [
   { value: 'status', label: 'Status' },
-  { value: 'assignee', label: 'Atendente' },
-  { value: 'sem_resposta', label: 'Sem resposta' }
+  { value: 'assignee', label: 'Responsável' },
+  { value: 'carteira', label: 'Carteira' },
+  { value: 'sem_resposta', label: 'Sem resposta' },
+  { value: 'criada_em', label: 'Criada em' }
 ]
 
 const operators = [
@@ -47,11 +62,15 @@ const getValuesForAttribute = (attr) => {
     ]
   }
   if (attr === 'assignee') {
+    // Antes era uma lista fixa com "João" (nunca existiu de verdade) —
+    // agora usa a equipe real da conta.
     return [
-      // For a real app, this would be a dynamic list of users
-      { value: 'João', label: 'João' },
-      { value: 'unassigned', label: 'Não atribuído' }
+      { value: 'unassigned', label: 'Não atribuído' },
+      ...agentsStore.agents.map(a => ({ value: String(a.id), label: `${a.first_name || ''} ${a.last_name || ''}`.trim() }))
     ]
+  }
+  if (attr === 'carteira') {
+    return teams.value.map(t => ({ value: t.nome, label: t.nome }))
   }
   if (attr === 'sem_resposta') {
     // "Sem resposta" = a última mensagem da conversa foi do cliente (ninguém
@@ -60,6 +79,16 @@ const getValuesForAttribute = (attr) => {
     return [
       { value: 'sim', label: 'Sim, aguardando resposta' },
       { value: 'nao', label: 'Não, já foi respondida' }
+    ]
+  }
+  if (attr === 'criada_em') {
+    return [
+      { value: 'hoje', label: 'Hoje' },
+      { value: 'ontem', label: 'Ontem' },
+      { value: '7dias', label: 'Últimos 7 dias' },
+      { value: '30dias', label: 'Últimos 30 dias' },
+      { value: 'mes_atual', label: 'Este mês' },
+      { value: 'mes_passado', label: 'Mês passado' }
     ]
   }
   return []

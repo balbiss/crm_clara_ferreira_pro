@@ -11,6 +11,7 @@ Rails.application.routes.draw do
       patch :block
       patch :unblock
       patch :toggle_roundrobin
+      post :assign_unassigned_by_gerente
     end
     collection do
       get :queue

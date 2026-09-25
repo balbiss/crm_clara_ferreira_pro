@@ -5,11 +5,11 @@ class AgentsController < ApplicationController
   # telefone/cargo de todos os agentes da primeira conta do banco. Confirmado
   # exploitable ao vivo (GET /agents sem token devolvia os 4 agentes reais).
   before_action :authenticate_user!
-  before_action :set_agent, only: %i[ show update destroy block unblock toggle_roundrobin ]
+  before_action :set_agent, only: %i[ show update destroy block unblock toggle_roundrobin assign_unassigned_by_gerente ]
   # Leitura liberada pra qualquer usuário logado (corretores precisam ver a
   # equipe para atribuição). Escrita restrita ao dono: criar, editar, remover,
   # bloquear, configurar rodízio.
-  before_action :require_owner!, only: %i[ create update destroy block unblock toggle_roundrobin ]
+  before_action :require_owner!, only: %i[ create update destroy block unblock toggle_roundrobin assign_unassigned_by_gerente ]
 
   # GET /agents
   def index
@@ -100,6 +100,29 @@ class AgentsController < ApplicationController
     end
 
     render json: @agent.as_json(except: [:encrypted_password, :jti])
+  end
+
+  # POST /agents/1/assign_unassigned_by_gerente — "ID do Gerente no Jueri"
+  # (jueri_gerente_id) só atribuía revendedora NOVA sincronizada dali pra
+  # frente (JueriSyncService#apply_revendedor_attrs, só quando
+  # contact.user_id.nil? no momento do sync) — quem já existia sem
+  # responsável antes desse campo ser preenchido ficava pra trás pra sempre.
+  # Pedido real da Clara (2026-09-25): botão pra aplicar retroativo. Mesma
+  # trava de segurança do sync: só pega quem está REALMENTE sem responsável
+  # (nunca sobrescreve atribuição manual/de outro gerente já existente).
+  def assign_unassigned_by_gerente
+    if @agent.jueri_gerente_id.blank?
+      return render json: { error: 'sem_gerente_id', message: 'Esse agente não tem "ID do Gerente no Jueri" preenchido.' }, status: :unprocessable_entity
+    end
+
+    scope = current_user.account.contacts
+      .where(user_id: nil)
+      .where("custom_attributes ->> 'gerente_jueri_id' = ?", @agent.jueri_gerente_id)
+
+    count = scope.count
+    scope.update_all(user_id: @agent.id) if count.positive?
+
+    render json: { assigned_count: count }
   end
 
   # DELETE /agents/1

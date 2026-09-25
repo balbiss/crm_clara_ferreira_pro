@@ -397,6 +397,10 @@ class ConversationsController < ApplicationController
       # é por isso que o botão Ordenar parecia não fazer nada). Esse aqui é
       # o valor de verdade que a store usa pra ordenar.
       last_activity_iso: (last_message&.created_at || conv.last_activity_at || conv.created_at).iso8601,
+      # Data de criação da CONVERSA em si (diferente de last_activity_iso,
+      # que é da última mensagem) — usado no filtro "Criada em" (pedido real
+      # da Clara: saber quantas conversas começaram num período, 2026-09-25).
+      created_at_iso: conv.created_at.iso8601,
       unread: conv.unread_count,
       messages: sorted_messages.map do |msg|
         sender_type = msg.sender_type.downcase

@@ -102,6 +102,36 @@ const generatePassword = () => {
   showPassword.value = true
 }
 
+// Botão junto do "ID do Gerente no Jueri" — esse campo só atribuía
+// revendedora NOVA sincronizada dali pra frente (JueriSyncService, só quando
+// contact.user_id.nil? no momento do sync); quem já existia sem responsável
+// antes do campo ser preenchido ficava pra trás pra sempre. Pedido real da
+// Clara (2026-09-25).
+const isAssigningRetro = ref(false)
+const assignUnassignedByGerente = async () => {
+  const result = await Swal.fire({
+    title: 'Atribuir revendedoras existentes?',
+    text: 'Toda revendedora desse gerente no Jueri que ainda está sem responsável vai ser atribuída a esta pessoa. Quem já tem responsável não é alterado.',
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'Sim, atribuir',
+    cancelButtonText: 'Cancelar'
+  })
+  if (!result.isConfirmed) return
+
+  isAssigningRetro.value = true
+  try {
+    const { data } = await api.post(`/agents/${route.params.id}/assign_unassigned_by_gerente`)
+    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `${data.assigned_count} revendedora(s) atribuída(s).`, showConfirmButton: false, timer: 3500 })
+  } catch (error) {
+    console.error('Erro ao atribuir revendedoras existentes:', error)
+    const msg = error.response?.data?.message || 'Erro ao atribuir revendedoras existentes.'
+    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: msg, showConfirmButton: false, timer: 3500 })
+  } finally {
+    isAssigningRetro.value = false
+  }
+}
+
 const saveAgent = async () => {
   try {
     if (isEditing.value) {
@@ -197,6 +227,15 @@ const saveAgent = async () => {
           <label>ID do Gerente no Jueri <span class="text-muted text-xs">(opcional)</span></label>
           <input type="text" v-model="form.jueri_gerente_id" placeholder="Ex: 42" />
           <small class="field-hint">Se preenchido, toda revendedora nova sincronizada do Jueri sob esse gerente já entra atribuída direto pra esta pessoa (sem precisar de atribuição manual). A Clara informa esse ID.</small>
+          <button
+            v-if="isEditing && form.jueri_gerente_id"
+            type="button"
+            class="btn-cancel btn-assign-retro"
+            :disabled="isAssigningRetro"
+            @click="assignUnassignedByGerente"
+          >
+            {{ isAssigningRetro ? 'Aplicando...' : 'Atribuir revendedoras já existentes sem responsável a esta pessoa' }}
+          </button>
         </div>
 
         <div class="input-group">
@@ -446,6 +485,12 @@ const saveAgent = async () => {
   border: 1px solid var(--border-color);
   padding: 0.6rem 1.2rem; border-radius: 6px; cursor: pointer;
   &:hover { background: var(--bg-primary); color: var(--text-main); }
+}
+.btn-assign-retro {
+  margin-top: 0.6rem;
+  font-size: 0.8rem;
+  padding: 0.45rem 0.8rem;
+  &:disabled { opacity: 0.6; cursor: default; }
 }
 .btn-primary {
   display: inline-flex; align-items: center; gap: 0.5rem;

@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useConversationsStore } from '../store/conversations'
+import { useConversationsStore, isSemResposta } from '../store/conversations'
 import ConversationFilterPopover from '../components/ConversationFilterPopover.vue'
 import ConversationSortPopover from '../components/ConversationSortPopover.vue'
 import ConversationStatusDropdown from '../components/ConversationStatusDropdown.vue'
@@ -848,13 +848,19 @@ onUnmounted(() => {
           >
             Minhas <span class="count">{{ store.sidebarFilteredConversations.filter(c => c.assignee_id === store.currentUser.id).length }}</span>
           </button>
-          <button 
+          <button
             :class="['tab', { active: store.currentFilter === 'nao-atribuidos' }]"
             @click="store.setFilter('nao-atribuidos')"
           >
             Não atribuídas <span class="count">{{ store.sidebarFilteredConversations.filter(c => !c.assignee).length }}</span>
           </button>
-          <button 
+          <button
+            :class="['tab', { active: store.currentFilter === 'sem-resposta' }]"
+            @click="store.setFilter('sem-resposta')"
+          >
+            Sem resposta <span class="count">{{ store.sidebarFilteredConversations.filter(isSemResposta).length }}</span>
+          </button>
+          <button
             :class="['tab', { active: store.currentFilter === 'all' }]"
             @click="store.setFilter('all')"
           >

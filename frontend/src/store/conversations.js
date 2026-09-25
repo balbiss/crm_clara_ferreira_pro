@@ -1,6 +1,51 @@
 import { defineStore } from 'pinia'
 import api from '../api'
 
+// Filtro "Criada em" (pedido real da Clara: saber quantas conversas
+// nasceram num período, igual o exemplo do Kommo que ela mandou,
+// 2026-09-25) — compara no fuso do navegador (já é o Brasil na prática).
+const matchesDateBucket = (isoString, bucket) => {
+  if (!isoString) return false
+  const date = new Date(isoString)
+  const now = new Date()
+  const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate())
+  const today = startOfDay(now)
+
+  if (bucket === 'hoje') {
+    return startOfDay(date).getTime() === today.getTime()
+  }
+  if (bucket === 'ontem') {
+    const ontem = new Date(today); ontem.setDate(ontem.getDate() - 1)
+    return startOfDay(date).getTime() === ontem.getTime()
+  }
+  if (bucket === '7dias') {
+    const seteDiasAtras = new Date(today); seteDiasAtras.setDate(seteDiasAtras.getDate() - 7)
+    return date >= seteDiasAtras
+  }
+  if (bucket === '30dias') {
+    const trintaDiasAtras = new Date(today); trintaDiasAtras.setDate(trintaDiasAtras.getDate() - 30)
+    return date >= trintaDiasAtras
+  }
+  if (bucket === 'mes_atual') {
+    return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth()
+  }
+  if (bucket === 'mes_passado') {
+    const mesPassado = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    return date.getFullYear() === mesPassado.getFullYear() && date.getMonth() === mesPassado.getMonth()
+  }
+  return false
+}
+
+// Última mensagem foi do cliente = ninguém da equipe/IA respondeu ainda.
+// Diferente de "não lida" (unread), que é só sobre o agente ter aberto a
+// conversa ou não. Compartilhado entre o filtro avançado, a aba rápida da
+// sidebar e o contador — não duplica a mesma checagem em 3 lugares.
+export const isSemResposta = (conv) => {
+  const msgs = conv.messages || []
+  const last = msgs[msgs.length - 1]
+  return !!(last && last.senderType === 'contact')
+}
+
 export const useConversationsStore = defineStore('conversations', {
   state: () => ({
     conversations: [],
@@ -76,6 +121,8 @@ export const useConversationsStore = defineStore('conversations', {
         filtered = filtered.filter(c => c.assignee_id === state.currentUser.id)
       } else if (state.currentFilter === 'nao-atribuidos') {
         filtered = filtered.filter(c => !c.assignee)
+      } else if (state.currentFilter === 'sem-resposta') {
+        filtered = filtered.filter(isSemResposta)
       }
       
       // Apply advanced filters
@@ -89,16 +136,22 @@ export const useConversationsStore = defineStore('conversations', {
             if (filter.attribute === 'status') {
               actualValue = c.status;
             } else if (filter.attribute === 'assignee') {
-              actualValue = c.assignee || 'unassigned';
+              // Antes comparava c.assignee (NOME do responsável — dois
+              // agentes com o mesmo primeiro nome colidiam) contra um ID
+              // fixo fake ("João") que nunca existiu de verdade. Corrigido
+              // pra comparar por ID real (c.assignee_id).
+              actualValue = c.assignee_id ? String(c.assignee_id) : 'unassigned';
+            } else if (filter.attribute === 'carteira') {
+              actualValue = c.contact?.custom_attributes?.gerente_jueri_nome || '';
             } else if (filter.attribute === 'sem_resposta') {
-              // Última mensagem foi do cliente = ninguém da equipe/IA
-              // respondeu ainda. Diferente de "não lida" (unread), que é
-              // só sobre o agente ter aberto a conversa ou não.
-              const msgs = c.messages || []
-              const last = msgs[msgs.length - 1]
-              actualValue = last && last.senderType === 'contact' ? 'sim' : 'nao'
+              actualValue = isSemResposta(c) ? 'sim' : 'nao'
+            } else if (filter.attribute === 'criada_em') {
+              const matches = matchesDateBucket(c.created_at_iso, filter.value)
+              // "criada_em" não é igualdade simples (é uma janela de tempo) —
+              // trata equal_to/not_equal_to como "está dentro"/"está fora".
+              return filter.operator === 'not_equal_to' ? !matches : matches
             }
-            
+
             if (filter.operator === 'equal_to') {
               return actualValue === filter.value;
             } else if (filter.operator === 'not_equal_to') {
