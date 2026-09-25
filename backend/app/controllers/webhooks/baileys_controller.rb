@@ -92,8 +92,14 @@ module Webhooks
         remote_jid = msg.dig(:key, :remoteJid)
         next unless remote_jid
         
-        # Ignorar mensagens de grupos
-        next if remote_jid.include?('@g.us')
+        # Grupo vira conversa normal na tela (dono pediu, 2026-09-25), mas
+        # NUNCA aciona IA (guarda mais abaixo) — só leitura/resposta manual.
+        # Não cria "cadastro" de revendedora: status dedicado 'grupo', fora
+        # de ACTIVE_STATUSES/INACTIVE_STATUSES (mesmo padrão do 'atacado'),
+        # nunca aparece em Carteira/Inativas/régua. Ver waha_controller.rb
+        # pra mesma lógica (lá com nome real do grupo via API; aqui só o
+        # placeholder — Baileys não é o provider ativo hoje).
+        is_group = remote_jid.include?('@g.us')
 
         # "status@broadcast" é Status/Stories do WhatsApp (atualização que um
         # contato posta), não conversa — o Baileys também repassa isso pro
@@ -173,24 +179,23 @@ module Webhooks
 
         contact_jid = remote_jid
         contact_phone = nil
+        contact_phone_formatted = nil
 
-        if remote_jid.include?('@s.whatsapp.net')
-          contact_phone = remote_jid.split('@').first
-        elsif remote_jid.include?('@lid')
-          if remote_jid_alt.present? && remote_jid_alt.include?('@s.whatsapp.net')
-            contact_phone = remote_jid_alt.split('@').first
+        unless is_group
+          if remote_jid.include?('@s.whatsapp.net')
+            contact_phone = remote_jid.split('@').first
+          elsif remote_jid.include?('@lid')
+            if remote_jid_alt.present? && remote_jid_alt.include?('@s.whatsapp.net')
+              contact_phone = remote_jid_alt.split('@').first
+            else
+              contact_phone = remote_jid.split('@').first
+            end
           else
             contact_phone = remote_jid.split('@').first
           end
-        else
-          contact_phone = remote_jid.split('@').first
-        end
 
-        # Formatar telefone com '+' se for puramente numérico (para alinhar com o Chatwoot original)
-        if contact_phone.present? && contact_phone.match?(/\A\d+\z/)
-          contact_phone_formatted = "+#{contact_phone}"
-        else
-          contact_phone_formatted = contact_phone
+          # Formatar telefone com '+' se for puramente numérico (para alinhar com o Chatwoot original)
+          contact_phone_formatted = contact_phone.present? && contact_phone.match?(/\A\d+\z/) ? "+#{contact_phone}" : contact_phone
         end
         
         # Get message text
@@ -226,21 +231,33 @@ module Webhooks
         # Usa a conta do próprio inbox (evita fallback para Account.first errado)
         account = inbox.account
 
-        # Find or create contact — casa pelo telefone principal OU por qualquer telefone
-        # adicional já vinculado (briefing seção 7: revendedora pode falar por vários
-        # números, não pode virar lead duplicado).
-        contact = Contact.find_by_any_phone(account.id, contact_phone_formatted)
-        contact ||= begin
-          Contact.create!(account_id: account.id, phone: contact_phone_formatted) do |c|
-            c.name = msg[:pushName] || msg['pushName'] || contact_phone_formatted
-            c.jid = contact_jid
-            c.source = 'WhatsApp'
+        if is_group
+          contact = Contact.find_by(account_id: account.id, jid: contact_jid)
+          contact ||= begin
+            Contact.create!(account_id: account.id, jid: contact_jid, status: 'grupo', source: 'WhatsApp') do |c|
+              c.name = msg[:pushName] || msg['pushName'] || "Grupo #{contact_jid.split('@').first}"
+            end
+          rescue ActiveRecord::RecordNotUnique
+            Contact.find_by(account_id: account.id, jid: contact_jid)
           end
-        rescue ActiveRecord::RecordNotUnique
-          # 2+ webhooks pro mesmo chat processados em paralelo (mesma corrida
-          # já vista de verdade no controller da WAHA, ver
-          # idx_contacts_account_jid_unique) — quem perdeu busca de novo.
-          Contact.find_by_any_phone(account.id, contact_phone_formatted) || Contact.find_by(account_id: account.id, jid: contact_jid)
+          contact_phone_formatted = contact.name
+        else
+          # Find or create contact — casa pelo telefone principal OU por qualquer telefone
+          # adicional já vinculado (briefing seção 7: revendedora pode falar por vários
+          # números, não pode virar lead duplicado).
+          contact = Contact.find_by_any_phone(account.id, contact_phone_formatted)
+          contact ||= begin
+            Contact.create!(account_id: account.id, phone: contact_phone_formatted) do |c|
+              c.name = msg[:pushName] || msg['pushName'] || contact_phone_formatted
+              c.jid = contact_jid
+              c.source = 'WhatsApp'
+            end
+          rescue ActiveRecord::RecordNotUnique
+            # 2+ webhooks pro mesmo chat processados em paralelo (mesma corrida
+            # já vista de verdade no controller da WAHA, ver
+            # idx_contacts_account_jid_unique) — quem perdeu busca de novo.
+            Contact.find_by_any_phone(account.id, contact_phone_formatted) || Contact.find_by(account_id: account.id, jid: contact_jid)
+          end
         end
 
         # Ignora contatos bloqueados
@@ -377,8 +394,9 @@ module Webhooks
         message_record.rebroadcast
 
         # ===== MOTOR DE INTELIGÊNCIA ARTIFICIAL =====
-        # (nunca roda pra mensagem que já é a resposta humana via celular)
-        if inbox.ai_enabled && !human_reply_via_phone
+        # (nunca roda pra mensagem que já é a resposta humana via celular,
+        # nem pra grupo — dono pediu explicitamente, 2026-09-25)
+        if inbox.ai_enabled && !human_reply_via_phone && !is_group
           is_paused = Rails.cache.read("ai_paused_#{inbox.id}_#{remote_jid}")
 
           if is_paused

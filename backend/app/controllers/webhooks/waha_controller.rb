@@ -75,8 +75,13 @@ module Webhooks
       chat_id = id_parts.length >= 3 ? id_parts[1] : (payload[:fromMe] ? payload[:to] : payload[:from])
       return if chat_id.blank?
 
-      # Ignora mensagens de grupo
-      return if chat_id.include?('@g.us')
+      # Grupo vira conversa normal na tela (dono pediu, 2026-09-25), mas NUNCA
+      # aciona Fluxo nem IA (guardas mais abaixo) — só pra leitura/resposta
+      # manual do time. Não cria "cadastro" de revendedora nenhum pro grupo:
+      # o Contact é só um container técnico pra conversa existir (status
+      # dedicado 'grupo', fora de ACTIVE_STATUSES/INACTIVE_STATUSES — mesmo
+      # padrão do 'atacado' — nunca aparece em Carteira/Inativas/régua).
+      is_group = chat_id.end_with?('@g.us')
 
       # "status@broadcast" é o Status/Stories do WhatsApp (atualização que um
       # contato posta, não conversa nenhuma) — o whatsapp-web.js/WAHA repassa
@@ -154,44 +159,58 @@ module Webhooks
         return
       end
 
-      # "@lid" é o identificador de privacidade novo do WhatsApp — substitui o
-      # número de telefone real em algumas conversas (confirmado num teste
-      # real: sem isso o contato nascia com nome/telefone "+49444250742890",
-      # que não existe, são só os dígitos do lid). Resolve pro contato de
-      # verdade via GET /api/contacts antes de casar/criar o Contact.
-      resolved_number = nil
-      resolved_name = nil
-      if chat_id.end_with?('@lid')
-        resolved = WhatsappWahaService.new(inbox).resolve_contact(chat_id)
-        if resolved && resolved['id'].present?
-          resolved_number = resolved['id'].to_s.split('@').first
-          saved_name = resolved['name'].presence
-          # A WAHA devolve "name" == "number" quando não há nome salvo na
-          # agenda do WhatsApp conectado — nesse caso não serve como nome.
-          resolved_name = saved_name if saved_name.present? && saved_name != resolved['number']
-          resolved_name ||= resolved['pushname'].presence
-        end
-      end
-
-      contact_phone = resolved_number || chat_id.split('@').first
-      contact_phone_formatted = contact_phone.match?(/\A\d+\z/) ? "+#{contact_phone}" : contact_phone
-
       account = inbox.account
 
-      contact = Contact.find_by_any_phone(account.id, contact_phone_formatted)
-      contact ||= begin
-        Contact.create!(account_id: account.id, phone: contact_phone_formatted) do |c|
-          c.name = resolved_name.presence
-          c.name ||= payload[:_data].is_a?(Hash) ? payload[:_data][:notifyName].presence : nil
-          c.name ||= contact_phone_formatted
-          c.jid = chat_id
-          c.source = 'WhatsApp'
+      if is_group
+        contact = Contact.find_by(account_id: account.id, jid: chat_id)
+        contact ||= begin
+          group_name = WhatsappWahaService.new(inbox).fetch_group_name(chat_id)
+          Contact.create!(account_id: account.id, jid: chat_id, status: 'grupo', source: 'WhatsApp') do |c|
+            c.name = group_name.presence || "Grupo #{chat_id.split('@').first}"
+          end
+        rescue ActiveRecord::RecordNotUnique
+          Contact.find_by(account_id: account.id, jid: chat_id)
         end
-      rescue ActiveRecord::RecordNotUnique
-        # 2+ webhooks pro mesmo chat processados em paralelo (visto ao vivo,
-        # ver idx_contacts_account_jid_unique) — quem perdeu a corrida busca
-        # de novo em vez de duplicar.
-        Contact.find_by_any_phone(account.id, contact_phone_formatted) || Contact.find_by(account_id: account.id, jid: chat_id)
+        contact_phone_formatted = contact.name
+      else
+        # "@lid" é o identificador de privacidade novo do WhatsApp — substitui
+        # o número de telefone real em algumas conversas (confirmado num
+        # teste real: sem isso o contato nascia com nome/telefone
+        # "+49444250742890", que não existe, são só os dígitos do lid).
+        # Resolve pro contato de verdade via GET /api/contacts antes de
+        # casar/criar o Contact.
+        resolved_number = nil
+        resolved_name = nil
+        if chat_id.end_with?('@lid')
+          resolved = WhatsappWahaService.new(inbox).resolve_contact(chat_id)
+          if resolved && resolved['id'].present?
+            resolved_number = resolved['id'].to_s.split('@').first
+            saved_name = resolved['name'].presence
+            # A WAHA devolve "name" == "number" quando não há nome salvo na
+            # agenda do WhatsApp conectado — nesse caso não serve como nome.
+            resolved_name = saved_name if saved_name.present? && saved_name != resolved['number']
+            resolved_name ||= resolved['pushname'].presence
+          end
+        end
+
+        contact_phone = resolved_number || chat_id.split('@').first
+        contact_phone_formatted = contact_phone.match?(/\A\d+\z/) ? "+#{contact_phone}" : contact_phone
+
+        contact = Contact.find_by_any_phone(account.id, contact_phone_formatted)
+        contact ||= begin
+          Contact.create!(account_id: account.id, phone: contact_phone_formatted) do |c|
+            c.name = resolved_name.presence
+            c.name ||= payload[:_data].is_a?(Hash) ? payload[:_data][:notifyName].presence : nil
+            c.name ||= contact_phone_formatted
+            c.jid = chat_id
+            c.source = 'WhatsApp'
+          end
+        rescue ActiveRecord::RecordNotUnique
+          # 2+ webhooks pro mesmo chat processados em paralelo (visto ao vivo,
+          # ver idx_contacts_account_jid_unique) — quem perdeu a corrida busca
+          # de novo em vez de duplicar.
+          Contact.find_by_any_phone(account.id, contact_phone_formatted) || Contact.find_by(account_id: account.id, jid: chat_id)
+        end
       end
 
       if contact.status == 'blocked'
@@ -358,13 +377,15 @@ module Webhooks
       # Botões), essa mensagem É a resposta, checado antes do gatilho por
       # palavra-chave. Se algum Fluxo assumir (resposta OU gatilho novo), a
       # IA não entra (mesma prioridade que intervenção humana tem sobre ela).
-      flow_handled = !human_reply_via_phone && !from_me && (
+      # Grupo NUNCA aciona Fluxo nem IA (dono pediu explicitamente, 2026-09-25)
+      # — só serve pra leitura/resposta manual do time.
+      flow_handled = !human_reply_via_phone && !from_me && !is_group && (
         FlowRunnerService.continue_with_reply(conversation, text) ||
         FlowRunnerService.trigger_by_keyword(inbox, conversation, contact, text)
       )
 
       # ===== MOTOR DE INTELIGÊNCIA ARTIFICIAL (mesma lógica do Baileys) =====
-      if inbox.ai_enabled && !human_reply_via_phone && !flow_handled
+      if inbox.ai_enabled && !human_reply_via_phone && !flow_handled && !is_group
         is_paused = Rails.cache.read("ai_paused_#{inbox.id}_#{chat_id}")
 
         if is_paused

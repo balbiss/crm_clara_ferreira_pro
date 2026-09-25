@@ -156,6 +156,21 @@ class WhatsappWahaService
     nil
   end
 
+  # Nome do grupo (subject) -- usado só na criação do Contact que representa
+  # o grupo (ver waha_controller.rb), nunca em toda mensagem (o endpoint de
+  # listagem de todos os grupos é pesado, esse aqui devolve só 1). Endpoint
+  # usa sessão no path (padrão diferente de contacts/*, que usa ?session=).
+  def fetch_group_name(group_jid)
+    res = request(:get, "/api/#{@session}/groups/#{CGI.escape(group_jid)}")
+    return nil unless res.is_a?(Net::HTTPSuccess)
+
+    data = JSON.parse(res.body) rescue {}
+    data.dig('groupMetadata', 'subject').presence
+  rescue => e
+    Rails.logger.error("Waha fetch_group_name error: #{e.message}")
+    nil
+  end
+
   def send_presence_update(recipient_phone, presence = 'composing')
     chat_id = normalize_jid(recipient_phone)
     endpoint = presence == 'composing' ? '/api/startTyping' : '/api/stopTyping'
