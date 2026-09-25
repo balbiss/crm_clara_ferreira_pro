@@ -170,7 +170,10 @@ const confirmAssign = async () => {
           </div>
           <div class="team-info">
             <h3>{{ team.nome }}</h3>
-            <span class="team-count">{{ team.users.length }} {{ team.users.length === 1 ? 'pessoa com acesso' : 'pessoas com acesso' }}</span>
+            <span class="team-count">
+              {{ team.contacts_count }} {{ team.contacts_count === 1 ? 'revendedora' : 'revendedoras' }}
+              · {{ team.users.length }} {{ team.users.length === 1 ? 'pessoa com acesso' : 'pessoas com acesso' }}
+            </span>
           </div>
         </div>
 

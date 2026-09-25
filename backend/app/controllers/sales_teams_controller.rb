@@ -58,10 +58,13 @@ class SalesTeamsController < ApplicationController
     render json: { error: 'not_found', message: 'Time de vendas não encontrado.' }, status: :not_found
   end
 
-  def unassigned_scope(team)
+  def team_contacts_scope(team)
     current_user.account.contacts
-      .where(user_id: nil)
       .where("custom_attributes ->> 'gerente_jueri_id' = ?", team.jueri_lider_id)
+  end
+
+  def unassigned_scope(team)
+    team_contacts_scope(team).where(user_id: nil)
   end
 
   def serialize(team)
@@ -70,7 +73,12 @@ class SalesTeamsController < ApplicationController
       jueri_lider_id: team.jueri_lider_id,
       nome: team.nome,
       users: team.users.map { |u| { id: u.id, name: "#{u.first_name} #{u.last_name}".strip, role: u.role, avatar_url: u.avatar_url } },
-      unassigned_contacts_count: unassigned_scope(team).count
+      unassigned_contacts_count: unassigned_scope(team).count,
+      # Sem isso o card de um time 100% atribuído (0 pendente) e sem
+      # ninguém com "acesso" configurado parecia vazio/inativo — dono
+      # achou que "Vendas 1" estava sem dado nenhum (2026-09-25), quando na
+      # verdade tinha 94 revendedoras, todas já com responsável individual.
+      contacts_count: team_contacts_scope(team).count
     }
   end
 end
