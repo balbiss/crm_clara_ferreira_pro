@@ -230,7 +230,7 @@ const saveAgent = async () => {
           <button
             v-if="isEditing && form.jueri_gerente_id"
             type="button"
-            class="btn-cancel btn-assign-retro"
+            class="btn-assign-retro"
             :disabled="isAssigningRetro"
             @click="assignUnassignedByGerente"
           >
@@ -490,7 +490,14 @@ const saveAgent = async () => {
   margin-top: 0.6rem;
   font-size: 0.8rem;
   padding: 0.45rem 0.8rem;
-  &:disabled { opacity: 0.6; cursor: default; }
+  background: rgba(255, 0, 127, 0.08);
+  color: var(--primary);
+  border: 1px solid var(--primary);
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  &:hover { background: var(--primary); color: white; }
+  &:disabled { opacity: 0.5; cursor: default; background: rgba(255, 0, 127, 0.08); color: var(--primary); }
 }
 .btn-primary {
   display: inline-flex; align-items: center; gap: 0.5rem;
