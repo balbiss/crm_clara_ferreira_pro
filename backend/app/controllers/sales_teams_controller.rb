@@ -90,10 +90,15 @@ class SalesTeamsController < ApplicationController
       responsaveis_individuais: team_contacts_scope(team)
         .where.not(user_id: nil)
         .joins(:user)
-        .group('users.id', 'users.first_name', 'users.last_name', 'users.avatar_url')
+        # avatar_url do User é método calculado em cima de ActiveStorage
+        # (has_one_attached :avatar), não é coluna de verdade — agrupar por
+        # "users.avatar_url" quebrava a query com erro 500 (coluna
+        # inexistente), derrubando a tela inteira ("Nenhum time
+        # encontrado"). Nem usado no frontend aqui, só nome + contagem.
+        .group('users.id', 'users.first_name', 'users.last_name')
         .order(Arel.sql('count(contacts.id) DESC'))
         .count('contacts.id')
-        .map { |(id, first, last, avatar), count| { id: id, name: "#{first} #{last}".strip, avatar_url: avatar, count: count } }
+        .map { |(id, first, last), count| { id: id, name: "#{first} #{last}".strip, count: count } }
     }
   end
 end
