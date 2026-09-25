@@ -14,8 +14,12 @@ FROM docker.io/library/ruby:$RUBY_VERSION-slim AS base
 WORKDIR /rails
 
 # Install base packages
+# ffmpeg: converte áudio gravado no navegador (webm/opus, MediaRecorder) pra
+# ogg/opus antes de mandar pra WAHA -- WhatsApp recusa nota de voz em webm
+# (confirmado testando direto na API, 2026-09-25; bug separado do erro de
+# @lid+mídia que a atualização da WAHA pra 2026.9.1 corrigiu).
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y curl libjemalloc2 libvips postgresql-client && \
+    apt-get install --no-install-recommends -y curl libjemalloc2 libvips postgresql-client ffmpeg && \
     ln -s /usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 

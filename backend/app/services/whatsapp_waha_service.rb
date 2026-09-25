@@ -3,6 +3,8 @@ require 'uri'
 require 'json'
 require 'cgi'
 require 'base64'
+require 'tempfile'
+require 'open3'
 
 # Mesma interface pública do WhatsappBaileysService (create_connection,
 # send_message, send_presence_update, fetch_profile_picture_url,
@@ -70,10 +72,29 @@ class WhatsappWahaService
 
     if attachment.present?
       content_type = attachment.content_type.to_s
+      file_data = attachment.download
+      filename = attachment.filename.to_s
+
+      # WhatsApp recusa nota de voz que não seja ogg/opus -- o MediaRecorder
+      # do navegador grava em webm/opus (Conversas.vue), que o WhatsApp
+      # aceita como upload mas nunca entrega pro destinatário (confirmado
+      # testando direto na API, 2026-09-25: dono gravava, o CRM mostrava
+      # "enviado", mas nunca chegava no WhatsApp do cliente). Converte com
+      # ffmpeg antes de mandar -- o arquivo original (webm) continua intacto
+      # no ActiveStorage, só a cópia enviada pra WAHA é convertida.
+      if content_type.start_with?('audio/') && !content_type.include?('ogg')
+        converted = convert_to_ogg_opus(file_data)
+        if converted
+          file_data = converted
+          content_type = 'audio/ogg; codecs=opus'
+          filename = filename.sub(/\.\w+\z/, '') + '.ogg'
+        end
+      end
+
       file = {
         'mimetype' => content_type,
-        'filename' => attachment.filename.to_s,
-        'data' => Base64.strict_encode64(attachment.download)
+        'filename' => filename,
+        'data' => Base64.strict_encode64(file_data)
       }
       payload = { 'session' => @session, 'chatId' => chat_id, 'file' => file }
       payload['caption'] = text if text.present?
@@ -233,6 +254,28 @@ class WhatsappWahaService
   end
 
   private
+
+  # Retorna os bytes convertidos pra ogg/opus, ou nil se o ffmpeg falhar
+  # (nesse caso send_message segue com o arquivo original, mesmo
+  # comportamento de antes desse fix — não trava o envio, só não corrige).
+  def convert_to_ogg_opus(input_bytes)
+    input = Tempfile.new(['waha_audio_in', '.webm'], binmode: true)
+    input.write(input_bytes)
+    input.flush
+    output_path = "#{input.path}.ogg"
+
+    _out, status = Open3.capture2e('ffmpeg', '-y', '-i', input.path, '-c:a', 'libopus', output_path)
+    return nil unless status.success? && File.exist?(output_path)
+
+    File.binread(output_path)
+  rescue => e
+    Rails.logger.error("Waha audio conversion (ffmpeg) failed: #{e.message}")
+    nil
+  ensure
+    input&.close
+    input&.unlink
+    File.delete(output_path) if output_path && File.exist?(output_path)
+  end
 
   def normalize_jid(phone_or_id)
     return phone_or_id if phone_or_id.to_s.include?('@')
