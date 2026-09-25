@@ -78,7 +78,22 @@ class SalesTeamsController < ApplicationController
       # ninguém com "acesso" configurado parecia vazio/inativo — dono
       # achou que "Vendas 1" estava sem dado nenhum (2026-09-25), quando na
       # verdade tinha 94 revendedoras, todas já com responsável individual.
-      contacts_count: team_contacts_scope(team).count
+      contacts_count: team_contacts_scope(team).count,
+      # "pessoas com acesso" (users acima) é só quem tem a VISÃO do time
+      # inteiro liberada (InboxMember-like, pra gerente supervisionar sem
+      # ser dono de cada revendedora) — mecanismo diferente de "quem
+      # atende cada revendedora de fato" (Contact#user_id individual).
+      # Dono ficou confuso (2026-09-25): Vendas 1 mostrava "0 pessoas com
+      # acesso" mesmo com a Beatriz sendo responsável individual das 94
+      # revendedoras do time — os dois conceitos são independentes, um não
+      # implica o outro. Isso aqui mostra o segundo, que faltava de vez.
+      responsaveis_individuais: team_contacts_scope(team)
+        .where.not(user_id: nil)
+        .joins(:user)
+        .group('users.id', 'users.first_name', 'users.last_name', 'users.avatar_url')
+        .order(Arel.sql('count(contacts.id) DESC'))
+        .count('contacts.id')
+        .map { |(id, first, last, avatar), count| { id: id, name: "#{first} #{last}".strip, avatar_url: avatar, count: count } }
     }
   end
 end

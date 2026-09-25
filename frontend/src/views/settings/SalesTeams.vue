@@ -187,6 +187,20 @@ const confirmAssign = async () => {
           </div>
         </div>
 
+        <!-- "Acesso" (acima) é a visão do time inteiro liberada pra alguém
+             supervisionar — diferente de quem atende cada revendedora de
+             fato hoje. Sem isso, um time 100% atribuído a uma única pessoa
+             (ex: Beatriz com as 94 do Vendas 1) parecia "sem ninguém",
+             confusão real do dono (2026-09-25). -->
+        <div v-if="team.responsaveis_individuais?.length" class="team-responsaveis">
+          <span class="team-responsaveis-label">Atende hoje:</span>
+          <span
+            v-for="r in team.responsaveis_individuais"
+            :key="r.id"
+            class="responsavel-tag"
+          >{{ r.name }} ({{ r.count }})</span>
+        </div>
+
         <div class="team-actions">
           <button class="btn-manage" @click="openModal(team)">
             <Plus class="icon-xs" /> Gerenciar acesso
@@ -360,6 +374,23 @@ const confirmAssign = async () => {
 .member-avatar-fallback {
   width: 100%; height: 100%; color: white; font-size: 0.72rem; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
+}
+
+.team-responsaveis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  font-size: 0.75rem;
+
+  .team-responsaveis-label { color: var(--text-muted); }
+}
+.responsavel-tag {
+  background: var(--bg-tertiary);
+  color: var(--text-main);
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.72rem;
 }
 
 .team-actions {
