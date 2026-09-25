@@ -1185,6 +1185,12 @@ onUnmounted(() => {
           <span class="lf-label">{{ f.label }}</span>
           <span class="lf-value" :class="{ empty: !getAttr(f.key) }">{{ getAttr(f.key) || '...' }}</span>
         </div>
+        <!-- Botão fica logo depois dos campos que ele de fato edita (Atendente/
+             Carteira/principalFields), e ANTES dos campos só de leitura
+             sincronizados do Jueri — dono achava confuso o botão aparecer
+             embaixo de tudo, como se editasse os dados do Jueri também
+             (2026-09-25). -->
+        <button class="lead-fields-edit" @click="openEditModal"><Edit2 class="icon-xs" /> Editar campos</button>
         <div class="lead-field-divider">Dados do Jueri (sincronizado)</div>
         <div class="lead-field" v-for="f in dadosFields" :key="'jueri-' + f.key">
           <span class="lf-label">{{ f.label }}</span>
@@ -1194,7 +1200,6 @@ onUnmounted(() => {
           <span class="lf-label">{{ attr.label }}</span>
           <span class="lf-value">{{ attr.value }}</span>
         </div>
-        <button class="lead-fields-edit" @click="openEditModal"><Edit2 class="icon-xs" /> Editar campos</button>
       </div>
 
       <div class="accordion-card">
