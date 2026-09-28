@@ -48,6 +48,7 @@ import 'vue3-emoji-picker/css'
 import EditContactModal from '../components/EditContactModal.vue'
 import MergeContactModal from '../components/MergeContactModal.vue'
 import DeleteContactModal from '../components/DeleteContactModal.vue'
+import NewConversationModal from '../components/NewConversationModal.vue'
 import DeleteConversationModal from '../components/DeleteConversationModal.vue'
 import ScheduleMessageModal from '../components/ScheduleMessageModal.vue'
 import TransferModal from '../components/TransferModal.vue'
@@ -438,6 +439,7 @@ const isEditModalOpen = ref(false)
 const isMergeModalOpen = ref(false)
 const isDeleteModalOpen = ref(false)
 const isDeleteConversationModalOpen = ref(false)
+const isNewConversationModalOpen = ref(false)
 
 const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
 const isFilterPopoverOpen = ref(false)
@@ -478,6 +480,11 @@ const openDeleteModal = () => {
 const handleContactDeleted = () => {
   // Conversas store will automatically set activeConversationId to null
   // No extra action needed here unless we want to show a toast
+}
+
+const handleConversationCreated = (conv) => {
+  store.setActiveConversation(conv.id)
+  mobileView.value = 'chat'
 }
 
 const openDeleteConversationModal = () => {
@@ -821,6 +828,7 @@ onUnmounted(() => {
         <div class="header-top">
           <h2>{{ listTitle }} <span class="badge">Abertas</span></h2>
           <div class="actions" style="position: relative; display: flex; gap: 0.5rem;">
+            <button class="icon-btn" title="Nova conversa" @click.stop="isNewConversationModalOpen = true"><Plus class="icon" /></button>
             <div style="position: relative;">
               <button class="icon-btn" @click.stop="toggleFilterPopover"><Filter class="icon" /></button>
               <ConversationFilterPopover 
@@ -1533,6 +1541,7 @@ onUnmounted(() => {
     <MergeContactModal :isOpen="isMergeModalOpen" :contact="store.activeConversation?.contact" @close="isMergeModalOpen = false" />
     <DeleteContactModal :isOpen="isDeleteModalOpen" :contact="store.activeConversation?.contact" @close="isDeleteModalOpen = false" @deleted="handleContactDeleted" />
     <DeleteConversationModal :isOpen="isDeleteConversationModalOpen" :conversation="store.activeConversation" @close="isDeleteConversationModalOpen = false" @deleted="handleConversationDeleted" />
+    <NewConversationModal :isOpen="isNewConversationModalOpen" @close="isNewConversationModalOpen = false" @created="handleConversationCreated" />
     <TransferModal v-if="showTransferModal" :agents="store.agents" :currentAssigneeId="store.activeConversation?.assignee_id" @close="showTransferModal = false" @confirm="handleTransfer" />
     
     <ScheduleMessageModal 
