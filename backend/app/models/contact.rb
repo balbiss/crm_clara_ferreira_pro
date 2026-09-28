@@ -55,6 +55,15 @@ class Contact < ApplicationRecord
   after_save :persistir_telefones_adicionais_na_tabela
   after_save :broadcast_contact_update, if: -> { saved_changes.keys.any? { |k| BROADCAST_FIELDS.include?(k) } }
   after_save :run_regua_triggers, if: -> { saved_change_to_status? && status.present? }
+  # A revendedora ter um responsável (esse campo aqui) e a conversa dela ter
+  # um responsável (Conversation#user_id, "quem atende essa conversa") são
+  # dois campos separados -- atribuir a revendedora nunca preenchia o da
+  # conversa. Dono reportou 75 conversas "sem atribuição" mesmo com todo
+  # mundo já configurado (2026-09-28); confirmado no banco que a maioria já
+  # tinha responsável na revendedora, só faltava refletir na conversa. Só
+  # preenche quem estava null -- nunca sobrescreve atribuição já feita
+  # direto na conversa.
+  after_save :sync_conversations_user_id, if: -> { saved_change_to_user_id? && user_id.present? }
   # DIAGNÓSTICO TEMPORÁRIO — remover depois de achar quem seta user_id sem
   # passar por nenhum controller/serviço já auditado (regua_trigger, pipeline
   # trigger, round robin e JueriSyncService todos descartados).
@@ -146,5 +155,9 @@ class Contact < ApplicationRecord
   def log_user_id_assignment_source
     caller_lines = caller.reject { |l| l.include?('gems/') }.first(8)
     Rails.logger.warn("[DIAG user_id] contact=#{id} source=#{source.inspect} novo_user_id=#{user_id} caller=\n#{caller_lines.join("\n")}")
+  end
+
+  def sync_conversations_user_id
+    conversations.where(user_id: nil).update_all(user_id: user_id)
   end
 end

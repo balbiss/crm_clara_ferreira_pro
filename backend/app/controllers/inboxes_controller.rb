@@ -9,7 +9,24 @@ class InboxesController < ApplicationController
   before_action :require_owner!, only: %i[ create update destroy qr_code disconnect generate_prompt extract_knowledge_base_pdf ]
 
   def index
-    @inboxes = current_user.account.inboxes
+    # A tela de gerenciar acesso por caixa (InboxMembersController) já
+    # existia, mas não restringia nada de verdade — todo mundo via a lista
+    # inteira de caixas, independente de ter sido removido do acesso. Dono
+    # reportou (2026-09-28): consultora via caixa que não devia. Gerente/
+    # diretoria/financeiro continuam vendo tudo (precisam supervisionar).
+    #
+    # IMPORTANTE: testado antes de subir — hoje NENHUM usuário tem caixa
+    # configurada nessa tela (0 registros em inbox_members pra todo mundo).
+    # Restringir incondicionalmente deixaria todo consultor sem ver caixa
+    # nenhuma amanhã, travando o uso geral. Por isso só restringe quem JÁ
+    # tem pelo menos 1 caixa configurada explicitamente — sem nenhuma
+    # configurada ainda, continua vendo tudo (mesmo comportamento de hoje),
+    # até a Clara começar a configurar pessoa por pessoa.
+    @inboxes = if full_portfolio? || finance? || current_user.assigned_inboxes.none?
+                 current_user.account.inboxes
+               else
+                 current_user.assigned_inboxes
+               end
     render json: @inboxes
   end
 

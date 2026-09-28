@@ -320,14 +320,22 @@ class ConversationsController < ApplicationController
       base
     else
       lider_ids = current_user.accessible_jueri_lider_ids
-      if lider_ids.any?
-        base.left_joins(:contact).where(
-          "conversations.user_id = :uid OR contacts.custom_attributes ->> 'gerente_jueri_id' IN (:lider_ids)",
-          uid: current_user.id, lider_ids: lider_ids
-        )
-      else
-        base.where(user_id: current_user.id)
-      end
+      inbox_ids = current_user.assigned_inboxes.ids
+
+      # Acesso por caixa de entrada (InboxMember) — antes só existia a tela
+      # pra configurar quem tem acesso a cada caixa, mas não afetava nada de
+      # verdade, então remover alguém do acesso não escondia nada (dono
+      # reportou, 2026-09-28). É um "OU" a mais em cima das regras que já
+      # existiam (dono da revendedora, hierarquia do Jueri) — nunca troca
+      # nem restringe o que já funcionava, só soma mais uma forma de ver.
+      conditions = ['conversations.user_id = :uid']
+      conditions << "contacts.custom_attributes ->> 'gerente_jueri_id' IN (:lider_ids)" if lider_ids.any?
+      conditions << 'conversations.inbox_id IN (:inbox_ids)' if inbox_ids.any?
+
+      base.left_joins(:contact).where(
+        conditions.join(' OR '),
+        uid: current_user.id, lider_ids: lider_ids, inbox_ids: inbox_ids
+      )
     end
   end
 
