@@ -617,16 +617,32 @@ const triggerFileInput = () => {
   }
 }
 
+const setSelectedFile = (file) => {
+  selectedFile.value = file
+  if (file.type.startsWith('image/')) {
+    selectedFilePreview.value = URL.createObjectURL(file)
+  } else {
+    selectedFilePreview.value = null
+  }
+}
+
 const handleFileChange = (event) => {
   const file = event.target.files[0]
-  if (file) {
-    selectedFile.value = file
-    if (file.type.startsWith('image/')) {
-      selectedFilePreview.value = URL.createObjectURL(file)
-    } else {
-      selectedFilePreview.value = null
-    }
-  }
+  if (file) setSelectedFile(file)
+}
+
+// Ctrl+V com print/imagem copiada (ex: captura de tela) — antes só dava pra
+// anexar escolhendo arquivo pelo clipe de papel. Reaproveita o mesmo preview
+// e o mesmo envio de anexo que já existe, só muda de onde o arquivo vem.
+const handlePaste = (event) => {
+  const items = event.clipboardData?.items
+  if (!items) return
+  const imageItem = Array.from(items).find(item => item.type.startsWith('image/'))
+  if (!imageItem) return
+
+  event.preventDefault()
+  const file = imageItem.getAsFile()
+  if (file) setSelectedFile(file)
 }
 
 const clearSelectedFile = () => {
@@ -1066,6 +1082,7 @@ onUnmounted(() => {
             <textarea
               v-model="newMessageText"
               @keydown.enter.prevent="handleSendMessage"
+              @paste="handlePaste"
               :placeholder="isPrivateMessage ? 'Digite uma nota privada...' : 'Digite sua mensagem aqui...'"
             ></textarea>
             <div class="input-actions">
