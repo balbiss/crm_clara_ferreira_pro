@@ -703,8 +703,25 @@ const slashSuggestions = computed(() => {
     .filter(t => !term || t.nome.toLowerCase().includes(term) || (t.categoria || '').toLowerCase().includes(term))
     .slice(0, 8)
 })
-const applyTemplate = (template) => {
-  newMessageText.value = template.mensagem
+const applyTemplate = async (template) => {
+  newMessageText.value = template.mensagem || ''
+  if (!template.attachment_url) {
+    clearSelectedFile()
+    return
+  }
+  // Busca o áudio salvo no modelo e reaproveita o mesmo caminho de anexo
+  // já usado pra qualquer arquivo (preview + envio) — mesma peça, só muda
+  // de onde o arquivo vem.
+  try {
+    const response = await fetch(template.attachment_url)
+    const blob = await response.blob()
+    const filename = template.attachment_url.split('/').pop().split('?')[0] || 'anexo'
+    const file = new File([blob], filename, { type: template.attachment_type || blob.type })
+    setSelectedFile(file)
+  } catch (e) {
+    console.error('Erro ao carregar áudio do modelo:', e)
+    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Erro ao carregar o áudio do modelo.', showConfirmButton: false, timer: 3500 })
+  }
 }
 
 // Gravação de áudio na hora — MediaRecorder nativo do navegador, igual ao
@@ -1133,9 +1150,9 @@ onUnmounted(() => {
                 class="slash-suggestion-item"
                 @click="applyTemplate(tpl)"
               >
-                <span class="slash-suggestion-nome">{{ tpl.nome }}</span>
+                <span class="slash-suggestion-nome">{{ tpl.nome }} <Paperclip v-if="tpl.attachment_url" class="icon-xxs" /></span>
                 <span v-if="tpl.categoria" class="slash-suggestion-categoria">{{ tpl.categoria }}</span>
-                <span class="slash-suggestion-preview">{{ tpl.mensagem }}</span>
+                <span class="slash-suggestion-preview">{{ tpl.mensagem || (tpl.attachment_url ? 'Anexo' : '') }}</span>
               </button>
             </div>
             <textarea

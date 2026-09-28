@@ -1,6 +1,6 @@
 <script setup>
-import { ref, onMounted } from 'vue'
-import { Plus, Edit2, Trash2, X, Save } from 'lucide-vue-next'
+import { ref, computed, onMounted } from 'vue'
+import { Plus, Edit2, Trash2, X, Save, Paperclip, FileText } from 'lucide-vue-next'
 import api from '../../api'
 import Swal from 'sweetalert2'
 
@@ -13,8 +13,15 @@ const form = ref({
   id: null,
   nome: '',
   categoria: '',
-  mensagem: ''
+  mensagem: '',
+  attachment_url: null,
+  attachment_type: null
 })
+// Arquivo novo escolhido nesta edição (ainda não salvo) -- diferente de
+// form.attachment_url, que é o anexo que já está salvo no modelo.
+const newAttachmentFile = ref(null)
+const removeAttachment = ref(false)
+const attachmentInput = ref(null)
 
 const fetchTemplates = async () => {
   isLoading.value = true
@@ -33,12 +40,14 @@ onMounted(() => {
 })
 
 const openModal = (template = null) => {
+  newAttachmentFile.value = null
+  removeAttachment.value = false
   if (template) {
     isEditing.value = true
     form.value = { ...template }
   } else {
     isEditing.value = false
-    form.value = { id: null, nome: '', categoria: '', mensagem: '' }
+    form.value = { id: null, nome: '', categoria: '', mensagem: '', attachment_url: null, attachment_type: null }
   }
   showModal.value = true
 }
@@ -47,14 +56,56 @@ const closeModal = () => {
   showModal.value = false
 }
 
+const triggerAttachmentInput = () => {
+  attachmentInput.value?.click()
+}
+
+const handleAttachmentChange = (event) => {
+  const file = event.target.files[0]
+  if (file) {
+    newAttachmentFile.value = file
+    removeAttachment.value = false
+  }
+}
+
+const clearAttachment = () => {
+  newAttachmentFile.value = null
+  removeAttachment.value = true
+  if (attachmentInput.value) attachmentInput.value.value = ''
+}
+
+// Modelo pode ser só anexo (áudio, imagem, PDF, vídeo...), sem texto nenhum
+// (pedido 2026-09-28) -- só exige mensagem escrita quando não tem anexo
+// nenhum (novo ou já salvo).
+const hasAnyAttachment = () => (newAttachmentFile.value || (form.value.attachment_url && !removeAttachment.value))
+
+const newAttachmentPreviewUrl = computed(() => newAttachmentFile.value ? URL.createObjectURL(newAttachmentFile.value) : null)
+
+const previewKind = (file, type) => {
+  const t = file?.type || type || ''
+  if (t.startsWith('image/')) return 'image'
+  if (t.startsWith('audio/')) return 'audio'
+  if (t.startsWith('video/')) return 'video'
+  return 'file'
+}
+
 const saveTemplate = async () => {
-  if (!form.value.nome.trim() || !form.value.mensagem.trim()) return
+  if (!form.value.nome.trim()) return
+  if (!form.value.mensagem.trim() && !hasAnyAttachment()) return
 
   try {
+    const formData = new FormData()
+    formData.append('message_template[nome]', form.value.nome)
+    formData.append('message_template[categoria]', form.value.categoria || '')
+    formData.append('message_template[mensagem]', form.value.mensagem || '')
+    if (newAttachmentFile.value) formData.append('message_template[attachment]', newAttachmentFile.value)
+    if (removeAttachment.value) formData.append('message_template[remove_attachment]', 'true')
+
+    const config = { headers: { 'Content-Type': undefined } }
     if (isEditing.value) {
-      await api.put(`/message_templates/${form.value.id}`, { message_template: form.value })
+      await api.put(`/message_templates/${form.value.id}`, formData, config)
     } else {
-      await api.post('/message_templates', { message_template: form.value })
+      await api.post('/message_templates', formData, config)
     }
     closeModal()
     fetchTemplates()
@@ -96,20 +147,22 @@ const deleteTemplate = async (id) => {
             <th>Nome</th>
             <th>Categoria</th>
             <th>Mensagem</th>
+            <th width="60">Anexo</th>
             <th width="120">Ações</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="isLoading">
-            <td colspan="4" class="text-center py-4">Carregando modelos...</td>
+            <td colspan="5" class="text-center py-4">Carregando modelos...</td>
           </tr>
           <tr v-else-if="templates.length === 0">
-            <td colspan="4" class="text-center py-4 text-muted">Nenhum modelo criado ainda.</td>
+            <td colspan="5" class="text-center py-4 text-muted">Nenhum modelo criado ainda.</td>
           </tr>
           <tr v-for="template in templates" :key="template.id">
             <td class="font-medium">{{ template.nome }}</td>
             <td class="text-muted">{{ template.categoria || '—' }}</td>
-            <td class="text-muted preview-cell">{{ template.mensagem }}</td>
+            <td class="text-muted preview-cell">{{ template.mensagem || '—' }}</td>
+            <td class="text-center"><Paperclip v-if="template.attachment_url" class="icon-sm" style="color: var(--primary);" /></td>
             <td class="actions-cell">
               <button class="btn-icon" @click="openModal(template)" title="Editar">
                 <Edit2 class="icon-sm" />
@@ -140,8 +193,35 @@ const deleteTemplate = async (id) => {
             <input type="text" v-model="form.categoria" placeholder="Ex: Comercial, Financeiro..." />
           </div>
           <div class="input-group">
-            <label>Mensagem</label>
+            <label>Mensagem <span class="text-muted text-xs">(opcional se tiver anexo)</span></label>
             <textarea v-model="form.mensagem" rows="5" placeholder="Texto que será enviado quando escolher esse modelo..."></textarea>
+          </div>
+          <div class="input-group">
+            <label>Anexo <span class="text-muted text-xs">(opcional — imagem, PDF, áudio ou vídeo)</span></label>
+            <input ref="attachmentInput" type="file" accept="image/*,application/pdf,audio/*,video/*" hidden @change="handleAttachmentChange" />
+
+            <template v-if="newAttachmentFile">
+              <div class="attachment-preview">
+                <img v-if="previewKind(newAttachmentFile) === 'image'" :src="newAttachmentPreviewUrl" class="attachment-preview-img" />
+                <audio v-else-if="previewKind(newAttachmentFile) === 'audio'" :src="newAttachmentPreviewUrl" controls style="height: 32px; max-width: 220px;"></audio>
+                <video v-else-if="previewKind(newAttachmentFile) === 'video'" :src="newAttachmentPreviewUrl" controls style="height: 60px; max-width: 220px;"></video>
+                <FileText v-else class="icon-sm" />
+                <span>{{ newAttachmentFile.name }}</span>
+                <button type="button" class="btn-icon" @click="clearAttachment"><X class="icon-xs" /></button>
+              </div>
+            </template>
+            <template v-else-if="form.attachment_url && !removeAttachment">
+              <div class="attachment-preview">
+                <img v-if="previewKind(null, form.attachment_type) === 'image'" :src="form.attachment_url" class="attachment-preview-img" />
+                <audio v-else-if="previewKind(null, form.attachment_type) === 'audio'" :src="form.attachment_url" controls style="height: 32px; max-width: 220px;"></audio>
+                <video v-else-if="previewKind(null, form.attachment_type) === 'video'" :src="form.attachment_url" controls style="height: 60px; max-width: 220px;"></video>
+                <a v-else :href="form.attachment_url" target="_blank" class="attachment-preview-link"><FileText class="icon-sm" /> Ver anexo</a>
+                <button type="button" class="btn-icon" @click="clearAttachment"><X class="icon-xs" /></button>
+              </div>
+            </template>
+            <button v-else type="button" class="btn-outline-audio" @click="triggerAttachmentInput">
+              <Paperclip class="icon-sm" /> Escolher anexo
+            </button>
           </div>
         </div>
         <div class="modal-footer">
@@ -226,6 +306,20 @@ const deleteTemplate = async (id) => {
   }
   textarea { resize: vertical; }
 }
+.attachment-preview {
+  display: flex; align-items: center; gap: 0.5rem;
+  background: var(--bg-primary); border: 1px solid var(--border-color);
+  border-radius: 6px; padding: 0.5rem 0.75rem; color: var(--text-main); font-size: 0.85rem;
+}
+.attachment-preview-img { max-height: 60px; max-width: 100px; border-radius: 4px; object-fit: cover; }
+.attachment-preview-link { display: inline-flex; align-items: center; gap: 0.3rem; color: var(--primary); }
+.btn-outline-audio {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  background: transparent; border: 1px dashed var(--border-color); color: var(--text-muted);
+  padding: 0.5rem 0.9rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;
+  &:hover { border-color: var(--primary); color: var(--primary); }
+}
+.icon-xs { width: 14px; height: 14px; }
 .text-xs { font-size: 0.75rem; }
 .text-muted { color: var(--text-muted); }
 .icon-sm { width: 16px; height: 16px; }
