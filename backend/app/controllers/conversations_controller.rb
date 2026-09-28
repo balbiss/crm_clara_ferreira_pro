@@ -5,21 +5,15 @@ class ConversationsController < ApplicationController
     page  = (params[:page] || 1).to_i
     limit = (params[:per_page] || 100).to_i.clamp(1, 500)
 
-    base = current_user.account.conversations
-
-    # Consultor/atendente só veem conversas atribuídas a eles (não mostrar
-    # não-atribuídas evita que fujam da fila do rodízio). Gerente/diretoria/
-    # financeiro (full_portfolio?/finance?) veem tudo — mesma regra de
-    # ContactsController#visible_contacts_scope.
-    #
-    # CORRIGIDO: antes só restringia role == 'atendente' (nomenclatura antiga),
-    # deixando o role novo 'consultor' ver todas as conversas da conta sem
-    # filtro nenhum — vazamento igual ao que corrigimos em ContactsController.
-    unless full_portfolio? || finance? || current_user.has_permission?('admin')
-      base = base.where(user_id: current_user.id)
-    end
-
-    conversations = base
+    # Usa a mesma regra de visibilidade de show/update/create
+    # (visible_conversations_scope) em vez de um filtro próprio e mais
+    # simples — esse aqui só olhava "é atendente dessa conversa" e ignorava
+    # completamente o acesso liberado pela tela Gerenciar Acesso (InboxMember)
+    # e a hierarquia do Jueri. Resultado: dona liberava uma caixa pra uma
+    # consultora (Gerenciar Acesso), mas a lista principal de conversas
+    # continuava vazia pra ela — a liberação não valia nada na prática
+    # (dono reportou 2026-09-28, caso da Thaynara na caixa Marketing).
+    conversations = visible_conversations_scope
       .includes(:user, :tags, messages: { attachment_attachment: :blob }, contact: { notes: :user, pedidos: {}, reseller_phones: {}, lifecycle_events: {} })
       .order(last_activity_at: :desc)
       .offset((page - 1) * limit).limit(limit)
