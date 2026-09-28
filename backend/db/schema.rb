@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_28_190001) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_28_200000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -299,6 +299,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_28_190001) do
     t.text "out_of_office_message"
     t.string "phone_number"
     t.string "provider"
+    t.boolean "restrict_by_portfolio", default: false, null: false
     t.bigint "round_robin_group_id"
     t.datetime "updated_at", null: false
     t.jsonb "working_hours", default: []

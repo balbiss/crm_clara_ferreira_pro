@@ -326,7 +326,7 @@ class ConversationsController < ApplicationController
       base
     else
       lider_ids = current_user.accessible_jueri_lider_ids
-      inbox_ids = current_user.assigned_inboxes.ids
+      assigned_inboxes = current_user.assigned_inboxes.select(:id, :restrict_by_portfolio)
 
       # Acesso por caixa de entrada (InboxMember) — antes só existia a tela
       # pra configurar quem tem acesso a cada caixa, mas não afetava nada de
@@ -335,22 +335,26 @@ class ConversationsController < ApplicationController
       # existiam (dono da revendedora, hierarquia do Jueri) — nunca troca
       # nem restringe o que já funcionava, só soma mais uma forma de ver.
       #
-      # CORRIGIDO no mesmo dia: a 1ª versão dava acesso à caixa inteira sem
-      # olhar de quem é a revendedora — numa caixa compartilhada entre várias
-      # consultoras, quem tinha acesso via de todo mundo, mesmo revendedora
-      # de carteira alheia (dona reportou: Beatriz via conversa da Karina,
-      # que é carteira da Suelen, só por ter acesso à caixa "Comercial-
-      # Consultores"). Decisão da dona: acesso à caixa só revela revendedora
-      # que já é da carteira da própria pessoa, OU que ainda não tem carteira
-      # nenhuma (livre pra qualquer um da caixa assumir) — nunca revendedora
-      # que já é de outra pessoa.
+      # A restrição por carteira dentro da caixa compartilhada NÃO é igual
+      # pra toda caixa — cada setor funciona diferente (dona explicou no
+      # mesmo dia): "Comercial- Consultores" tem carteira (revendedora de
+      # outra consultora não pode aparecer, caso real: Beatriz via conversa
+      # da Karina, que é da Suelen), mas Marketing/Gerência é o contrário,
+      # o setor inteiro precisa ver tudo que chega na caixa, sem carteira
+      # nenhuma. Por isso o campo restrict_by_portfolio é por CAIXA (aba
+      # Configurações), não uma regra fixa pro sistema inteiro.
+      unrestricted_inbox_ids = assigned_inboxes.reject(&:restrict_by_portfolio).map(&:id)
+      restricted_inbox_ids   = assigned_inboxes.select(&:restrict_by_portfolio).map(&:id)
+
       conditions = ['conversations.user_id = :uid']
       conditions << "contacts.custom_attributes ->> 'gerente_jueri_id' IN (:lider_ids)" if lider_ids.any?
-      conditions << '(conversations.inbox_id IN (:inbox_ids) AND (contacts.user_id = :uid OR contacts.user_id IS NULL))' if inbox_ids.any?
+      conditions << 'conversations.inbox_id IN (:unrestricted_inbox_ids)' if unrestricted_inbox_ids.any?
+      conditions << '(conversations.inbox_id IN (:restricted_inbox_ids) AND (contacts.user_id = :uid OR contacts.user_id IS NULL))' if restricted_inbox_ids.any?
 
       base.left_joins(:contact).where(
         conditions.join(' OR '),
-        uid: current_user.id, lider_ids: lider_ids, inbox_ids: inbox_ids
+        uid: current_user.id, lider_ids: lider_ids,
+        unrestricted_inbox_ids: unrestricted_inbox_ids, restricted_inbox_ids: restricted_inbox_ids
       )
     end
   end
