@@ -334,9 +334,19 @@ class ConversationsController < ApplicationController
       # reportou, 2026-09-28). É um "OU" a mais em cima das regras que já
       # existiam (dono da revendedora, hierarquia do Jueri) — nunca troca
       # nem restringe o que já funcionava, só soma mais uma forma de ver.
+      #
+      # CORRIGIDO no mesmo dia: a 1ª versão dava acesso à caixa inteira sem
+      # olhar de quem é a revendedora — numa caixa compartilhada entre várias
+      # consultoras, quem tinha acesso via de todo mundo, mesmo revendedora
+      # de carteira alheia (dona reportou: Beatriz via conversa da Karina,
+      # que é carteira da Suelen, só por ter acesso à caixa "Comercial-
+      # Consultores"). Decisão da dona: acesso à caixa só revela revendedora
+      # que já é da carteira da própria pessoa, OU que ainda não tem carteira
+      # nenhuma (livre pra qualquer um da caixa assumir) — nunca revendedora
+      # que já é de outra pessoa.
       conditions = ['conversations.user_id = :uid']
       conditions << "contacts.custom_attributes ->> 'gerente_jueri_id' IN (:lider_ids)" if lider_ids.any?
-      conditions << 'conversations.inbox_id IN (:inbox_ids)' if inbox_ids.any?
+      conditions << '(conversations.inbox_id IN (:inbox_ids) AND (contacts.user_id = :uid OR contacts.user_id IS NULL))' if inbox_ids.any?
 
       base.left_joins(:contact).where(
         conditions.join(' OR '),
