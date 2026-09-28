@@ -10,6 +10,7 @@ class Message < ApplicationRecord
 
   after_create_commit :broadcast_to_conversation
   after_create_commit :update_conversation_activity
+  after_create_commit :increment_conversation_unread_count
   after_create_commit :notify_agent_of_new_message
 
   # Reenvia o broadcast depois que texto/anexo terminam de ser processados.
@@ -25,6 +26,17 @@ class Message < ApplicationRecord
 
   def update_conversation_activity
     conversation.update_column(:last_activity_at, Time.current)
+  end
+
+  # unread_count é a fonte de verdade da bolinha vermelha (ver
+  # ConversationsController#mark_as_read) — só mensagem do cliente conta
+  # como "não lida" (mensagem de agente/nota privada não deveria marcar a
+  # própria conversa como pendente pra quem acabou de responder).
+  def increment_conversation_unread_count
+    return unless sender_type == 'Contact'
+    return if is_private
+
+    conversation.increment!(:unread_count)
   end
 
   def notify_agent_of_new_message

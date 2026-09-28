@@ -70,6 +70,18 @@ class ConversationsController < ApplicationController
     render json: format_conversation(conversation, users_hash)
   end
 
+  # POST /conversations/:id/mark_as_read — chamado quando o agente abre a
+  # conversa na tela. unread_count é a fonte de verdade (persistida no banco)
+  # da bolinha vermelha da lista; sem gravar aqui, o valor mostrado no
+  # navegador era só de memória e zerava sozinho toda vez que a lista
+  # recarregava (reconexão do WebSocket, troca de aba etc — dono reportou
+  # 2026-09-28 que a bolinha parou de aparecer).
+  def mark_as_read
+    conversation = visible_conversations_scope.find(params[:id])
+    conversation.update_column(:unread_count, 0) if conversation.unread_count != 0
+    head :no_content
+  end
+
   def update
     conversation = visible_conversations_scope.includes(:tags, :contact, :inbox).find(params[:id])
     users_hash = current_user.account.users.index_by(&:id)

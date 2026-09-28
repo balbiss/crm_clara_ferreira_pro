@@ -60,6 +60,7 @@ Rails.application.routes.draw do
       get :ai_status
       post :resume_ai
       get :transcript
+      post :mark_as_read
     end
   end
 

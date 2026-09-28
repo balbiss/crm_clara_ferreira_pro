@@ -258,7 +258,14 @@ export const useConversationsStore = defineStore('conversations', {
       this.activeConversationId = id
       const conv = this.conversations.find(c => c.id === id)
       if (conv) {
+        const hadUnread = conv.unread > 0
         conv.unread = 0
+        // Persiste no banco (unread_count) — sem isso o zerado ficava só na
+        // memória do navegador e voltava a contar errado no próximo refetch
+        // (reconexão do WebSocket, troca de aba etc).
+        if (hadUnread) {
+          api.post(`/conversations/${id}/mark_as_read`).catch(() => {})
+        }
       }
     },
 
