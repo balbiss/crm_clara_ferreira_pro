@@ -14,7 +14,10 @@ class InboxMembersController < ApplicationController
     @members = @inbox.users
 
     render json: @users.map { |user|
-      user.as_json(only: [:id, :name, :email]).merge(is_member: @members.include?(user))
+      user.as_json(only: [:id, :email]).merge(
+        name: "#{user.first_name} #{user.last_name}".strip,
+        is_member: @members.include?(user)
+      )
     }
   end
 
