@@ -19,6 +19,8 @@ Rails.application.routes.draw do
   end
   get 'pedidos/pendentes', to: 'pedidos#pendentes'
   resources :round_robin_groups, only: %i[index create update destroy]
+  resources :contact_field_groups, only: %i[index create update destroy]
+  resources :message_templates, only: %i[index create update destroy]
   resources :pipelines, only: %i[index create update destroy] do
     resources :pipeline_stages, only: %i[create]
     resources :pipeline_cards, only: %i[index create]

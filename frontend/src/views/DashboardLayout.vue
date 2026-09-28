@@ -49,7 +49,9 @@ import {
   GripVertical,
   Users2,
   Package,
-  FileText
+  FileText,
+  LayoutGrid,
+  MessageSquareText
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -820,6 +822,8 @@ const saveReorder = async () => {
             <router-link to="/settings/account" class="nav-item sub-item" active-class="active"><Briefcase class="icon-sm" /> Conta</router-link>
             <router-link to="/settings/inboxes" class="nav-item sub-item"><Inbox class="icon-sm" /> Caixas de Entrada</router-link>
             <router-link to="/settings/tags" class="nav-item sub-item" active-class="active"><Tag class="icon-sm" /> Etiquetas</router-link>
+            <router-link to="/settings/campos-contato" class="nav-item sub-item" active-class="active"><LayoutGrid class="icon-sm" /> Campos do Contato</router-link>
+            <router-link to="/settings/modelos-mensagem" class="nav-item sub-item" active-class="active"><MessageSquareText class="icon-sm" /> Modelos de Mensagem</router-link>
             <router-link to="/agentes" class="nav-item sub-item" active-class="active"><Badge class="icon-sm" /> Agentes</router-link>
             <router-link to="/atividades" class="nav-item sub-item" active-class="active"><Activity class="icon-sm" /> Atividades</router-link>
           </div>

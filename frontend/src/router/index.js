@@ -205,6 +205,18 @@ const router = createRouter({
           component: () => import('../views/settings/SalesTeams.vue'),
           meta: { requiresFullPortfolio: true }
         },
+        {
+          path: 'settings/campos-contato',
+          name: 'SettingsContactFieldGroups',
+          component: () => import('../views/settings/ContactFieldGroups.vue'),
+          meta: { requiresCriticalConfig: true }
+        },
+        {
+          path: 'settings/modelos-mensagem',
+          name: 'SettingsMessageTemplates',
+          component: () => import('../views/settings/MessageTemplates.vue'),
+          meta: { requiresCriticalConfig: true }
+        },
         // Rotas abertas a todos
         {
           path: 'funil',

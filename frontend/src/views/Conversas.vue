@@ -41,6 +41,7 @@ import api from '../api'
 import Swal from 'sweetalert2'
 import { ALL_STATUS_LABELS, ACTIVE_STATUS_LABELS, INACTIVE_STATUS_LABELS, statusLabel } from '../constants/regua'
 import { nivelInfo } from '../constants/nivel'
+import { ASSIGNABLE_FIELDS } from '../constants/contactFields'
 
 import EmojiPicker from 'vue3-emoji-picker'
 import 'vue3-emoji-picker/css'
@@ -185,8 +186,8 @@ const isAttributesOpen = ref(false)
 // Jueri" já separava visualmente) — divisão fina dentro de "Principal"
 // (Comercial/Fechamento/Financeiro) fica pra depois, precisa alinhar com
 // ela quais campos vão em cada um.
-const isPrincipalFieldsOpen = ref(false)
 const isDadosJueriOpen = ref(false)
+const isUnassignedOpen = ref(false)
 
 const activeDetailsTab = ref('principal')
 const detailsTabs = [
@@ -226,22 +227,37 @@ const daysInStage = (contact) => {
 // Campos do painel do lead — espelham o que a Clara Ferreira já usa no Kommo (aba Principal).
 // Guardados em custom_attributes (jsonb) pra não depender de migration nova agora; editáveis
 // via "Editar Contato" (já suporta atributos customizados livres).
-const principalFields = [
-  { key: 'venda', label: 'Venda' },
-  { key: 'proximo_agendamento', label: 'Próximo agendamento' },
-  { key: 'limite_inicial', label: 'Limite Inicial' },
-  { key: 'dia_fechamento', label: 'Dia Fechamento' },
-  { key: 'data_agendamento', label: 'Data de Agendamento' },
-  { key: 'obs_fechamento', label: 'Obs Fechamento' },
-  { key: 'dia_pf_fechamento', label: 'Dia p/ Fechamento' },
-  { key: 'horario_fechamento', label: 'Horário de Fechamento' },
-  { key: 'atraso', label: 'Atraso' },
-  { key: 'observacao_mes', label: 'Observação do mês' },
-  { key: 'meta', label: 'Meta' },
-  { key: 'desafio_combinado', label: 'Desafio combinado para o mês' },
-  { key: 'como_chegar_meta', label: 'Como chegar na Meta' },
-]
+const principalFields = ASSIGNABLE_FIELDS
 const getAttr = (key) => store.activeConversation?.contact?.custom_attributes?.[key]
+
+// Grupos configuráveis (Configurações → Campos do Contato, 2026-09-28) — a
+// dona pode criar/renomear grupo e escolher quais desses campos vão em cada
+// um. "Dados do Jueri" fica de fora desse sistema de propósito (fixo, ver
+// mais abaixo). Sem nenhum grupo configurado, o backend já devolve um grupo
+// "Principal" padrão com tudo dentro (seed_default_for) — zero mudança de
+// comportamento até a dona mexer em algo.
+const contactFieldGroups = ref([])
+const openGroupIds = ref(new Set())
+const fetchContactFieldGroups = async () => {
+  try {
+    const { data } = await api.get('/contact_field_groups')
+    contactFieldGroups.value = data
+  } catch (e) {
+    console.error('Erro ao buscar grupos de campos:', e)
+  }
+}
+const toggleGroup = (id) => {
+  const next = new Set(openGroupIds.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  openGroupIds.value = next
+}
+// Campo comercial que por algum motivo não está em nenhum grupo (ex: grupo
+// que continha ele foi apagado) — nunca deixa um campo sumir da tela.
+const unassignedFields = computed(() => {
+  const assignedKeys = new Set(contactFieldGroups.value.flatMap(g => g.field_keys || []))
+  return principalFields.filter(f => !assignedKeys.has(f.key))
+})
 
 // "2026-11-01" sem hora é interpretado como meia-noite UTC — em GMT-3 isso
 // volta pro dia anterior no toLocaleDateString. Forçando T00:00:00 (sem Z)
@@ -563,6 +579,8 @@ onMounted(async () => {
   // e escondido o resto da lista. Nesse caso busca completo mesmo assim.
   if (store.conversations.length === 0 || route.query.abrir) await store.fetchConversations()
   if (store.agents.length === 0) store.fetchAgents()
+  fetchContactFieldGroups()
+  fetchMessageTemplates()
   if (route.params.inboxId) {
     store.setSidebarInboxId(route.params.inboxId)
   } else {
@@ -663,6 +681,30 @@ const handleSendMessage = () => {
     clearSelectedFile()
     scrollToBottom()
   }
+}
+
+// Modelos de mensagem — digitar "/" abre a lista, escolher um substitui o
+// texto pelo modelo inteiro (não é obrigado a mandar na hora, pode editar
+// antes de enviar).
+const messageTemplates = ref([])
+const fetchMessageTemplates = async () => {
+  try {
+    const { data } = await api.get('/message_templates')
+    messageTemplates.value = data
+  } catch (e) {
+    console.error('Erro ao buscar modelos de mensagem:', e)
+  }
+}
+const slashSuggestions = computed(() => {
+  const text = newMessageText.value
+  if (!text.startsWith('/')) return []
+  const term = text.slice(1).trim().toLowerCase()
+  return messageTemplates.value
+    .filter(t => !term || t.nome.toLowerCase().includes(term) || (t.categoria || '').toLowerCase().includes(term))
+    .slice(0, 8)
+})
+const applyTemplate = (template) => {
+  newMessageText.value = template.mensagem
 }
 
 // Gravação de áudio na hora — MediaRecorder nativo do navegador, igual ao
@@ -1079,11 +1121,28 @@ onUnmounted(() => {
               </div>
               <button class="clear-file-btn" @click="clearSelectedFile">&times;</button>
             </div>
+            <!-- Modelos de mensagem (Configurações → Modelos de Mensagem) —
+                 digitar "/" mostra os modelos que combinam com o que vier
+                 depois, igual "mensagem rápida" do WhatsApp/"Modelos" do
+                 Kommo (dona pediu, 2026-09-28). -->
+            <div v-if="slashSuggestions.length > 0" class="slash-suggestions">
+              <button
+                v-for="tpl in slashSuggestions"
+                :key="tpl.id"
+                type="button"
+                class="slash-suggestion-item"
+                @click="applyTemplate(tpl)"
+              >
+                <span class="slash-suggestion-nome">{{ tpl.nome }}</span>
+                <span v-if="tpl.categoria" class="slash-suggestion-categoria">{{ tpl.categoria }}</span>
+                <span class="slash-suggestion-preview">{{ tpl.mensagem }}</span>
+              </button>
+            </div>
             <textarea
               v-model="newMessageText"
               @keydown.enter.prevent="handleSendMessage"
               @paste="handlePaste"
-              :placeholder="isPrivateMessage ? 'Digite uma nota privada...' : 'Digite sua mensagem aqui...'"
+              :placeholder="isPrivateMessage ? 'Digite uma nota privada... (dica: use / pra abrir um modelo salvo)' : 'Digite sua mensagem aqui... (dica: use / pra abrir um modelo salvo)'"
             ></textarea>
             <div class="input-actions">
               <div class="left-actions">
@@ -1208,17 +1267,16 @@ onUnmounted(() => {
 
       <template v-if="activeDetailsTab === 'principal'">
       <div class="accordion-card">
-        <div class="card-header" @click="isPrincipalFieldsOpen = !isPrincipalFieldsOpen" style="cursor: pointer;">
+        <div class="card-header">
           <h3>Principal</h3>
-          <Minus v-if="isPrincipalFieldsOpen" class="icon-sm" />
-          <Plus v-else class="icon-sm" />
         </div>
-        <div class="card-body" v-if="isPrincipalFieldsOpen" style="padding-top: 0.5rem;">
+        <div class="card-body" style="padding-top: 0.5rem;">
         <!-- "Atendente" (temporário, quem está respondendo agora — volta pro
              responsável quando a conversa fecha) é diferente de "Carteira"
              (permanente, o time do Jueri dono dessa revendedora). O rótulo
              antigo "Usuário responsável" (herança Kommo) misturava os dois
-             num campo só — PDF Etapa 2 pediu pra separar. -->
+             num campo só — PDF Etapa 2 pediu pra separar. Sempre visível
+             (fora do sistema de grupos) por serem os 2 dados mais olhados. -->
         <div class="lead-field">
           <span class="lf-label">Atendente</span>
           <span class="lf-value">{{ store.activeConversation.assignee || 'Não atribuído' }}</span>
@@ -1227,11 +1285,42 @@ onUnmounted(() => {
           <span class="lf-label">Carteira</span>
           <span class="lf-value" :class="{ empty: !store.activeConversation.contact.custom_attributes?.gerente_jueri_nome }">{{ store.activeConversation.contact.custom_attributes?.gerente_jueri_nome || 'Sem time' }}</span>
         </div>
-        <div class="lead-field" v-for="f in principalFields" :key="f.key">
+        <button class="lead-fields-edit" @click="openEditModal"><Edit2 class="icon-xs" /> Editar campos</button>
+        </div>
+      </div>
+
+      <!-- Grupos configuráveis (Configurações → Campos do Contato) — a dona
+           cria/renomeia e escolhe quais campos comerciais vão em cada um.
+           Sem nenhum configurado, o backend devolve um "Principal" padrão
+           com tudo dentro (mesmo comportamento de antes). -->
+      <div class="accordion-card" v-for="group in contactFieldGroups" :key="group.id">
+        <div class="card-header" @click="toggleGroup(group.id)" style="cursor: pointer;">
+          <h3>{{ group.name }}</h3>
+          <Minus v-if="openGroupIds.has(group.id)" class="icon-sm" />
+          <Plus v-else class="icon-sm" />
+        </div>
+        <div class="card-body" v-if="openGroupIds.has(group.id)" style="padding-top: 0.5rem;">
+        <div class="lead-field" v-for="key in group.field_keys" :key="key">
+          <span class="lf-label">{{ principalFields.find(f => f.key === key)?.label || key }}</span>
+          <span class="lf-value" :class="{ empty: !getAttr(key) }">{{ getAttr(key) || '...' }}</span>
+        </div>
+        <p v-if="!group.field_keys || group.field_keys.length === 0" class="empty-text">Nenhum campo neste grupo ainda.</p>
+        </div>
+      </div>
+
+      <!-- Campo que ficou sem grupo (ex: grupo que o continha foi apagado)
+           -- nunca deixa um campo sumir da tela por causa disso. -->
+      <div class="accordion-card" v-if="unassignedFields.length > 0">
+        <div class="card-header" @click="isUnassignedOpen = !isUnassignedOpen" style="cursor: pointer;">
+          <h3>Outros</h3>
+          <Minus v-if="isUnassignedOpen" class="icon-sm" />
+          <Plus v-else class="icon-sm" />
+        </div>
+        <div class="card-body" v-if="isUnassignedOpen" style="padding-top: 0.5rem;">
+        <div class="lead-field" v-for="f in unassignedFields" :key="f.key">
           <span class="lf-label">{{ f.label }}</span>
           <span class="lf-value" :class="{ empty: !getAttr(f.key) }">{{ getAttr(f.key) || '...' }}</span>
         </div>
-        <button class="lead-fields-edit" @click="openEditModal"><Edit2 class="icon-xs" /> Editar campos</button>
         </div>
       </div>
 
@@ -3245,6 +3334,49 @@ onUnmounted(() => {
   padding: 12px;
   border-radius: 8px 8px 0 0;
   border-bottom: 1px solid #e5e7eb;
+}
+
+.slash-suggestions {
+  max-height: 220px;
+  overflow-y: auto;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+}
+
+.slash-suggestion-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  padding: 0.5rem 0.9rem;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  text-align: left;
+
+  &:last-child { border-bottom: none; }
+  &:hover { background: rgba(255, 0, 127, 0.06); }
+
+  .slash-suggestion-nome {
+    font-weight: 600;
+    font-size: 0.82rem;
+    color: var(--text-main);
+  }
+  .slash-suggestion-categoria {
+    font-size: 0.7rem;
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+  .slash-suggestion-preview {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+  }
 }
 
 .file-preview-content {

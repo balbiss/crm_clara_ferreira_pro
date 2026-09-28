@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_01_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_28_190001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -93,6 +93,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_01_100000) do
     t.index ["changed_by_id"], name: "index_contact_audit_events_on_changed_by_id"
     t.index ["contact_id", "event_type", "created_at"], name: "idx_contact_audit_events_contact_type_time"
     t.index ["contact_id"], name: "index_contact_audit_events_on_contact_id"
+  end
+
+  create_table "contact_field_groups", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.datetime "created_at", null: false
+    t.jsonb "field_keys", default: [], null: false
+    t.string "name", null: false
+    t.integer "position", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_contact_field_groups_on_account_id"
   end
 
   create_table "contact_tags", force: :cascade do |t|
@@ -360,6 +370,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_01_100000) do
     t.index ["conversation_id"], name: "index_messages_on_conversation_id"
     t.index ["sender_type", "sender_id"], name: "index_messages_on_sender_type_and_sender_id"
     t.index ["source_id"], name: "index_messages_on_source_id"
+  end
+
+  create_table "message_templates", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "categoria"
+    t.datetime "created_at", null: false
+    t.text "mensagem", null: false
+    t.string "nome", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_message_templates_on_account_id"
   end
 
   create_table "notes", force: :cascade do |t|
@@ -763,6 +783,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_01_100000) do
   add_foreign_key "contact_audit_events", "accounts"
   add_foreign_key "contact_audit_events", "contacts"
   add_foreign_key "contact_audit_events", "users", column: "changed_by_id"
+  add_foreign_key "contact_field_groups", "accounts"
   add_foreign_key "contact_tags", "contacts"
   add_foreign_key "contact_tags", "tags"
   add_foreign_key "contacts", "accounts"
@@ -792,6 +813,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_01_100000) do
   add_foreign_key "lifecycle_events", "accounts"
   add_foreign_key "lifecycle_events", "contacts"
   add_foreign_key "lifecycle_events", "pedidos"
+  add_foreign_key "message_templates", "accounts"
   add_foreign_key "messages", "accounts"
   add_foreign_key "messages", "conversations"
   add_foreign_key "notes", "accounts"
