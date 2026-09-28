@@ -857,6 +857,12 @@ onUnmounted(() => {
             Todos <span class="count">{{ store.sidebarFilteredConversations.length }}</span>
           </button>
           <button
+            :class="['tab', { active: store.currentFilter === 'sem-resposta' }]"
+            @click="store.setFilter('sem-resposta')"
+          >
+            Sem resposta <span class="count">{{ store.sidebarFilteredConversations.filter(isSemResposta).length }}</span>
+          </button>
+          <button
             :class="['tab', { active: store.currentFilter === 'minhas' }]"
             @click="store.setFilter('minhas')"
           >
@@ -867,12 +873,6 @@ onUnmounted(() => {
             @click="store.setFilter('nao-atribuidos')"
           >
             Não atribuídas <span class="count">{{ store.sidebarFilteredConversations.filter(c => !c.assignee).length }}</span>
-          </button>
-          <button
-            :class="['tab', { active: store.currentFilter === 'sem-resposta' }]"
-            @click="store.setFilter('sem-resposta')"
-          >
-            Sem resposta <span class="count">{{ store.sidebarFilteredConversations.filter(isSemResposta).length }}</span>
           </button>
         </div>
       </div>
