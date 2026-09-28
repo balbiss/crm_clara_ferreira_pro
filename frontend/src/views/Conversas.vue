@@ -842,7 +842,13 @@ onUnmounted(() => {
         </div>
         
         <div class="tabs">
-          <button 
+          <button
+            :class="['tab', { active: store.currentFilter === 'all' }]"
+            @click="store.setFilter('all')"
+          >
+            Todos <span class="count">{{ store.sidebarFilteredConversations.length }}</span>
+          </button>
+          <button
             :class="['tab', { active: store.currentFilter === 'minhas' }]"
             @click="store.setFilter('minhas')"
           >
@@ -859,12 +865,6 @@ onUnmounted(() => {
             @click="store.setFilter('sem-resposta')"
           >
             Sem resposta <span class="count">{{ store.sidebarFilteredConversations.filter(isSemResposta).length }}</span>
-          </button>
-          <button
-            :class="['tab', { active: store.currentFilter === 'all' }]"
-            @click="store.setFilter('all')"
-          >
-            Todos <span class="count">{{ store.sidebarFilteredConversations.length }}</span>
           </button>
         </div>
       </div>
