@@ -179,6 +179,15 @@ const isAttachmentsOpen = ref(false)
 
 const isAttributesOpen = ref(false)
 
+// Painel de campos ficava tudo numa lista só (~30 campos), sem separação —
+// dona achou grande e confuso (2026-09-28), pediu pra virar sanfona por
+// departamento. Só os 2 grupos que já existiam de fato (divisor "Dados do
+// Jueri" já separava visualmente) — divisão fina dentro de "Principal"
+// (Comercial/Fechamento/Financeiro) fica pra depois, precisa alinhar com
+// ela quais campos vão em cada um.
+const isPrincipalFieldsOpen = ref(false)
+const isDadosJueriOpen = ref(false)
+
 const activeDetailsTab = ref('principal')
 const detailsTabs = [
   { id: 'principal', label: 'Principal' },
@@ -1181,7 +1190,13 @@ onUnmounted(() => {
       </div>
 
       <template v-if="activeDetailsTab === 'principal'">
-      <div class="lead-fields">
+      <div class="accordion-card">
+        <div class="card-header" @click="isPrincipalFieldsOpen = !isPrincipalFieldsOpen" style="cursor: pointer;">
+          <h3>Principal</h3>
+          <Minus v-if="isPrincipalFieldsOpen" class="icon-sm" />
+          <Plus v-else class="icon-sm" />
+        </div>
+        <div class="card-body" v-if="isPrincipalFieldsOpen" style="padding-top: 0.5rem;">
         <!-- "Atendente" (temporário, quem está respondendo agora — volta pro
              responsável quando a conversa fecha) é diferente de "Carteira"
              (permanente, o time do Jueri dono dessa revendedora). O rótulo
@@ -1199,13 +1214,17 @@ onUnmounted(() => {
           <span class="lf-label">{{ f.label }}</span>
           <span class="lf-value" :class="{ empty: !getAttr(f.key) }">{{ getAttr(f.key) || '...' }}</span>
         </div>
-        <!-- Botão fica logo depois dos campos que ele de fato edita (Atendente/
-             Carteira/principalFields), e ANTES dos campos só de leitura
-             sincronizados do Jueri — dono achava confuso o botão aparecer
-             embaixo de tudo, como se editasse os dados do Jueri também
-             (2026-09-25). -->
         <button class="lead-fields-edit" @click="openEditModal"><Edit2 class="icon-xs" /> Editar campos</button>
-        <div class="lead-field-divider">Dados do Jueri (sincronizado)</div>
+        </div>
+      </div>
+
+      <div class="accordion-card">
+        <div class="card-header" @click="isDadosJueriOpen = !isDadosJueriOpen" style="cursor: pointer;">
+          <h3>Dados do Jueri (sincronizado)</h3>
+          <Minus v-if="isDadosJueriOpen" class="icon-sm" />
+          <Plus v-else class="icon-sm" />
+        </div>
+        <div class="card-body" v-if="isDadosJueriOpen" style="padding-top: 0.5rem;">
         <div class="lead-field" v-for="f in dadosFields" :key="'jueri-' + f.key">
           <span class="lf-label">{{ f.label }}</span>
           <span class="lf-value" :class="{ empty: !getDadoValue(f) }">{{ getDadoValue(f) || '...' }}</span>
@@ -1213,6 +1232,7 @@ onUnmounted(() => {
         <div class="lead-field" v-for="attr in extraAttributes" :key="'extra-' + attr.key">
           <span class="lf-label">{{ attr.label }}</span>
           <span class="lf-value">{{ attr.value }}</span>
+        </div>
         </div>
       </div>
 
