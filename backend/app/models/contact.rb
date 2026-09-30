@@ -157,7 +157,15 @@ class Contact < ApplicationRecord
     Rails.logger.warn("[DIAG user_id] contact=#{id} source=#{source.inspect} novo_user_id=#{user_id} caller=\n#{caller_lines.join("\n")}")
   end
 
+  # CORRIGIDO 2026-09-30: só preenchia "user_id: nil", mas não olhava a
+  # CAIXA da conversa -- vazava o responsável pra caixas compartilhadas
+  # tipo Marketing, que não seguem carteira nenhuma (dona reportou: viu
+  # mensagem da Marketing aparecendo pro usuário da consultora, sem ela
+  # ter acesso nenhum liberado lá). 43 revendedoras afetadas, limpo em
+  # 2026-09-30. Só sincroniza pra caixa que tem restrict_by_portfolio
+  # ligado -- é literalmente a configuração que diz "essa caixa segue
+  # carteira individual", as outras (acesso livre) nunca devem herdar.
   def sync_conversations_user_id
-    conversations.where(user_id: nil).update_all(user_id: user_id)
+    conversations.joins(:inbox).where(user_id: nil, inboxes: { restrict_by_portfolio: true }).update_all(user_id: user_id)
   end
 end
