@@ -8,10 +8,16 @@ class Message < ApplicationRecord
   # sender_type will be 'User' or 'Contact'
   # sender_id will be the id of the User or Contact
 
-  after_create_commit :broadcast_to_conversation
+  # true quando a mensagem vem da importação do histórico do WhatsApp
+  # (WahaHistorySyncJob), não de algo acontecendo agora: não faz broadcast
+  # (a tela anexaria mensagem antiga no fim do chat, fora de ordem), não
+  # manda push e só conta como não lida se for recente (últimas 24h).
+  attr_accessor :historical_import
+
+  after_create_commit :broadcast_to_conversation, unless: :historical_import
   after_create_commit :update_conversation_activity
   after_create_commit :increment_conversation_unread_count
-  after_create_commit :notify_agent_of_new_message
+  after_create_commit :notify_agent_of_new_message, unless: :historical_import
 
   # Reenvia o broadcast depois que texto/anexo terminam de ser processados.
   # Necessário pro webhook do Baileys: a mensagem é criada (e já dispara o
@@ -25,7 +31,12 @@ class Message < ApplicationRecord
   private
 
   def update_conversation_activity
-    conversation.update_column(:last_activity_at, Time.current)
+    if historical_import
+      last = conversation.last_activity_at
+      conversation.update_column(:last_activity_at, created_at) if last.nil? || created_at > last
+    else
+      conversation.update_column(:last_activity_at, Time.current)
+    end
   end
 
   # unread_count é a fonte de verdade da bolinha vermelha (ver
@@ -35,6 +46,7 @@ class Message < ApplicationRecord
   def increment_conversation_unread_count
     return unless sender_type == 'Contact'
     return if is_private
+    return if historical_import && created_at < 24.hours.ago
 
     conversation.increment!(:unread_count)
   end

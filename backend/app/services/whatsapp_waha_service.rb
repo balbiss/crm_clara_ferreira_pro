@@ -156,6 +156,24 @@ class WhatsappWahaService
     nil
   end
 
+  # Histórico (WahaHistorySyncJob): chats mais recentes primeiro, e as
+  # mensagens de um chat a partir de um instante -- mesmo formato de payload
+  # do evento message.any do webhook.
+  def fetch_recent_chats(limit: 200)
+    res = request(:get, "/api/#{@session}/chats?limit=#{limit}&sortBy=conversationTimestamp&sortOrder=desc", nil, timeout: 60)
+    return [] unless res.is_a?(Net::HTTPSuccess)
+
+    JSON.parse(res.body) rescue []
+  end
+
+  def fetch_chat_messages(chat_id, since:, limit: 100, download_media: false)
+    query = "limit=#{limit}&downloadMedia=#{download_media}&filter.timestamp.gte=#{since.to_i}"
+    res = request(:get, "/api/#{@session}/chats/#{CGI.escape(chat_id)}/messages?#{query}", nil, timeout: 60)
+    return [] unless res.is_a?(Net::HTTPSuccess)
+
+    JSON.parse(res.body) rescue []
+  end
+
   # Nome do grupo (subject) -- usado só na criação do Contact que representa
   # o grupo (ver waha_controller.rb), nunca em toda mensagem (o endpoint de
   # listagem de todos os grupos é pesado, esse aqui devolve só 1). Endpoint

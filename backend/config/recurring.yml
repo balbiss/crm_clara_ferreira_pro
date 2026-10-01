@@ -38,6 +38,12 @@ production:
   check_snoozed_conversations:
     class: CheckSnoozedConversationsJob
     schedule: every minute
+  # Rede de segurança: busca no WhatsApp mensagens das últimas 3h que não
+  # chegaram pelo webhook (restart/queda curta). Quedas longas/reconexão por
+  # QR são cobertas pelo disparo na reconexão (ver WahaHistorySyncJob).
+  waha_history_sync:
+    class: WahaHistorySyncJob
+    schedule: every 30 minutes
 
 development:
   ai_followup_job:
