@@ -674,12 +674,28 @@ const clearSelectedFile = () => {
   }
 }
 
-const handleSendMessage = () => {
-  if (newMessageText.value.trim() || selectedFile.value) {
-    store.sendMessage(newMessageText.value, isPrivateMessage.value, selectedFile.value)
+const notifySendError = () => {
+  Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Não foi possível enviar a mensagem. Tente novamente.', showConfirmButton: false, timer: 4000 })
+}
+
+let isSendingMessage = false
+const handleSendMessage = async () => {
+  if (isSendingMessage || !(newMessageText.value.trim() || selectedFile.value)) return
+  isSendingMessage = true
+
+  // Limpa o campo só depois que o backend confirmar o envio -- antes limpava
+  // na hora, então quando falhava a tela parecia ter enviado normalmente e a
+  // pessoa não percebia que precisava tentar de novo.
+  try {
+    await store.sendMessage(newMessageText.value, isPrivateMessage.value, selectedFile.value)
     newMessageText.value = ''
     clearSelectedFile()
     scrollToBottom()
+  } catch (error) {
+    console.error('Error sending message:', error)
+    notifySendError()
+  } finally {
+    isSendingMessage = false
   }
 }
 
@@ -777,7 +793,11 @@ const finishRecording = () => {
     if (blob.size === 0) return
     const audioFile = new File([blob], `audio-${Date.now()}.webm`, { type: 'audio/webm' })
     store.sendMessage('', isPrivateMessage.value, audioFile)
-    scrollToBottom()
+      .then(scrollToBottom)
+      .catch((error) => {
+        console.error('Error sending audio:', error)
+        notifySendError()
+      })
   }
   mediaRecorder.stop()
 }

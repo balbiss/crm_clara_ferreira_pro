@@ -309,43 +309,45 @@ export const useConversationsStore = defineStore('conversations', {
     },
 
     async sendMessage(text, isPrivate = false, file = null) {
-      if (!this.activeConversationId || (!text.trim() && !file)) return
+      // Lança erro em vez de retornar/engolir calado -- antes, se a conversa
+      // ativa não estivesse pronta (troca rápida de conversa) ou a API
+      // falhasse, a mensagem sumia sem aviso nenhum (Bel, 2026-10-01: o log
+      // do servidor confirmou que a requisição nunca chegou no backend).
+      if (!this.activeConversationId || (!text.trim() && !file)) {
+        throw new Error('Nenhuma conversa ativa ou mensagem vazia')
+      }
 
-      try {
-        let response;
-        if (file) {
-          const formData = new FormData()
-          formData.append('text', text)
-          formData.append('is_private', isPrivate)
-          formData.append('attachment', file, file.name || 'audio.webm')
-          response = await api.post(`/conversations/${this.activeConversationId}/messages`, formData, {
-            headers: {
-              // undefined (não 'multipart/form-data') deixa o navegador gerar o
-              // boundary certo — com o header fixo o parser multipart do
-              // backend não conseguia ler o anexo (mesmo bug já visto no
-              // envio de áudio do chat interno).
-              'Content-Type': undefined
-            }
-          })
-        } else {
-          response = await api.post(`/conversations/${this.activeConversationId}/messages`, {
-            text,
-            is_private: isPrivate
-          })
-        }
-        const newMsg = response.data.message
-        const conv = this.conversations.find(c => c.id === this.activeConversationId)
-        if (conv) {
-          if (!conv.messages) conv.messages = []
-          const exists = conv.messages.some(m => m.id === newMsg.id)
-          if (!exists) {
-            conv.messages.push(newMsg)
+      let response;
+      if (file) {
+        const formData = new FormData()
+        formData.append('text', text)
+        formData.append('is_private', isPrivate)
+        formData.append('attachment', file, file.name || 'audio.webm')
+        response = await api.post(`/conversations/${this.activeConversationId}/messages`, formData, {
+          headers: {
+            // undefined (não 'multipart/form-data') deixa o navegador gerar o
+            // boundary certo — com o header fixo o parser multipart do
+            // backend não conseguia ler o anexo (mesmo bug já visto no
+            // envio de áudio do chat interno).
+            'Content-Type': undefined
           }
-          conv.preview = newMsg.text
-          conv.timestamp = newMsg.timestamp
+        })
+      } else {
+        response = await api.post(`/conversations/${this.activeConversationId}/messages`, {
+          text,
+          is_private: isPrivate
+        })
+      }
+      const newMsg = response.data.message
+      const conv = this.conversations.find(c => c.id === this.activeConversationId)
+      if (conv) {
+        if (!conv.messages) conv.messages = []
+        const exists = conv.messages.some(m => m.id === newMsg.id)
+        if (!exists) {
+          conv.messages.push(newMsg)
         }
-      } catch (error) {
-        console.error('Error sending message:', error)
+        conv.preview = newMsg.text
+        conv.timestamp = newMsg.timestamp
       }
     },
 
