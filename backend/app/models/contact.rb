@@ -206,7 +206,26 @@ class Contact < ApplicationRecord
   # 2026-09-30. Só sincroniza pra caixa que tem restrict_by_portfolio
   # ligado -- é literalmente a configuração que diz "essa caixa segue
   # carteira individual", as outras (acesso livre) nunca devem herdar.
+  #
+  # 2026-10-06: também só preenchia conversa SEM atendente — trocar o
+  # responsável de uma revendedora que já tinha atendente não mudava nada
+  # (dona reportou: "coloco o responsável e o atendente não muda"). Nas
+  # caixas com carteira o atendente agora sempre acompanha o responsável,
+  # e a tela de Conversas é avisada na hora.
   def sync_conversations_user_id
-    conversations.joins(:inbox).where(user_id: nil, inboxes: { restrict_by_portfolio: true }).update_all(user_id: user_id)
+    alvo = conversations.joins(:inbox)
+                        .where(inboxes: { restrict_by_portfolio: true })
+                        .where('conversations.user_id IS DISTINCT FROM ?', user_id)
+    ids = alvo.pluck(:id)
+    return if ids.empty?
+
+    Conversation.where(id: ids).update_all(user_id: user_id)
+    atendente = user&.first_name
+    ids.each do |conv_id|
+      ActionCable.server.broadcast("conversations_channel_#{account_id}", {
+        event: 'conversation_updated',
+        conversation: { id: conv_id, assignee_id: user_id, assignee: atendente }
+      })
+    end
   end
 end

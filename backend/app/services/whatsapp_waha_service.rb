@@ -111,7 +111,16 @@ class WhatsappWahaService
                    '/api/sendFile'
                  end
 
-      res = request(:post, endpoint, payload, timeout: 40)
+      res = request(:post, endpoint, payload, timeout: 60)
+
+      # Foto que o WhatsApp não aceita como imagem (HEIC do iPhone, formato
+      # estranho, arquivo grande demais pra virar imagem) — manda como
+      # documento em vez de perder o envio (Bel não conseguia mandar foto,
+      # 2026-10-06).
+      if !res.is_a?(Net::HTTPSuccess) && endpoint == '/api/sendImage'
+        Rails.logger.warn("Waha sendImage falhou (#{res.code}), reenviando como arquivo: #{res.body.to_s[0, 300]}")
+        res = request(:post, '/api/sendFile', payload, timeout: 60)
+      end
     else
       res = request(:post, '/api/sendText', { 'session' => @session, 'chatId' => chat_id, 'text' => text })
     end

@@ -21,7 +21,16 @@ class MessagesController < ApplicationController
       message.attachment.attach(params[:attachment])
     end
 
-    if message.save
+    begin
+      saved = message.save
+    rescue StandardError => e
+      # Falha ao gravar o anexo (storage) virava 500 sem explicação nenhuma
+      # na tela — agora o motivo chega no aviso de erro do chat.
+      Rails.logger.error("Falha ao salvar mensagem/anexo na conversa #{conversation.id}: #{e.class} #{e.message}")
+      return render json: { error: 'falha_anexo', message: "Não foi possível salvar o anexo (#{e.class.name.demodulize})." }, status: :unprocessable_entity
+    end
+
+    if saved
       if !is_private_msg && %w[baileys waha instagram].include?(conversation.inbox&.provider)
         begin
           recipient = conversation.contact.channel_identifier

@@ -34,11 +34,13 @@ import {
   BotOff,
   Bot,
   Mic,
-  Square
+  Square,
+  Pencil
 } from '@lucide/vue'
 
 import api from '../api'
 import Swal from 'sweetalert2'
+import { prepareImage } from '../utils/prepareImage'
 import { ALL_STATUS_LABELS, ACTIVE_STATUS_LABELS, INACTIVE_STATUS_LABELS, statusLabel } from '../constants/regua'
 import { nivelInfo } from '../constants/nivel'
 import { ASSIGNABLE_FIELDS } from '../constants/contactFields'
@@ -203,6 +205,34 @@ const statusOptions = [
   { group: 'Ativas', options: ACTIVE_STATUS_LABELS },
   { group: 'Inativas', options: INACTIVE_STATUS_LABELS },
 ]
+// Editar o nome clicando nele, sem abrir o formulário inteiro de campos
+// (dona pediu, 2026-10-06 — contato novo do WhatsApp chega com o número
+// no lugar do nome e trocar era trabalhoso).
+const isEditingName = ref(false)
+const editingName = ref('')
+const nameInput = ref(null)
+const startEditingName = () => {
+  editingName.value = store.activeConversation?.contact?.name || ''
+  isEditingName.value = true
+  nextTick(() => { nameInput.value?.focus(); nameInput.value?.select() })
+}
+const saveContactName = async () => {
+  if (!isEditingName.value) return
+  isEditingName.value = false
+  const contact = store.activeConversation?.contact
+  const novoNome = editingName.value.trim()
+  if (!contact?.id || !novoNome || novoNome === contact.name) return
+  try {
+    await store.updateContact(contact.id, { name: novoNome })
+    if (contact.id_jueri) {
+      Swal.fire({ toast: true, position: 'top-end', icon: 'info', title: 'Nome salvo.', text: 'Essa revendedora é do Jueri: se o nome lá for diferente, ele volta na próxima sincronização.', showConfirmButton: false, timer: 6000 })
+    }
+  } catch (e) {
+    console.error('Erro ao salvar nome:', e)
+    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Não foi possível salvar o nome.', showConfirmButton: false, timer: 3000 })
+  }
+}
+
 const isChangingStatus = ref(false)
 const changeContactStatus = async (newStatus) => {
   const contact = store.activeConversation?.contact
@@ -674,8 +704,15 @@ const clearSelectedFile = () => {
   }
 }
 
-const notifySendError = () => {
-  Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Não foi possível enviar a mensagem. Tente novamente.', showConfirmButton: false, timer: 4000 })
+// Mostra o motivo real quando dá pra saber (antes era sempre a mesma frase
+// genérica, sem pista nenhuma do que falhou).
+const notifySendError = (error) => {
+  const status = error?.response?.status
+  let detalhe = error?.response?.data?.message
+  if (!detalhe && status === 413) detalhe = 'Arquivo grande demais.'
+  if (!detalhe && !error?.response) detalhe = 'Sem resposta do servidor (conexão caiu ou arquivo grande demais).'
+  if (!detalhe && status) detalhe = `Erro ${status} no servidor.`
+  Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Não foi possível enviar a mensagem.', text: detalhe || 'Tente novamente.', showConfirmButton: false, timer: 6000 })
 }
 
 let isSendingMessage = false
@@ -687,13 +724,14 @@ const handleSendMessage = async () => {
   // na hora, então quando falhava a tela parecia ter enviado normalmente e a
   // pessoa não percebia que precisava tentar de novo.
   try {
-    await store.sendMessage(newMessageText.value, isPrivateMessage.value, selectedFile.value)
+    const arquivo = selectedFile.value ? await prepareImage(selectedFile.value) : null
+    await store.sendMessage(newMessageText.value, isPrivateMessage.value, arquivo)
     newMessageText.value = ''
     clearSelectedFile()
     scrollToBottom()
   } catch (error) {
     console.error('Error sending message:', error)
-    notifySendError()
+    notifySendError(error)
   } finally {
     isSendingMessage = false
   }
@@ -796,7 +834,7 @@ const finishRecording = () => {
       .then(scrollToBottom)
       .catch((error) => {
         console.error('Error sending audio:', error)
-        notifySendError()
+        notifySendError(error)
       })
   }
   mediaRecorder.stop()
@@ -1240,7 +1278,20 @@ onUnmounted(() => {
           <span v-else>{{ store.activeConversation.contact.avatarInitials }}</span>
         </div>
         <div class="contact-name-row" style="position: relative;">
-          <h4>{{ store.activeConversation.contact.name }}</h4>
+          <input
+            v-if="isEditingName"
+            ref="nameInput"
+            v-model="editingName"
+            class="contact-name-input"
+            maxlength="120"
+            @keydown.enter.prevent="saveContactName"
+            @keydown.esc.prevent="isEditingName = false"
+            @blur="saveContactName"
+          />
+          <h4 v-else class="contact-name-editable" title="Clique pra editar o nome" @click="startEditingName">
+            {{ store.activeConversation.contact.name }}
+            <Pencil class="icon-xs contact-name-pencil" />
+          </h4>
           <Info class="icon-xs contact-quick-info" title="Ver telefone/e-mail/cidade" @click.stop="showQuickInfo = !showQuickInfo" />
           <ExternalLink class="icon-xs contact-open-profile" title="Abrir perfil completo" @click="router.push(`/contatos/${store.activeConversation.contact.id}`)" />
           <div v-if="showQuickInfo" class="quick-info-popover" @click.stop>
@@ -2908,6 +2959,34 @@ onUnmounted(() => {
     }
   }
 
+  .contact-name-editable {
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border-radius: 4px;
+    padding: 0 0.25rem;
+  }
+  .contact-name-editable:hover {
+    background: #fdf2f8;
+  }
+  .contact-name-pencil {
+    opacity: 0.35;
+  }
+  .contact-name-editable:hover .contact-name-pencil {
+    opacity: 1;
+    color: #ff007f;
+  }
+  .contact-name-input {
+    font-size: 1rem;
+    font-weight: 600;
+    padding: 2px 6px;
+    border: 1px solid #ff007f;
+    border-radius: 4px;
+    outline: none;
+    min-width: 0;
+    flex: 1;
+  }
   .contact-name-row {
     display: flex;
     align-items: center;
