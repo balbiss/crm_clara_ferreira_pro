@@ -1010,7 +1010,10 @@ onUnmounted(() => {
               <span v-if="conv.unread > 0" class="unread-badge"></span>
               <span class="conv-preview-text">{{ conv.preview }}</span>
             </div>
-            <div class="conv-tags" v-if="(conv.tags && conv.tags.length > 0) || conv.assignee">
+            <div class="conv-tags" v-if="(conv.tags && conv.tags.length > 0) || conv.assignee || conv.inbox_name">
+              <span v-if="conv.inbox_name" class="conv-tag conv-tag-inbox" :title="'Caixa: ' + conv.inbox_name + (conv.inbox_phone ? ' (' + conv.inbox_phone + ')' : '')">
+                📱 {{ conv.inbox_name }}
+              </span>
               <span v-for="tag in conv.tags" :key="tag.id" class="conv-tag" :style="{ background: tag.color, color: '#fff' }">
                 {{ tag.name }}
               </span>
@@ -1127,6 +1130,9 @@ onUnmounted(() => {
           <div style="display: flex; gap: 0.5rem; align-items: center;">
             <button :class="['input-tab', { active: !isPrivateMessage }]" @click="isPrivateMessage = false">Responder</button>
             <button :class="['input-tab', { active: isPrivateMessage }]" @click="isPrivateMessage = true">Mensagem Privada</button>
+            <span v-if="!isPrivateMessage && store.activeConversation.inbox_name" class="sending-via" :title="store.activeConversation.inbox_phone || ''">
+              Enviando por: <strong>{{ store.activeConversation.inbox_name }}</strong>
+            </span>
           </div>
           <button class="btn-magic-sm" @click="generateSummary" :disabled="isGeneratingSummary">
             <Loader2 v-if="isGeneratingSummary" class="icon-sm spin" />
@@ -1916,6 +1922,22 @@ onUnmounted(() => {
     text-shadow: 0 1px 2px rgba(0,0,0,0.18);
   }
 
+  .conv-tag-inbox {
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+  }
+  .sending-via {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin-left: 0.5rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .sending-via strong {
+    color: #ff007f;
+  }
   .conv-tag-agent {
     background: linear-gradient(135deg, #ff007f, #a80050) !important;
     color: #fff !important;

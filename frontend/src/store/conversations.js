@@ -197,7 +197,16 @@ export const useConversationsStore = defineStore('conversations', {
     // mensagem nenhuma — sem isso não tinha como mandar a "mensagem de
     // incentivo" do 3º/10º/20º dia da régua manualmente.
     async startConversation(contactId, inboxId = null) {
-      const payload = { contact_id: contactId }
+      return this._createConversation({ contact_id: contactId }, inboxId)
+    },
+
+    // Número ainda não cadastrado — o backend reaproveita o contato se o
+    // telefone já existir, ou cria um novo na carteira de quem abriu.
+    async startConversationWithPhone(phone, inboxId = null) {
+      return this._createConversation({ phone }, inboxId)
+    },
+
+    async _createConversation(payload, inboxId) {
       if (inboxId) payload.inbox_id = inboxId
       const { data } = await api.post('/conversations', payload)
       const existing = this.conversations.findIndex(c => c.id === data.id)

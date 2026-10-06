@@ -90,6 +90,47 @@ class Contact < ApplicationRecord
       .first
   end
 
+  ACENTOS_DE = 'áàâãäéèêëíìîïóòôõöúùûüçñ'.freeze
+  ACENTOS_PARA = 'aaaaaeeeeiiiiooooouuuucn'.freeze
+
+  # Busca do "Nova Conversa" e dos seletores de revendedora. Antes era um
+  # ILIKE da frase inteira em name/phone — não achava nada quando (dono
+  # reportou, 2026-10-05): o telefone vinha formatado ("(16) 99323-5750")
+  # ou com 55 na frente (Jueri grava "16993235750", WhatsApp grava
+  # "+5516993235750"), o número estava só em reseller_phones, o nome tinha
+  # acento diferente ou as palavras não estavam coladas na mesma ordem.
+  # Agora: nome = TODAS as palavras precisam aparecer (qualquer ordem, sem
+  # acento); telefone = compara só dígitos pelos 8 últimos (ignora 55, DDD
+  # e o 9 extra), no principal OU em qualquer telefone adicional.
+  def self.search_by_name_or_phone(termo)
+    termo = termo.to_s.strip
+    return all if termo.blank?
+
+    conds = []
+    binds = {}
+
+    palavras = termo.gsub(/[\d()+\-.]/, ' ').split.map { |p| p.downcase.tr(ACENTOS_DE, ACENTOS_PARA) }
+    if palavras.any?
+      nome_sql = "translate(lower(coalesce(contacts.name, '')), '#{ACENTOS_DE}', '#{ACENTOS_PARA}')"
+      partes = palavras.each_with_index.map do |p, i|
+        binds[:"w#{i}"] = "%#{sanitize_sql_like(p)}%"
+        "#{nome_sql} LIKE :w#{i}"
+      end
+      conds << "(#{partes.join(' AND ')})"
+    end
+
+    digitos = termo.gsub(/\D/, '')
+    if digitos.length >= 4
+      binds[:fone] = "%#{digitos.length > 8 ? digitos[-8..] : digitos}%"
+      conds << "(regexp_replace(coalesce(contacts.phone, ''), '\\D', '', 'g') LIKE :fone " \
+               "OR EXISTS (SELECT 1 FROM reseller_phones rp WHERE rp.contact_id = contacts.id " \
+               "AND regexp_replace(rp.phone, '\\D', '', 'g') LIKE :fone))"
+    end
+
+    return none if conds.empty?
+    where(conds.join(' OR '), binds)
+  end
+
   scope :not_blacklisted, -> { where(desconsiderado: false) }
 
   private

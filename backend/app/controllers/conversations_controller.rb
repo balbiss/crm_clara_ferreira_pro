@@ -14,7 +14,7 @@ class ConversationsController < ApplicationController
     # continuava vazia pra ela — a liberação não valia nada na prática
     # (dono reportou 2026-09-28, caso da Thaynara na caixa Marketing).
     conversations = visible_conversations_scope
-      .includes(:user, :tags, messages: { attachment_attachment: :blob }, contact: { notes: :user, pedidos: {}, reseller_phones: {}, lifecycle_events: {} })
+      .includes(:user, :tags, :inbox, messages: { attachment_attachment: :blob }, contact: { notes: :user, pedidos: {}, reseller_phones: {}, lifecycle_events: {} })
       .order(last_activity_at: :desc)
       .offset((page - 1) * limit).limit(limit)
 
@@ -27,7 +27,17 @@ class ConversationsController < ApplicationController
   # primeira mensagem — a régua pede o contrário: consultor manda a mensagem
   # de incentivo no 3º/10º/20º dia, briefing seção 12/23, e não tinha como).
   def create
-    contact = visible_contacts_scope.find(params[:contact_id])
+    # Sem contact_id = "Nova Conversa" com um número que ainda não está
+    # cadastrado (prospect, número novo de revendedora...). Antes o modal só
+    # deixava escolher revendedora já existente, então não tinha como
+    # puxar conversa com ninguém novo (dono reportou, 2026-10-05).
+    contact = if params[:contact_id].present?
+      visible_contacts_scope.find(params[:contact_id])
+    else
+      contato_por_telefone = find_or_create_contact_by_phone
+      return if performed?
+      contato_por_telefone
+    end
 
     # inbox_id explícito (frontend deixa escolher quando a conta tem mais de
     # uma caixa de WhatsApp — sem isso, com 2+ caixas o sistema sempre
@@ -58,7 +68,7 @@ class ConversationsController < ApplicationController
 
   def show
     conversation = visible_conversations_scope
-      .includes(:user, :tags, messages: { attachment_attachment: :blob }, contact: { notes: :user, pedidos: {}, reseller_phones: {}, lifecycle_events: {} })
+      .includes(:user, :tags, :inbox, messages: { attachment_attachment: :blob }, contact: { notes: :user, pedidos: {}, reseller_phones: {}, lifecycle_events: {} })
       .find(params[:id])
     users_hash = current_user.account.users.index_by(&:id)
     render json: format_conversation(conversation, users_hash)
@@ -258,7 +268,7 @@ class ConversationsController < ApplicationController
 
   def transcript
     conversation = visible_conversations_scope
-      .includes(messages: :attachment_attachment, contact: {})
+      .includes(:inbox, messages: :attachment_attachment, contact: {})
       .find(params[:id])
 
     contact = conversation.contact
@@ -311,6 +321,33 @@ class ConversationsController < ApplicationController
   # em ai_followup_job.rb/send_scheduled_message_job.rb (hardcoded pro
   # Baileys, esquecendo o provider novo).
   WHATSAPP_PROVIDERS = %w[baileys waha].freeze
+
+  # Número já cadastrado (principal ou adicional, comparando só dígitos) é
+  # reaproveitado — nunca cria duplicata. Se for de outra carteira, avisa em
+  # vez de abrir: consultor não pode puxar revendedora de outro consultor.
+  def find_or_create_contact_by_phone
+    digitos = params[:phone].to_s.gsub(/\D/, '')
+    digitos = "55#{digitos}" if digitos.length.between?(10, 11)
+    unless digitos.length.between?(12, 13)
+      render json: { error: 'telefone_invalido', message: 'Telefone inválido. Use DDD + número, ex: (16) 99323-5750.' }, status: :unprocessable_entity
+      return
+    end
+
+    conta = current_user.account
+    existente = conta.contacts.search_by_name_or_phone(digitos).first
+    if existente
+      return existente if visible_contacts_scope.exists?(existente.id)
+      render json: { error: 'fora_da_carteira', message: "Esse número já é de #{existente.name.presence || 'uma revendedora'}, que está em outra carteira." }, status: :forbidden
+      return
+    end
+
+    conta.contacts.create!(
+      phone: "+#{digitos}",
+      name: params[:name].to_s.strip.presence || "+#{digitos}",
+      user_id: current_user.id,
+      source: 'WhatsApp'
+    )
+  end
 
   def pick_inbox_for(_contact)
     current_user.assigned_inboxes.where(provider: WHATSAPP_PROVIDERS).first ||
@@ -417,6 +454,12 @@ class ConversationsController < ApplicationController
         end
       },
       inbox_id: conv.inbox_id,
+      # A mesma revendedora pode ter uma conversa em cada caixa (ex: Prospec
+      # e Comercial) e a resposta sempre sai pelo número da conversa aberta —
+      # sem mostrar a caixa na tela, a consultora respondia pela Prospec
+      # achando que era a Comercial (dono reportou, 2026-10-05).
+      inbox_name: conv.inbox&.name,
+      inbox_phone: conv.inbox&.phone_number,
       source: conv.source || 'whatsapp',
       preview: last_message&.text || 'Nova Conversa',
       timestamp: last_message ? last_message.created_at.strftime('%H:%M') : conv.created_at.strftime('%H:%M'),

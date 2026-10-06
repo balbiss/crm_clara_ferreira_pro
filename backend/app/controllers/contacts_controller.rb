@@ -13,10 +13,7 @@ class ContactsController < ApplicationController
 
     # ?q= — busca por nome/telefone (usado pelo seletor de revendedora do
     # Calendário e outros pickers, sem precisar carregar a carteira inteira).
-    if params[:q].present?
-      termo = "%#{params[:q].strip}%"
-      @contacts = @contacts.where('contacts.name ILIKE :q OR contacts.phone ILIKE :q', q: termo)
-    end
+    @contacts = @contacts.search_by_name_or_phone(params[:q]) if params[:q].present?
 
     page     = (params[:page] || 1).to_i
     per_page = (params[:per_page] || 50).to_i.clamp(1, 200)

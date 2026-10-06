@@ -21,7 +21,13 @@
             />
           </div>
           <div v-if="isSearching" class="search-status">Buscando...</div>
-          <div v-else-if="query.trim() && resultados.length === 0" class="search-status">Nenhuma revendedora encontrada.</div>
+          <div v-else-if="query.trim() && resultados.length === 0" class="search-status">
+            Nenhuma revendedora encontrada.
+            <button v-if="telefoneDigitado" type="button" class="btn-novo-numero" :disabled="isStarting" @click="iniciarComNumero">
+              Iniciar conversa com {{ telefoneDigitado }}
+            </button>
+            <span v-else class="search-hint">Pra falar com alguém que ainda não está no CRM, digite o telefone com DDD.</span>
+          </div>
           <div v-if="resultados.length" class="contact-results">
             <button
               v-for="c in resultados"
@@ -42,7 +48,7 @@
 </template>
 
 <script setup>
-import { ref, nextTick, watch } from 'vue'
+import { ref, computed, nextTick, watch } from 'vue'
 import { Search } from '@lucide/vue'
 import Swal from 'sweetalert2'
 import api from '../api'
@@ -62,6 +68,16 @@ const isSearching = ref(false)
 const isStarting = ref(false)
 const searchInput = ref(null)
 let buscaTimeout = null
+
+// Telefone com DDD (10-11 dígitos) ou com 55 na frente (12-13) — habilita
+// abrir conversa com número que ainda não está cadastrado no CRM.
+const telefoneDigitado = computed(() => {
+  if (/[a-zA-ZÀ-ÿ]/.test(query.value)) return null
+  const digitos = query.value.replace(/\D/g, '')
+  if (digitos.length < 10 || digitos.length > 13) return null
+  const local = digitos.length >= 12 ? digitos.slice(2) : digitos
+  return `(${local.slice(0, 2)}) ${local.slice(2, -4)}-${local.slice(-4)}`
+})
 
 watch(() => props.isOpen, (open) => {
   if (open) {
@@ -89,13 +105,22 @@ function buscarContato(q) {
   }, 300)
 }
 
-async function selecionarContato(contact) {
+function selecionarContato(contact) {
+  return iniciar(inboxId => store.startConversation(contact.id, inboxId))
+}
+
+function iniciarComNumero() {
+  const phone = query.value.replace(/\D/g, '')
+  return iniciar(inboxId => store.startConversationWithPhone(phone, inboxId))
+}
+
+async function iniciar(criarConversa) {
   const { inboxId, cancelled } = await pickWhatsappInbox()
   if (cancelled) return
 
   isStarting.value = true
   try {
-    const conv = await store.startConversation(contact.id, inboxId)
+    const conv = await criarConversa(inboxId)
     emit('created', conv)
     close()
   } catch (e) {
@@ -189,6 +214,26 @@ function close() {
   margin-top: 8px;
   font-size: 0.85rem;
   color: #718096;
+}
+.btn-novo-numero {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: #ff007f;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.btn-novo-numero:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.search-hint {
+  display: block;
+  margin-top: 4px;
 }
 .contact-results {
   margin-top: 8px;
