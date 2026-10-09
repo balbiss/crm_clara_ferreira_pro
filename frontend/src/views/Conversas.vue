@@ -233,6 +233,39 @@ const saveContactName = async () => {
   }
 }
 
+// Preencher um campo do grupo (Venda, Meta, "Mais vende"...) clicando nele,
+// sem abrir o "Editar campos" inteiro (dona perguntou como preencher o grupo
+// "Produtos", 2026-10-09). O backend troca custom_attributes inteiro, então
+// manda o objeto completo só com esse campo alterado.
+const editingFieldKey = ref(null)
+const editingFieldValue = ref('')
+const fieldInput = ref(null)
+const startEditingField = (key) => {
+  editingFieldValue.value = getAttr(key) || ''
+  editingFieldKey.value = key
+  nextTick(() => {
+    const el = Array.isArray(fieldInput.value) ? fieldInput.value[0] : fieldInput.value
+    el?.focus()
+  })
+}
+const saveFieldValue = async () => {
+  const key = editingFieldKey.value
+  if (!key) return
+  editingFieldKey.value = null
+  const contact = store.activeConversation?.contact
+  const novoValor = editingFieldValue.value.trim()
+  if (!contact?.id || novoValor === (getAttr(key) || '')) return
+  const custom = { ...(contact.custom_attributes || {}) }
+  if (novoValor) custom[key] = novoValor
+  else delete custom[key]
+  try {
+    await store.updateContact(contact.id, { custom_attributes: custom })
+  } catch (e) {
+    console.error('Erro ao salvar campo:', e)
+    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Não foi possível salvar.', showConfirmButton: false, timer: 3000 })
+  }
+}
+
 const isChangingStatus = ref(false)
 const changeContactStatus = async (newStatus) => {
   const contact = store.activeConversation?.contact
@@ -1397,9 +1430,18 @@ onUnmounted(() => {
         <div class="card-body" v-if="openGroupIds.has(group.id)" style="padding-top: 0.5rem;">
         <div class="lead-field" v-for="key in group.field_keys" :key="key">
           <span class="lf-label">{{ fieldLabelOf(key) }}</span>
-          <span class="lf-value" :class="{ empty: !getAttr(key) }">{{ getAttr(key) || '...' }}</span>
+          <input
+            v-if="editingFieldKey === key"
+            ref="fieldInput"
+            v-model="editingFieldValue"
+            class="lf-input"
+            @keydown.enter.prevent="saveFieldValue"
+            @keydown.esc.prevent="editingFieldKey = null"
+            @blur="saveFieldValue"
+          />
+          <span v-else class="lf-value lf-editable" :class="{ empty: !getAttr(key) }" title="Clique pra preencher" @click="startEditingField(key)">{{ getAttr(key) || 'Clique pra preencher' }}</span>
         </div>
-        <p v-if="!group.field_keys || group.field_keys.length === 0" class="empty-text">Nenhum campo neste grupo ainda.</p>
+        <p v-if="!group.field_keys || group.field_keys.length === 0" class="empty-text">Nenhum campo neste grupo ainda. Adicione em Configurações → Campos do Contato.</p>
         </div>
       </div>
 
@@ -1414,7 +1456,16 @@ onUnmounted(() => {
         <div class="card-body" v-if="isUnassignedOpen" style="padding-top: 0.5rem;">
         <div class="lead-field" v-for="f in unassignedFields" :key="f.key">
           <span class="lf-label">{{ f.label }}</span>
-          <span class="lf-value" :class="{ empty: !getAttr(f.key) }">{{ getAttr(f.key) || '...' }}</span>
+          <input
+            v-if="editingFieldKey === f.key"
+            ref="fieldInput"
+            v-model="editingFieldValue"
+            class="lf-input"
+            @keydown.enter.prevent="saveFieldValue"
+            @keydown.esc.prevent="editingFieldKey = null"
+            @blur="saveFieldValue"
+          />
+          <span v-else class="lf-value lf-editable" :class="{ empty: !getAttr(f.key) }" title="Clique pra preencher" @click="startEditingField(f.key)">{{ getAttr(f.key) || 'Clique pra preencher' }}</span>
         </div>
         </div>
       </div>
@@ -3196,6 +3247,22 @@ onUnmounted(() => {
     font-weight: 500;
     overflow-wrap: break-word;
     &.empty { color: var(--text-muted); font-weight: 400; }
+  }
+  .lf-editable {
+    cursor: pointer;
+    border-radius: 4px;
+    padding: 1px 4px;
+    margin: -1px -4px;
+    &:hover { background: #fdf2f8; }
+    &.empty { font-style: italic; }
+  }
+  .lf-input {
+    font-size: 0.78rem;
+    padding: 2px 6px;
+    border: 1px solid #ff007f;
+    border-radius: 4px;
+    outline: none;
+    min-width: 0;
   }
 }
 
