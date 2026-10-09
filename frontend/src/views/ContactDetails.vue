@@ -9,6 +9,7 @@ import { useConversationsStore } from '../store/conversations'
 import { pickWhatsappInbox } from '../composables/useInboxPicker'
 import { statusLabel } from '../constants/regua'
 import { relativeTimeBR } from '../utils/relativeTime'
+import { useContactFields } from '../composables/useContactFields'
 
 const route = useRoute()
 const router = useRouter()
@@ -251,11 +252,13 @@ const RESERVED_CUSTOM_KEYS = [
   'status_cadastral_jueri', 'data_criacao_jueri', 'data_ultima_alteracao_jueri',
   'pedidos', 'telefones_adicionais'
 ]
+// Campos criados pela dona (cf_*) aparecem aqui com o nome bonito.
+const { labelOf } = useContactFields()
 const informacoesPersonalizadas = computed(() => {
   const custom = contact.value?.custom_attributes || {}
   return Object.keys(custom)
     .filter(k => !RESERVED_CUSTOM_KEYS.includes(k) && custom[k])
-    .map(k => ({ key: k, value: custom[k] }))
+    .map(k => ({ key: k, label: labelOf(k), value: custom[k] }))
 })
 
 const newNote = ref('')
@@ -516,7 +519,7 @@ const removeTag = async (tagId) => {
           <div v-show="activeTab === 'Informações'" class="attrs-tab">
             <div class="attrs-list" v-if="informacoesPersonalizadas.length > 0">
               <div class="attr-row" v-for="attr in informacoesPersonalizadas" :key="attr.key">
-                <span class="attr-label">{{ attr.key }}</span>
+                <span class="attr-label">{{ attr.label }}</span>
                 <span class="attr-value">{{ attr.value }}</span>
               </div>
             </div>

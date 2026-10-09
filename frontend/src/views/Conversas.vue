@@ -43,7 +43,7 @@ import Swal from 'sweetalert2'
 import { prepareImage } from '../utils/prepareImage'
 import { ALL_STATUS_LABELS, ACTIVE_STATUS_LABELS, INACTIVE_STATUS_LABELS, statusLabel } from '../constants/regua'
 import { nivelInfo } from '../constants/nivel'
-import { ASSIGNABLE_FIELDS } from '../constants/contactFields'
+import { useContactFields } from '../composables/useContactFields'
 
 import EmojiPicker from 'vue3-emoji-picker'
 import 'vue3-emoji-picker/css'
@@ -257,7 +257,8 @@ const daysInStage = (contact) => {
 // Campos do painel do lead — espelham o que a Clara Ferreira já usa no Kommo (aba Principal).
 // Guardados em custom_attributes (jsonb) pra não depender de migration nova agora; editáveis
 // via "Editar Contato" (já suporta atributos customizados livres).
-const principalFields = ASSIGNABLE_FIELDS
+// Fixos + campos criados pela dona (Configurações → Campos do Contato).
+const { allFields: principalFields, labelOf: fieldLabelOf } = useContactFields()
 const getAttr = (key) => store.activeConversation?.contact?.custom_attributes?.[key]
 
 // Grupos configuráveis (Configurações → Campos do Contato, 2026-09-28) — a
@@ -286,7 +287,7 @@ const toggleGroup = (id) => {
 // que continha ele foi apagado) — nunca deixa um campo sumir da tela.
 const unassignedFields = computed(() => {
   const assignedKeys = new Set(contactFieldGroups.value.flatMap(g => g.field_keys || []))
-  return principalFields.filter(f => !assignedKeys.has(f.key))
+  return principalFields.value.filter(f => !assignedKeys.has(f.key))
 })
 
 // "2026-11-01" sem hora é interpretado como meia-noite UTC — em GMT-3 isso
@@ -360,18 +361,18 @@ const getDadoValue = (f) => {
 // pedidos, dados da aba "Dados"). Mantém a lista de chaves reservadas espelhando
 // RESERVED_KEYS do EditContactModal.vue pra não exibir campo duplicado nem os
 // internos (telefones_adicionais, pedidos) aqui no painel Principal.
-const RESERVED_ATTR_KEYS = [
-  ...principalFields.map(f => f.key),
+const reservedAttrKeys = computed(() => [
+  ...principalFields.value.map(f => f.key),
   ...dadosFields.filter(f => f.source === 'attr').map(f => f.key),
   'pedidos', 'telefones_adicionais',
-]
+])
 const humanizeKey = (key) => key
   .replace(/_/g, ' ')
   .replace(/\b\w/g, (c) => c.toUpperCase())
 const extraAttributes = computed(() => {
   const custom = store.activeConversation?.contact?.custom_attributes || {}
   return Object.keys(custom)
-    .filter(k => !RESERVED_ATTR_KEYS.includes(k) && custom[k])
+    .filter(k => !reservedAttrKeys.value.includes(k) && custom[k])
     .map(k => ({ key: k, label: humanizeKey(k), value: custom[k] }))
 })
 
@@ -1221,7 +1222,7 @@ onUnmounted(() => {
             </div>
             <textarea
               v-model="newMessageText"
-              @keydown.enter.prevent="handleSendMessage"
+              @keydown.enter.exact.prevent="handleSendMessage"
               @paste="handlePaste"
               :placeholder="isPrivateMessage ? 'Digite uma nota privada... (dica: use / pra abrir um modelo salvo)' : 'Digite sua mensagem aqui... (dica: use / pra abrir um modelo salvo)'"
             ></textarea>
@@ -1395,7 +1396,7 @@ onUnmounted(() => {
         </div>
         <div class="card-body" v-if="openGroupIds.has(group.id)" style="padding-top: 0.5rem;">
         <div class="lead-field" v-for="key in group.field_keys" :key="key">
-          <span class="lf-label">{{ principalFields.find(f => f.key === key)?.label || key }}</span>
+          <span class="lf-label">{{ fieldLabelOf(key) }}</span>
           <span class="lf-value" :class="{ empty: !getAttr(key) }">{{ getAttr(key) || '...' }}</span>
         </div>
         <p v-if="!group.field_keys || group.field_keys.length === 0" class="empty-text">Nenhum campo neste grupo ainda.</p>
@@ -2395,6 +2396,11 @@ onUnmounted(() => {
     max-width: calc(100% - 36px);
   }
 
+  // Quebras de linha da mensagem (modelos com parágrafos, Shift+Enter)
+  // apareciam tudo emendado no balão — dona reportou, 2026-10-09.
+  .msg-text {
+    white-space: pre-wrap;
+  }
   .bubble {
     padding: 0.5rem 0.75rem 0.25rem 0.75rem;
     font-size: 0.95rem;

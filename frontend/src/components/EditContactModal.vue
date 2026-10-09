@@ -158,6 +158,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useConversationsStore } from '../store/conversations'
 import { isFullPortfolio as isFullPortfolioRole, isCriticalConfig } from '../config/roles'
 import Swal from 'sweetalert2'
+import { useContactFields } from '../composables/useContactFields'
 
 const props = defineProps({
   isOpen: Boolean,
@@ -186,25 +187,16 @@ onMounted(() => {
 
 // Campos da régua/revenda — espelham a aba Principal em Conversas.vue.
 // Ficam em custom_attributes (jsonb) pra não depender de migration nova.
-const REVENDA_FIELDS = [
-  { key: 'venda', label: 'Venda' },
-  { key: 'proximo_agendamento', label: 'Próximo agendamento' },
-  { key: 'limite_inicial', label: 'Limite Inicial' },
-  { key: 'dia_fechamento', label: 'Dia Fechamento' },
-  { key: 'data_agendamento', label: 'Data de Agendamento' },
-  { key: 'obs_fechamento', label: 'Obs Fechamento' },
-  { key: 'dia_pf_fechamento', label: 'Dia p/ Fechamento' },
-  { key: 'horario_fechamento', label: 'Horário de Fechamento' },
-  { key: 'atraso', label: 'Atraso' },
-  { key: 'observacao_mes', label: 'Observação do mês' },
-  { key: 'meta', label: 'Meta' },
-  { key: 'desafio_combinado', label: 'Desafio combinado para o mês' },
-  { key: 'como_chegar_meta', label: 'Como chegar na Meta' },
-]
-const revendaFieldPairs = []
-for (let i = 0; i < REVENDA_FIELDS.length; i += 2) {
-  revendaFieldPairs.push([REVENDA_FIELDS[i], REVENDA_FIELDS[i + 1]])
-}
+// Agora vem do composable: 13 fixos + campos criados pela dona em
+// Configurações → Campos do Contato (2026-10-09).
+const { allFields: REVENDA_FIELDS } = useContactFields()
+const revendaFieldPairs = computed(() => {
+  const pares = []
+  for (let i = 0; i < REVENDA_FIELDS.value.length; i += 2) {
+    pares.push([REVENDA_FIELDS.value[i], REVENDA_FIELDS.value[i + 1]])
+  }
+  return pares
+})
 
 const CADASTRO_KEYS = ['instagram', 'id_jueri', 'origem']
 // Campos sincronizados automaticamente do Jueri (JueriSyncService) — têm
@@ -221,7 +213,7 @@ const JUERI_CADASTRO_KEYS = [
   'local_trabalho', 'website_jueri', 'referencia_nome', 'referencia_telefone',
   'status_cadastral_jueri', 'data_criacao_jueri', 'data_ultima_alteracao_jueri',
 ]
-const RESERVED_KEYS = [...REVENDA_FIELDS.map(f => f.key), ...CADASTRO_KEYS, ...JUERI_CADASTRO_KEYS, 'pedidos', 'telefones_adicionais']
+const reservedKeys = () => [...REVENDA_FIELDS.value.map(f => f.key), ...CADASTRO_KEYS, ...JUERI_CADASTRO_KEYS, 'pedidos', 'telefones_adicionais']
 
 const formData = ref({
   name: '',
@@ -257,7 +249,7 @@ watch(() => props.contact, (newContact) => {
   if (newContact) {
     const custom = newContact.custom_attributes || {}
     const revenda = {}
-    REVENDA_FIELDS.forEach(f => { revenda[f.key] = custom[f.key] || '' })
+    REVENDA_FIELDS.value.forEach(f => { revenda[f.key] = custom[f.key] || '' })
     const cadastro = {}
     CADASTRO_KEYS.forEach(k => { cadastro[k] = custom[k] || '' })
 
@@ -287,7 +279,7 @@ watch(() => props.contact, (newContact) => {
         ? newContact.reseller_phones.map(rp => ({ label: rp.label || '', numero: rp.phone }))
         : (Array.isArray(custom.telefones_adicionais) ? custom.telefones_adicionais.map(t => ({ ...t })) : []),
       customAttributesArray: Object.keys(custom)
-        .filter(k => !RESERVED_KEYS.includes(k))
+        .filter(k => !reservedKeys().includes(k))
         .map(k => ({ key: k, value: custom[k] })),
       _originalCustomAttributes: custom
     }
@@ -308,9 +300,11 @@ const save = async () => {
   // e sobrescreve só o que o modal edita.
   const custom_attributes = { ...(dataToSave._originalCustomAttributes || {}) }
   Object.keys(custom_attributes).forEach(k => {
-    if (!RESERVED_KEYS.includes(k)) delete custom_attributes[k]
+    if (!reservedKeys().includes(k)) delete custom_attributes[k]
   })
-  REVENDA_FIELDS.forEach(f => {
+  REVENDA_FIELDS.value.forEach(f => {
+    // Campo que não estava carregado quando o modal abriu: mantém o valor salvo.
+    if (dataToSave.revenda[f.key] === undefined) return
     if (dataToSave.revenda[f.key]) custom_attributes[f.key] = dataToSave.revenda[f.key]
     else delete custom_attributes[f.key]
   })

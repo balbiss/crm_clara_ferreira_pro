@@ -19,6 +19,12 @@ class ContactFieldGroup < ApplicationRecord
 
   scope :ordered, -> { order(:position, :id) }
 
+  # Campos fixos + os que a dona criou (accounts.contact_custom_fields) —
+  # Jueri continua fora, criado sempre com prefixo "cf_".
+  def self.assignable_keys_for(account)
+    ASSIGNABLE_FIELD_KEYS + Array(account.contact_custom_fields).map { |f| f['key'] }
+  end
+
   def self.seed_default_for(account)
     return if account.contact_field_groups.exists?
     account.contact_field_groups.create!(

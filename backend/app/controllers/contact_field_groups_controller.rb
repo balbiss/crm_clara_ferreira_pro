@@ -48,7 +48,7 @@ class ContactFieldGroupsController < ApplicationController
     def group_params
       permitted = params.require(:contact_field_group).permit(:name, field_keys: [])
       if permitted[:field_keys]
-        permitted[:field_keys] = permitted[:field_keys] & ContactFieldGroup::ASSIGNABLE_FIELD_KEYS
+        permitted[:field_keys] = permitted[:field_keys] & ContactFieldGroup.assignable_keys_for(current_user.account)
       end
       permitted
     end

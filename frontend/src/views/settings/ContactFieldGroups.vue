@@ -3,7 +3,9 @@ import { ref, onMounted } from 'vue'
 import { Plus, Trash2, X } from 'lucide-vue-next'
 import api from '../../api'
 import Swal from 'sweetalert2'
-import { ASSIGNABLE_FIELDS, fieldLabel } from '../../constants/contactFields'
+import { useContactFields } from '../../composables/useContactFields'
+
+const { customFields, allFields, labelOf: fieldLabel, reloadCustomFields } = useContactFields()
 
 const groups = ref([])
 const isLoading = ref(false)
@@ -28,7 +30,7 @@ onMounted(fetchGroups)
 // escondido em "Outros" na tela de conversa, e pra oferecer no seletor).
 const unassignedKeys = () => {
   const assigned = new Set(groups.value.flatMap(g => g.field_keys || []))
-  return ASSIGNABLE_FIELDS.map(f => f.key).filter(k => !assigned.has(k))
+  return allFields.value.map(f => f.key).filter(k => !assigned.has(k))
 }
 
 const groupOwning = (key) => groups.value.find(g => (g.field_keys || []).includes(key))
@@ -101,6 +103,39 @@ const addFieldToGroup = async (group, key) => {
   }
 }
 
+// Campo novo criado pela dona (ex: "Mais vende", "Precisa ter na maleta") —
+// depois de criado aparece no "+ Adicionar campo..." de qualquer grupo.
+const newFieldLabel = ref('')
+const isCreatingField = ref(false)
+const createField = async () => {
+  const label = newFieldLabel.value.trim()
+  if (!label || isCreatingField.value) return
+  isCreatingField.value = true
+  try {
+    await api.post('/contact_custom_fields', { label })
+    newFieldLabel.value = ''
+    await reloadCustomFields()
+    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `Campo "${label}" criado. Agora coloque ele num grupo.`, showConfirmButton: false, timer: 3500 })
+  } catch (error) {
+    console.error('Erro ao criar campo:', error)
+    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: error.response?.data?.message || 'Erro ao criar campo.', showConfirmButton: false, timer: 3500 })
+  } finally {
+    isCreatingField.value = false
+  }
+}
+
+const deleteField = async (field) => {
+  if (!confirm(`Apagar o campo "${field.label}"? Ele some da tela, mas o que já foi preenchido nas revendedoras não é apagado.`)) return
+  try {
+    await api.delete(`/contact_custom_fields/${field.key}`)
+    await reloadCustomFields()
+    groups.value.forEach(g => { g.field_keys = (g.field_keys || []).filter(k => k !== field.key) })
+  } catch (error) {
+    console.error('Erro ao apagar campo:', error)
+    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Erro ao apagar campo.', showConfirmButton: false, timer: 3500 })
+  }
+}
+
 const optionLabelFor = (key) => {
   const owner = groupOwning(key)
   return owner ? `${fieldLabel(key)} (em: ${owner.name})` : fieldLabel(key)
@@ -119,6 +154,24 @@ const optionLabelFor = (key) => {
           <Plus class="icon-sm" /> Novo Grupo
         </button>
       </div>
+    </div>
+
+    <div class="group-card custom-fields-card">
+      <h3 class="custom-fields-title">Campos criados por você</h3>
+      <p class="custom-fields-hint">Precisa de uma informação que não está na lista (ex: "Mais vende", "Precisa ter na maleta")? Crie aqui e depois coloque no grupo que quiser.</p>
+      <div class="field-chips">
+        <span v-if="customFields.length === 0" class="empty-hint">Nenhum campo criado ainda.</span>
+        <span v-for="f in customFields" :key="f.key" class="field-chip">
+          {{ f.label }}
+          <button class="chip-remove" title="Apagar campo" @click="deleteField(f)"><X class="icon-xxs" /></button>
+        </span>
+      </div>
+      <form class="new-field-row" @submit.prevent="createField">
+        <input v-model="newFieldLabel" type="text" class="group-name-input" maxlength="60" placeholder="Nome do novo campo" />
+        <button class="btn-primary" type="submit" :disabled="!newFieldLabel.trim() || isCreatingField">
+          <Plus class="icon-sm" /> Criar campo
+        </button>
+      </form>
     </div>
 
     <div v-if="isLoading" class="empty-state">Carregando...</div>
@@ -151,7 +204,7 @@ const optionLabelFor = (key) => {
           @change="addFieldToGroup(group, $event.target.value)"
         >
           <option value="" disabled selected>+ Adicionar campo...</option>
-          <option v-for="f in ASSIGNABLE_FIELDS" :key="f.key" :value="f.key">{{ optionLabelFor(f.key) }}</option>
+          <option v-for="f in allFields" :key="f.key" :value="f.key">{{ optionLabelFor(f.key) }}</option>
         </select>
       </div>
 
@@ -224,4 +277,9 @@ const optionLabelFor = (key) => {
   font-size: 0.8rem; color: var(--text-muted); background: var(--bg-secondary);
   border: 1px dashed var(--border-color); border-radius: 8px; padding: 0.75rem 1rem;
 }
+.custom-fields-card { margin-bottom: 1.5rem; }
+.custom-fields-title { margin: 0 0 0.25rem; font-size: 1rem; color: var(--text-main); }
+.custom-fields-hint { margin: 0 0 0.75rem; font-size: 0.85rem; color: var(--text-muted); }
+.new-field-row { display: flex; gap: 0.5rem; margin-top: 0.75rem; align-items: center; }
+.new-field-row .group-name-input { flex: 1; }
 </style>
