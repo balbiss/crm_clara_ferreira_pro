@@ -75,6 +75,42 @@ class MessagesController < ApplicationController
     end
   end
 
+  # Botão "T" ao lado do áudio no chat: transcreve sob demanda e guarda em
+  # messages.transcription (o text original não é tocado). Se já foi
+  # transcrito, devolve o salvo sem chamar a OpenAI de novo.
+  def transcribe
+    conversation = current_user.account.conversations.find(params[:conversation_id])
+    message = conversation.messages.find(params[:id])
+
+    if message.transcription.present?
+      return render json: { transcription: message.transcription }
+    end
+
+    unless message.attachment.attached? && message.attachment.content_type.to_s.start_with?('audio/')
+      return render json: { error: 'Essa mensagem não tem áudio.' }, status: :unprocessable_entity
+    end
+
+    if AiAssistantService.transcription_api_key.blank?
+      return render json: { error: 'Transcrição indisponível: chave da IA não configurada.' }, status: :unprocessable_entity
+    end
+
+    extension = message.attachment.filename.extension.presence ||
+                message.attachment.content_type.split('/').last.split(';').first
+    text = AiAssistantService.transcribe_audio(message.attachment.download, "audio_#{message.id}.#{extension}", conversation.inbox)
+
+    if text.blank?
+      return render json: { error: 'Não foi possível entender o áudio.' }, status: :unprocessable_entity
+    end
+
+    message.update_column(:transcription, text.strip)
+    render json: { transcription: message.transcription }
+  rescue ActiveRecord::RecordNotFound
+    render json: { error: 'Mensagem não encontrada.' }, status: :not_found
+  rescue StandardError => e
+    Rails.logger.error("Falha ao transcrever mensagem #{params[:id]}: #{e.class} #{e.message}")
+    render json: { error: 'Falha ao transcrever o áudio. Tente de novo.' }, status: :unprocessable_entity
+  end
+
   private
 
   # Assinatura com o nome de quem respondeu (chave "Assinar mensagens" da

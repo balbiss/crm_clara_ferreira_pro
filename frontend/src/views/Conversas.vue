@@ -812,6 +812,23 @@ const applyTemplate = async (template) => {
   }
 }
 
+// Botão "T" ao lado do áudio (igual Kommo): transcreve sob demanda. O texto
+// fica salvo no backend, então quem abrir a conversa depois já vê pronto.
+const transcribingIds = ref({})
+const transcribeAudio = async (msg) => {
+  if (transcribingIds.value[msg.id]) return
+  transcribingIds.value[msg.id] = true
+  try {
+    const { data } = await api.post(`/conversations/${store.activeConversation.id}/messages/${msg.id}/transcribe`)
+    msg.transcription = data.transcription
+  } catch (error) {
+    const motivo = error.response?.data?.error || 'Falha ao transcrever o áudio.'
+    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: motivo, showConfirmButton: false, timer: 4000 })
+  } finally {
+    delete transcribingIds.value[msg.id]
+  }
+}
+
 // Gravação de áudio na hora — MediaRecorder nativo do navegador, igual ao
 // microfone do WhatsApp Web. Clica pra gravar, clica de novo pra enviar (ou
 // no X pra cancelar sem enviar).
@@ -1155,15 +1172,26 @@ onUnmounted(() => {
                 <a v-if="msg.attachmentType && msg.attachmentType.startsWith('image/')" :href="msg.attachmentUrl" target="_blank" title="Clique para ampliar" class="image-link">
                   <img :src="msg.attachmentUrl" class="msg-image" @load="scrollToBottom" />
                 </a>
-                <audio v-else-if="msg.attachmentType && msg.attachmentType.startsWith('audio/')" :src="msg.attachmentUrl" controls class="msg-audio"></audio>
+                <div v-else-if="msg.attachmentType && msg.attachmentType.startsWith('audio/')" class="audio-row">
+                  <audio :src="msg.attachmentUrl" controls class="msg-audio"></audio>
+                  <button
+                    v-if="!msg.transcription"
+                    class="transcribe-btn"
+                    :class="{ loading: transcribingIds[msg.id] }"
+                    :disabled="transcribingIds[msg.id]"
+                    :title="transcribingIds[msg.id] ? 'Transcrevendo...' : 'Transcrever áudio'"
+                    @click="transcribeAudio(msg)"
+                  >{{ transcribingIds[msg.id] ? '…' : 'T' }}</button>
+                </div>
                 <div v-else-if="msg.attachmentType && msg.attachmentType.startsWith('video/')" class="video-wrapper">
                   <video :src="msg.attachmentUrl" controls class="msg-video" @loadeddata="scrollToBottom"></video>
                   <a :href="msg.attachmentUrl" target="_blank" download class="media-download-link">Baixar Vídeo</a>
                 </div>
                 <a v-else :href="msg.attachmentUrl" target="_blank" class="msg-doc">📎 Ver Anexo</a>
               </div>
+              <div v-if="msg.transcription" class="msg-transcription">{{ msg.transcription }}</div>
               <div v-if="msg.text" class="msg-text">{{ msg.text }}</div>
-              
+
               <div class="bubble-meta">
                 <span class="time">{{ formatMessageTime(msg.timestamp) }}</span>
                 <CheckCheck v-if="msg.senderType === 'agent'" class="icon-xxs" />
@@ -2482,6 +2510,43 @@ onUnmounted(() => {
       .msg-audio {
         width: 100%;
         max-width: 250px;
+      }
+
+      .audio-row {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+
+      .transcribe-btn {
+        flex-shrink: 0;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        border: 1px solid rgba(0,0,0,0.15);
+        background: rgba(255,255,255,0.7);
+        color: #555;
+        font-weight: 700;
+        font-size: 0.85rem;
+        cursor: pointer;
+      }
+
+      .transcribe-btn:hover:not(:disabled) {
+        background: #fff;
+        color: #2b0016;
+      }
+
+      .transcribe-btn.loading {
+        cursor: wait;
+        opacity: 0.6;
+      }
+
+      .msg-transcription {
+        font-size: 0.85rem;
+        font-style: italic;
+        white-space: pre-wrap;
+        padding: 0.4rem 0.6rem 0;
+        opacity: 0.85;
       }
 
       .video-wrapper {

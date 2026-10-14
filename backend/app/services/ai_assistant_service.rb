@@ -9,8 +9,15 @@ class AiAssistantService
     @client = OpenAI::Client.new(access_token: api_key)
   end
 
+  # Chave só de transcrição (OPENAI_TRANSCRIBE_API_KEY) tem prioridade: dá pra
+  # ligar o botão "T" sem configurar OPENAI_API_KEY, que acordaria a IA de
+  # atendimento em toda caixa com ai_enabled.
+  def self.transcription_api_key
+    ENV['OPENAI_TRANSCRIBE_API_KEY'].presence || GlobalSetting.fetch('openai_api_key').presence || ENV['OPENAI_API_KEY']
+  end
+
   def self.transcribe_audio(media_data, filename, inbox)
-    api_key = GlobalSetting.fetch('openai_api_key').presence || ENV['OPENAI_API_KEY']
+    api_key = transcription_api_key
     client = OpenAI::Client.new(access_token: api_key)
 
     # Precisamos criar um arquivo temporário para enviar pro multipart faraday da OpenAI
@@ -21,7 +28,8 @@ class AiAssistantService
 
     response = client.audio.transcribe(
       parameters: {
-        model: "whisper-1",
+        model: ENV['OPENAI_TRANSCRIBE_MODEL'].presence || "gpt-4o-mini-transcribe",
+        language: "pt",
         file: File.open(tempfile.path, "rb")
       }
     )

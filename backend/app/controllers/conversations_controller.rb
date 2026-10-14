@@ -485,7 +485,8 @@ class ConversationsController < ApplicationController
           agentAvatarUrl: msg.sender_type == 'User' ? users_hash[msg.sender_id]&.avatar_url : nil,
           isPrivate: msg.is_private,
           attachmentUrl: msg.attachment.attached? ? Rails.application.routes.url_helpers.rails_storage_proxy_url(msg.attachment, host: ENV['API_HOST'] || 'http://localhost:3000') : nil,
-          attachmentType: msg.attachment.attached? ? msg.attachment.content_type : nil
+          attachmentType: msg.attachment.attached? ? msg.attachment.content_type : nil,
+          transcription: msg.transcription
         }
       end,
       assignee: conv.user&.first_name,
