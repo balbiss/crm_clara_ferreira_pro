@@ -44,7 +44,7 @@ class MessagesController < ApplicationController
           chat_id = conversation.contact.jid
           Rails.cache.write("sending_from_crm_#{conversation.inbox.id}_#{chat_id}", true, expires_in: 20.seconds) if chat_id.present?
 
-          external_id = conversation.inbox.messaging_service.send_message(recipient, message.text, message.attachment)
+          external_id = conversation.inbox.messaging_service.send_message(recipient, signed_text(conversation.inbox, message.text), message.attachment)
           # Guarda o id retornado pela API como source_id — sem isso o eco
           # dessa mesma mensagem (fromMe: true) que chega depois pelo webhook
           # não encontra nenhum Message correspondente, e é tratado como
@@ -73,5 +73,21 @@ class MessagesController < ApplicationController
     else
       render json: { errors: message.errors }, status: :unprocessable_entity
     end
+  end
+
+  private
+
+  # Assinatura com o nome de quem respondeu (chave "Assinar mensagens" da
+  # caixa). Só vai pro WhatsApp/Instagram — no banco e no chat do CRM o texto
+  # fica limpo. Sem texto (áudio/anexo sem legenda) não assina.
+  def signed_text(inbox, text)
+    return text unless inbox.sign_messages && text.to_s.strip.present?
+
+    name = current_user.first_name.to_s.strip
+    return text if name.blank?
+
+    # Instagram não formata *negrito*, sairia com os asteriscos.
+    header = inbox.provider == 'instagram' ? "#{name}:" : "*#{name}:*"
+    "#{header}\n#{text}"
   end
 end

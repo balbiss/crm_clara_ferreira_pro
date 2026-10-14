@@ -109,7 +109,8 @@ const saveSettings = async () => {
         followup_send_closing_message: inbox.value.followup_send_closing_message,
         followup_closing_message: inbox.value.followup_closing_message,
         round_robin_group_id: inbox.value.round_robin_group_id,
-        restrict_by_portfolio: inbox.value.restrict_by_portfolio
+        restrict_by_portfolio: inbox.value.restrict_by_portfolio,
+        sign_messages: inbox.value.sign_messages
       }
     })
     Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Configurações salvas!', showConfirmButton: false, timer: 3000 })
@@ -238,6 +239,17 @@ const handlePdfUpload = async (event) => {
             <div>
               <strong style="display: block; color: var(--text-main); font-size: 1rem; margin-bottom: 0.25rem;">Restringir por carteira</strong>
               <p style="margin: 0; color: var(--text-muted); font-size: 0.85rem;">Ligado: quem tem acesso a esta caixa (aba Agentes) só vê as conversas das revendedoras que já são da carteira dela, ou que ainda não têm ninguém responsável. Desligado: quem tem acesso vê todas as conversas da caixa, de qualquer revendedora (use assim pra caixas como Marketing ou Gerência).</p>
+            </div>
+          </div>
+
+          <div class="enable-hours-toggle" style="margin-bottom: 2rem;">
+            <label class="toggle-switch">
+              <input type="checkbox" v-model="inbox.sign_messages">
+              <span class="slider"></span>
+            </label>
+            <div>
+              <strong style="display: block; color: var(--text-main); font-size: 1rem; margin-bottom: 0.25rem;">Assinar mensagens com o nome de quem respondeu</strong>
+              <p style="margin: 0; color: var(--text-muted); font-size: 0.85rem;">Ligado: a revendedora recebe o primeiro nome de quem respondeu em negrito, em cima da mensagem (ex: <strong>*Bel:*</strong>). Vale só pras mensagens digitadas no CRM — respostas da IA, follow-up e mensagens agendadas não são assinadas. O nome usado é o primeiro nome do cadastro em Configurações → Agentes.</p>
             </div>
           </div>
 
