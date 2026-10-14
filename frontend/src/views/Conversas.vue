@@ -86,6 +86,105 @@ const backToList = () => {
   mobileView.value = 'list'
 }
 
+// Pesquisa da lista (igual Kommo): nome/telefone da revendedora + texto das
+// mensagens, no backend (GET /conversations/search) — a lista carregada no
+// navegador não tem todas as conversas nem todo o histórico.
+const searchQuery = ref('')
+const searchResults = ref(null)
+const isSearching = ref(false)
+const highlightedMessageId = ref(null)
+const isSearchActive = computed(() => searchQuery.value.trim().length >= 2)
+let searchTimeout = null
+let searchSeq = 0
+
+watch(searchQuery, (q) => {
+  clearTimeout(searchTimeout)
+  if (q.trim().length < 2) { searchResults.value = null; return }
+  searchTimeout = setTimeout(async () => {
+    const seq = ++searchSeq
+    isSearching.value = true
+    try {
+      const { data } = await api.get('/conversations/search', { params: { q: q.trim() } })
+      if (seq === searchSeq) searchResults.value = data
+    } catch (e) {
+      console.error('Erro na pesquisa:', e)
+      if (seq === searchSeq) searchResults.value = { conversations: [], messages: [] }
+    } finally {
+      if (seq === searchSeq) isSearching.value = false
+    }
+  }, 400)
+})
+
+const clearSearch = () => {
+  searchQuery.value = ''
+  searchResults.value = null
+}
+
+const normalizar = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+
+// Corta um trecho em volta da primeira palavra encontrada e marca as palavras
+// pesquisadas (sem acento, igual o backend).
+const highlightParts = (text) => {
+  const original = text || ''
+  const palavras = normalizar(searchQuery.value).split(/\s+/).filter(Boolean)
+  const norm = normalizar(original)
+  let inicio = 0
+  const primeira = palavras.length ? norm.indexOf(palavras[0]) : -1
+  if (primeira > 60) inicio = primeira - 40
+  const fim = Math.min(original.length, inicio + 180)
+  const trecho = (inicio > 0 ? '…' : '') + original.slice(inicio, fim) + (fim < original.length ? '…' : '')
+  const trechoNorm = normalizar(trecho)
+
+  const marcas = new Array(trecho.length).fill(false)
+  palavras.forEach(p => {
+    let idx = trechoNorm.indexOf(p)
+    while (idx !== -1) {
+      for (let i = idx; i < idx + p.length; i++) marcas[i] = true
+      idx = trechoNorm.indexOf(p, idx + p.length)
+    }
+  })
+  const parts = []
+  for (let i = 0; i < trecho.length; i++) {
+    const last = parts[parts.length - 1]
+    if (last && last.hit === marcas[i]) last.text += trecho[i]
+    else parts.push({ text: trecho[i], hit: marcas[i] })
+  }
+  return parts
+}
+
+const formatSearchDate = (iso) => {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const hoje = new Date()
+  if (d.toDateString() === hoje.toDateString()) {
+    return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  }
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: d.getFullYear() === hoje.getFullYear() ? undefined : '2-digit' })
+}
+
+const openSearchResult = async (convId, messageId = null) => {
+  if (!store.conversations.some(c => c.id === convId)) {
+    try {
+      const { data } = await api.get(`/conversations/${convId}`)
+      store.conversations.push(data)
+    } catch (e) {
+      Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Não foi possível abrir essa conversa.', showConfirmButton: false, timer: 3500 })
+      return
+    }
+  }
+  openConversationMobile(convId)
+  if (!messageId) return
+
+  highlightedMessageId.value = messageId
+  // Espera o chat abrir e rolar pro fim sozinho, depois leva até a mensagem.
+  setTimeout(() => {
+    document.getElementById(`msg-${messageId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, 500)
+  setTimeout(() => {
+    if (highlightedMessageId.value === messageId) highlightedMessageId.value = null
+  }, 4000)
+}
+
 const isScheduleModalOpen = ref(false)
 const scheduledMessages = ref([])
 
@@ -1045,7 +1144,17 @@ onUnmounted(() => {
           </div>
         </div>
         
-        <div class="tabs">
+        <div class="conv-search">
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Pesquisar nome, telefone ou mensagem..."
+            @keydown.esc="clearSearch"
+          />
+          <button v-if="searchQuery" class="conv-search-clear" title="Limpar pesquisa" @click="clearSearch"><X class="icon-xxs" /></button>
+        </div>
+
+        <div class="tabs" v-show="!isSearchActive">
           <button
             :class="['tab', { active: store.currentFilter === 'all' }]"
             @click="store.setFilter('all')"
@@ -1073,9 +1182,50 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <div class="conv-list">
-        <div 
-          v-for="conv in store.filteredConversations" 
+      <div class="conv-list search-results" v-if="isSearchActive">
+        <div v-if="isSearching && !searchResults" class="all-loaded">Pesquisando...</div>
+        <template v-else-if="searchResults">
+          <div v-if="searchResults.conversations.length" class="search-section-title">Revendedoras</div>
+          <div
+            v-for="r in searchResults.conversations"
+            :key="'c' + r.conversation_id"
+            class="search-result"
+            @click="openSearchResult(r.conversation_id)"
+          >
+            <div class="search-result-top">
+              <strong>{{ r.contact_name }}</strong>
+              <span class="search-result-date">{{ formatSearchDate(r.last_activity_iso) }}</span>
+            </div>
+            <div class="search-result-sub">{{ r.contact_phone }}<span v-if="r.inbox_name"> · 📱 {{ r.inbox_name }}</span><span v-if="r.status === 'resolved'"> · Resolvida</span></div>
+          </div>
+
+          <div v-if="searchResults.messages.length" class="search-section-title">Mensagens</div>
+          <div
+            v-for="m in searchResults.messages"
+            :key="'m' + m.id"
+            class="search-result"
+            @click="openSearchResult(m.conversation_id, m.id)"
+          >
+            <div class="search-result-top">
+              <strong>{{ m.contact_name }}</strong>
+              <span class="search-result-date">{{ formatSearchDate(m.timestamp) }}</span>
+            </div>
+            <div class="search-result-snippet">
+              <span v-if="m.sender" class="search-result-sender">{{ m.sender }}: </span>
+              <template v-for="(part, i) in highlightParts(m.text)" :key="i"><mark v-if="part.hit">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template>
+            </div>
+            <div class="search-result-sub" v-if="m.inbox_name">📱 {{ m.inbox_name }}</div>
+          </div>
+
+          <div v-if="!searchResults.conversations.length && !searchResults.messages.length" class="all-loaded" style="margin-top: 2rem;">
+            Nada encontrado para "{{ searchQuery }}".
+          </div>
+        </template>
+      </div>
+
+      <div class="conv-list" v-show="!isSearchActive">
+        <div
+          v-for="conv in store.filteredConversations"
           :key="conv.id" 
           :class="['conv-item', { unread: conv.unread > 0, active: conv.id === store.activeConversationId }]"
           @click="openConversationMobile(conv.id)"
@@ -1162,7 +1312,7 @@ onUnmounted(() => {
 
       <div class="chat-messages" ref="messagesContainerRef" v-if="store.activeConversation">
         
-        <div class="message-wrapper" v-for="msg in store.activeConversation.messages" :key="msg.id" :class="msg.senderType">
+        <div class="message-wrapper" v-for="msg in store.activeConversation.messages" :key="msg.id" :id="'msg-' + msg.id" :class="[msg.senderType, { 'search-hit': highlightedMessageId === msg.id }]">
           
           <div class="msg-avatar" v-if="msg.senderType === 'contact'">
             <img v-if="store.activeConversation.contact.avatar_url" :src="store.activeConversation.contact.avatar_url" />
@@ -1938,6 +2088,104 @@ onUnmounted(() => {
     display: flex;
     gap: 0.25rem;
   }
+}
+
+.conv-search {
+  position: relative;
+  margin-bottom: 0.75rem;
+
+  input {
+    width: 100%;
+    padding: 0.5rem 2rem 0.5rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    background: var(--bg-main, #fff);
+    color: var(--text-main);
+  }
+
+  input:focus {
+    outline: none;
+    border-color: #cc0066;
+  }
+
+  .conv-search-clear {
+    position: absolute;
+    right: 0.4rem;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    padding: 0.2rem;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+
+    .icon-xxs { width: 14px; height: 14px; }
+  }
+}
+
+.search-results {
+  .search-section-title {
+    padding: 0.6rem 1rem 0.3rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .search-result {
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+
+    &:hover { background: rgba(204, 0, 102, 0.05); }
+  }
+
+  .search-result-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-main);
+  }
+
+  .search-result-date {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+  }
+
+  .search-result-snippet {
+    margin-top: 0.2rem;
+    font-size: 0.8rem;
+    color: var(--text-main);
+    line-height: 1.35;
+    word-break: break-word;
+
+    mark {
+      background: #ffe08a;
+      color: inherit;
+      border-radius: 2px;
+      padding: 0 1px;
+    }
+  }
+
+  .search-result-sender {
+    font-weight: 600;
+  }
+
+  .search-result-sub {
+    margin-top: 0.15rem;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+  }
+}
+
+.message-wrapper.search-hit .bubble {
+  box-shadow: 0 0 0 3px #ffd54f;
+  transition: box-shadow 0.3s;
 }
 
 .tabs {

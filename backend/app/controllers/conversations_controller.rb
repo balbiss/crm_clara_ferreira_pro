@@ -66,6 +66,55 @@ class ConversationsController < ApplicationController
     render json: { error: 'not_found', message: 'Revendedora não encontrada ou fora da sua carteira.' }, status: :not_found
   end
 
+  # GET /conversations/search?q= — busca da lista de conversas (pedido da
+  # Clara, igual Kommo): procura no nome/telefone da revendedora E no texto
+  # das mensagens (inclui transcrição de áudio), sem acento, todas as
+  # palavras na mesma mensagem. Respeita a mesma visibilidade da lista.
+  def search
+    termo = params[:q].to_s.strip
+    return render json: { conversations: [], messages: [] } if termo.length < 2
+
+    visible_ids = visible_conversations_scope.select(:id)
+    users_hash = current_user.account.users.index_by(&:id)
+
+    contact_ids = Contact.where(account_id: current_user.account_id).search_by_name_or_phone(termo).select(:id)
+    convs = current_user.account.conversations
+      .where(id: visible_ids, contact_id: contact_ids)
+      .includes(:contact, :inbox)
+      .order(last_activity_at: :desc).limit(15)
+
+    palavras = termo.downcase.tr(Contact::ACENTOS_DE, Contact::ACENTOS_PARA).split
+    texto_sql = "translate(lower(coalesce(messages.text, '') || ' ' || coalesce(messages.transcription, '')), " \
+                "'#{Contact::ACENTOS_DE}', '#{Contact::ACENTOS_PARA}')"
+    msgs = Message.where(account_id: current_user.account_id, conversation_id: visible_ids)
+    palavras.each { |p| msgs = msgs.where("#{texto_sql} LIKE ?", "%#{Message.sanitize_sql_like(p)}%") }
+    msgs = msgs.includes(conversation: [:contact, :inbox]).order(created_at: :desc).limit(40)
+
+    render json: {
+      conversations: convs.map { |c|
+        {
+          conversation_id: c.id,
+          contact_name: c.contact&.name.presence || c.contact&.phone,
+          contact_phone: c.contact&.phone,
+          inbox_name: c.inbox&.name,
+          status: c.status,
+          last_activity_iso: (c.last_activity_at || c.created_at).iso8601
+        }
+      },
+      messages: msgs.map { |m|
+        {
+          id: m.id,
+          conversation_id: m.conversation_id,
+          contact_name: m.conversation.contact&.name.presence || m.conversation.contact&.phone,
+          inbox_name: m.conversation.inbox&.name,
+          text: m.text.to_s.start_with?('📎') && m.transcription.present? ? m.transcription : [m.text, m.transcription].compact_blank.join(' — '),
+          sender: m.sender_type == 'User' ? (users_hash[m.sender_id]&.first_name || 'Equipe') : nil,
+          timestamp: m.created_at.iso8601
+        }
+      }
+    }
+  end
+
   def show
     conversation = visible_conversations_scope
       .includes(:user, :tags, :inbox, messages: { attachment_attachment: :blob }, contact: { notes: :user, pedidos: {}, reseller_phones: {}, lifecycle_events: {} })

@@ -55,6 +55,7 @@ Rails.application.routes.draw do
   get 'dashboard', to: 'dashboard#index'
   
   resources :conversations, only: [:index, :show, :create, :update, :destroy] do
+    collection { get :search }
     resources :messages, only: [:index, :create] do
       member { post :transcribe }
     end
