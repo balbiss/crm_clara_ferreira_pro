@@ -84,8 +84,12 @@ export const useConversationsStore = defineStore('conversations', {
         (c.messages && c.messages.length > 0) || c.id === state.activeConversationId
       )
 
-      // Sort Status filter
-      if (state.sortStatus !== 'all') {
+      // Sort Status filter — se o filtro avançado (funil) já escolhe um
+      // status, ele manda: antes os dois somavam, e com o ⇅ no padrão
+      // "Abertas" escolher "Resolvidas" no funil dava lista vazia (Clara,
+      // 2026-10).
+      const advancedStatus = state.advancedFilters?.some(f => f.attribute === 'status' && f.operator && f.value)
+      if (!advancedStatus && state.sortStatus !== 'all') {
         filtered = filtered.filter(c => c.status === state.sortStatus)
       }
 
@@ -134,6 +138,7 @@ export const useConversationsStore = defineStore('conversations', {
             let actualValue;
             
             if (filter.attribute === 'status') {
+              if (filter.value === 'all') return filter.operator !== 'not_equal_to'
               actualValue = c.status;
             } else if (filter.attribute === 'assignee') {
               // Antes comparava c.assignee (NOME do responsável — dois

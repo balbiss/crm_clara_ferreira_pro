@@ -58,7 +58,8 @@ const getValuesForAttribute = (attr) => {
     return [
       { value: 'open', label: 'Abertas' },
       { value: 'resolved', label: 'Resolvidas' },
-      { value: 'snoozed', label: 'Adiadas' }
+      { value: 'snoozed', label: 'Adiadas' },
+      { value: 'all', label: 'Todas' }
     ]
   }
   if (attr === 'assignee') {
