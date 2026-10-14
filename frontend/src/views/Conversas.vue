@@ -2635,7 +2635,8 @@ onUnmounted(() => {
       }
     }
 
-    .bubble:hover .forward-btn { opacity: 1; }
+    // & = o próprio .bubble (este bloco está aninhado dentro dele).
+    &:hover .forward-btn { opacity: 1; }
 
     @media (hover: none) {
       .bubble-meta .forward-btn { opacity: 0.8; }
