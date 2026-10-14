@@ -19,6 +19,18 @@ class MessagesController < ApplicationController
     
     if params[:attachment].present?
       message.attachment.attach(params[:attachment])
+    elsif params[:forward_message_id].present?
+      # Encaminhar: copia o anexo (áudio/foto/documento) de uma mensagem já
+      # existente da conta. Cópia e não o mesmo blob, pra apagar uma conversa
+      # nunca levar junto o arquivo da outra.
+      source = Message.where(account_id: current_user.account_id).find(params[:forward_message_id])
+      if source.attachment.attached?
+        message.attachment.attach(
+          io: StringIO.new(source.attachment.download),
+          filename: source.attachment.filename.to_s,
+          content_type: source.attachment.content_type
+        )
+      end
     end
 
     begin

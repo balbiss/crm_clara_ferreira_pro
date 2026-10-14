@@ -35,7 +35,8 @@ import {
   Bot,
   Mic,
   Square,
-  Pencil
+  Pencil,
+  Forward
 } from '@lucide/vue'
 
 import api from '../api'
@@ -55,6 +56,7 @@ import NewConversationModal from '../components/NewConversationModal.vue'
 import DeleteConversationModal from '../components/DeleteConversationModal.vue'
 import ScheduleMessageModal from '../components/ScheduleMessageModal.vue'
 import TransferModal from '../components/TransferModal.vue'
+import ForwardMessageModal from '../components/ForwardMessageModal.vue'
 
 const store = useConversationsStore()
 const route = useRoute()
@@ -144,6 +146,7 @@ const agentsByDepartment = computed(() => {
 
 const isAssigning = ref(false)
 const showTransferModal = ref(false)
+const forwardingMessage = ref(null)
 
 const handleAssign = async (userId) => {
   if (!store.activeConversation) return
@@ -1193,6 +1196,12 @@ onUnmounted(() => {
               <div v-if="msg.text" class="msg-text">{{ msg.text }}</div>
 
               <div class="bubble-meta">
+                <button
+                  v-if="!msg.isPrivate && (msg.attachmentUrl || msg.text)"
+                  class="forward-btn"
+                  title="Encaminhar"
+                  @click="forwardingMessage = msg"
+                ><Forward class="icon-xxs" /> Encaminhar</button>
                 <span class="time">{{ formatMessageTime(msg.timestamp) }}</span>
                 <CheckCheck v-if="msg.senderType === 'agent'" class="icon-xxs" />
               </div>
@@ -1842,6 +1851,8 @@ onUnmounted(() => {
     <DeleteContactModal :isOpen="isDeleteModalOpen" :contact="store.activeConversation?.contact" @close="isDeleteModalOpen = false" @deleted="handleContactDeleted" />
     <DeleteConversationModal :isOpen="isDeleteConversationModalOpen" :conversation="store.activeConversation" @close="isDeleteConversationModalOpen = false" @deleted="handleConversationDeleted" />
     <NewConversationModal :isOpen="isNewConversationModalOpen" @close="isNewConversationModalOpen = false" @created="handleConversationCreated" />
+    <ForwardMessageModal :isOpen="!!forwardingMessage" :message="forwardingMessage" @close="forwardingMessage = null" />
+
     <TransferModal v-if="showTransferModal" :agents="store.agents" :currentAssigneeId="store.activeConversation?.assignee_id" @close="showTransferModal = false" @confirm="handleTransfer" />
     
     <ScheduleMessageModal 
@@ -2601,6 +2612,36 @@ onUnmounted(() => {
         width: 14px;
         height: 14px;
       }
+
+      // Aparece ao passar o mouse no balão; no celular (sem hover) fica sempre visível.
+      .forward-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.2rem;
+        margin-right: auto;
+        padding: 0.1rem 0.35rem;
+        border: none;
+        border-radius: 4px;
+        background: transparent;
+        color: inherit;
+        font-size: 0.7rem;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.15s;
+
+        .icon-xxs { width: 12px; height: 12px; }
+
+        &:hover { background: rgba(0,0,0,0.06); color: #2b0016; }
+      }
+    }
+
+    .bubble:hover .forward-btn { opacity: 1; }
+
+    @media (hover: none) {
+      .bubble-meta .forward-btn { opacity: 0.8; }
+    }
+
+    .bubble-meta {
     }
   }
 }
