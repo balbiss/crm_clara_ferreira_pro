@@ -187,7 +187,19 @@ export const useConversationsStore = defineStore('conversations', {
     async fetchConversations() {
       try {
         const response = await api.get('/conversations')
+        // A lista só traz as 100 mais recentes. Conversa aberta pela
+        // pesquisa/Painel que for mais antiga sumia a cada recarga (WebSocket
+        // reconectando, mensagem de conversa fora da lista...) e o chat ficava
+        // em branco (Ana, 2026-10-15). Mantém a aberta e atualiza ela à parte.
+        const aberta = this.conversations.find(c => c.id === this.activeConversationId)
         this.conversations = response.data
+        if (aberta && !this.conversations.some(c => c.id === aberta.id)) {
+          this.conversations.push(aberta)
+          api.get(`/conversations/${aberta.id}`).then(({ data }) => {
+            const idx = this.conversations.findIndex(c => c.id === data.id)
+            if (idx !== -1) this.conversations[idx] = data
+          }).catch(() => {})
+        }
         this.lastFetchedAt = Date.now()
         if (!this.activeConversationId) {
           this.activeConversationId = this.sidebarFilteredConversations[0]?.id || null
