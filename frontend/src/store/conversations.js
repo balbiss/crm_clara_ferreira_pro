@@ -66,6 +66,7 @@ export const useConversationsStore = defineStore('conversations', {
     conversationsPage: 1,
     conversationsHasMore: false,
     isLoadingMore: false,
+    isLoadingAll: false, // carregando o restante da lista em segundo plano
     inboxLoaded: {},   // { [inboxId]: true } — todas as conversas da caixa já vieram
     inboxLoading: {},  // { [inboxId]: true } — carregando agora
     currentUser: (() => {
@@ -254,15 +255,18 @@ export const useConversationsStore = defineStore('conversations', {
           this.activeConversationId = this.sidebarFilteredConversations[0]?.id || null
         }
         this.setupWebSocket()
+        // Sem limite: o resto da lista (todas as caixas) vem sozinho, em segundo
+        // plano, depois da 1ª página (que já aparece na hora).
+        if (this.conversationsPage === 1 && this.conversationsHasMore) this.carregarTudoEmSegundoPlano()
       } catch (error) {
         console.error('Error fetching conversations:', error)
       }
     },
 
-    // "Carregar mais conversas" (visão geral, sem caixa escolhida).
+    // Próxima página da lista geral. Devolve true se deu certo.
     async loadMoreConversations() {
-      const POR_PAGINA = 100
-      if (this.isLoadingMore || !this.conversationsHasMore) return
+      const POR_PAGINA = 100 // mesmo tamanho da 1ª página (a paginação é por deslocamento)
+      if (this.isLoadingMore || !this.conversationsHasMore) return false
       this.isLoadingMore = true
       try {
         const pagina = this.conversationsPage + 1
@@ -270,10 +274,27 @@ export const useConversationsStore = defineStore('conversations', {
         this._adicionarPaginadas(data.map(c => this._normalizar(c)))
         this.conversationsPage = pagina
         this.conversationsHasMore = data.length === POR_PAGINA
+        return true
       } catch (error) {
         console.error('Error loading more conversations:', error)
+        return false
       } finally {
         this.isLoadingMore = false
+      }
+    },
+
+    // Traz TODAS as conversas, página por página. Se uma página falhar, para —
+    // o botão "Carregar mais conversas" continua disponível como plano B.
+    async carregarTudoEmSegundoPlano() {
+      if (this.isLoadingAll) return
+      this.isLoadingAll = true
+      try {
+        for (let i = 0; i < 500 && this.conversationsHasMore; i++) {
+          const ok = await this.loadMoreConversations()
+          if (!ok) break
+        }
+      } finally {
+        this.isLoadingAll = false
       }
     },
 
@@ -286,7 +307,7 @@ export const useConversationsStore = defineStore('conversations', {
       this.inboxLoading[chave] = true
       const POR_PAGINA = 200
       try {
-        for (let pagina = 1; pagina <= 25; pagina++) {
+        for (let pagina = 1; pagina <= 200; pagina++) {
           const { data } = await api.get('/conversations', { params: { light: true, inbox_id: inboxId, per_page: POR_PAGINA, page: pagina } })
           this._adicionarPaginadas(data.map(c => this._normalizar(c)))
           if (data.length < POR_PAGINA) break

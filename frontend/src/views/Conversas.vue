@@ -1477,11 +1477,12 @@ onUnmounted(() => {
           <div class="all-loaded" v-else style="margin-top: 2rem;">Não há conversas ativas nesta caixa.</div>
         </template>
         <template v-else>
-          <div class="load-more-box" v-if="store.conversationsHasMore">
-            <button type="button" :disabled="store.isLoadingMore" @click="store.loadMoreConversations()">
-              {{ store.isLoadingMore ? 'Carregando...' : 'Carregar mais conversas' }}
+          <div class="all-loaded" v-if="store.isLoadingAll">Carregando o restante das conversas de todas as caixas... ({{ store.conversations.length }} até agora)</div>
+          <div class="load-more-box" v-else-if="store.conversationsHasMore">
+            <button type="button" :disabled="store.isLoadingMore" @click="store.carregarTudoEmSegundoPlano()">
+              {{ store.isLoadingMore ? 'Carregando...' : 'Carregar as demais conversas' }}
             </button>
-            <span>Mostrando as mais recentes. Pra ver uma caixa inteira, escolha ela no menu ou use a pesquisa.</span>
+            <span>O carregamento automático parou. Clique pra continuar de onde parou.</span>
           </div>
           <div class="all-loaded" v-else-if="store.filteredConversations.length > 0">✅ Todas as conversas carregadas</div>
           <div class="all-loaded" v-else style="margin-top: 2rem;">Não há conversas ativas neste grupo.</div>

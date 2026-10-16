@@ -111,14 +111,14 @@ class ConversationsController < ApplicationController
     convs = current_user.account.conversations
       .where(id: visible_ids, contact_id: contact_ids)
       .includes(:contact, :inbox)
-      .order(last_activity_at: :desc).limit(15)
+      .order(last_activity_at: :desc).limit(100)
 
     palavras = termo.downcase.tr(Contact::ACENTOS_DE, Contact::ACENTOS_PARA).split
     texto_sql = "translate(lower(coalesce(messages.text, '') || ' ' || coalesce(messages.transcription, '')), " \
                 "'#{Contact::ACENTOS_DE}', '#{Contact::ACENTOS_PARA}')"
     msgs = Message.where(account_id: current_user.account_id, conversation_id: visible_ids)
     palavras.each { |p| msgs = msgs.where("#{texto_sql} LIKE ?", "%#{Message.sanitize_sql_like(p)}%") }
-    msgs = msgs.includes(conversation: [:contact, :inbox]).order(created_at: :desc).limit(40)
+    msgs = msgs.includes(conversation: [:contact, :inbox]).order(created_at: :desc).limit(300)
 
     render json: {
       conversations: convs.map { |c|
@@ -174,7 +174,7 @@ class ConversationsController < ApplicationController
       inbox_by_conv = others.index_by(&:id)
       messages = Message.where(conversation_id: summary.map { |s| s[:id] }, is_private: false)
         .includes(attachment_attachment: :blob)
-        .order(created_at: :desc).limit(1500).to_a.reverse
+        .order(created_at: :desc).limit(10_000).to_a.reverse
         .map do |m|
           format_message(m, users_hash).merge(
             conversationId: m.conversation_id,
