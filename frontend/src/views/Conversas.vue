@@ -97,14 +97,28 @@ const isSearchActive = computed(() => searchQuery.value.trim().length >= 2)
 let searchTimeout = null
 let searchSeq = 0
 
-watch(searchQuery, (q) => {
+// Com uma caixa aberta no menu, a pesquisa fica só nela (Clara: estando na
+// Gerência-Expansão vinha resultado de todas as caixas). "Pesquisar em
+// todas" libera pra conta inteira até limpar a pesquisa ou trocar de caixa.
+const searchAllInboxes = ref(false)
+const searchInboxId = computed(() => (searchAllInboxes.value ? null : store.sidebarInboxId))
+const searchInboxName = computed(() => {
+  if (!searchInboxId.value) return null
+  const conv = store.conversations.find(c => String(c.inbox_id) === String(searchInboxId.value))
+  return conv?.inbox_name || 'esta caixa'
+})
+watch(() => store.sidebarInboxId, () => { searchAllInboxes.value = false })
+
+watch([searchQuery, searchInboxId], ([q]) => {
   clearTimeout(searchTimeout)
   if (q.trim().length < 2) { searchResults.value = null; return }
   searchTimeout = setTimeout(async () => {
     const seq = ++searchSeq
     isSearching.value = true
     try {
-      const { data } = await api.get('/conversations/search', { params: { q: q.trim() } })
+      const params = { q: q.trim() }
+      if (searchInboxId.value) params.inbox_id = searchInboxId.value
+      const { data } = await api.get('/conversations/search', { params })
       if (seq === searchSeq) searchResults.value = data
     } catch (e) {
       console.error('Erro na pesquisa:', e)
@@ -118,6 +132,7 @@ watch(searchQuery, (q) => {
 const clearSearch = () => {
   searchQuery.value = ''
   searchResults.value = null
+  searchAllInboxes.value = false
 }
 
 const normalizar = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -1183,6 +1198,16 @@ onUnmounted(() => {
       </div>
 
       <div class="conv-list search-results" v-if="isSearchActive">
+        <div class="search-scope" v-if="store.sidebarInboxId">
+          <template v-if="searchInboxName">
+            Pesquisando só em <strong>📱 {{ searchInboxName }}</strong>
+            <button class="search-scope-btn" @click="searchAllInboxes = true">pesquisar em todas</button>
+          </template>
+          <template v-else>
+            Pesquisando em <strong>todas as caixas</strong>
+            <button class="search-scope-btn" @click="searchAllInboxes = false">só nesta caixa</button>
+          </template>
+        </div>
         <div v-if="isSearching && !searchResults" class="all-loaded">Pesquisando...</div>
         <template v-else-if="searchResults">
           <div v-if="searchResults.conversations.length" class="search-section-title">Revendedoras</div>
@@ -2126,6 +2151,27 @@ onUnmounted(() => {
 }
 
 .search-results {
+  .search-scope {
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    background: rgba(204, 0, 102, 0.04);
+    border-bottom: 1px solid var(--border-color);
+
+    strong { color: var(--text-main); }
+  }
+
+  .search-scope-btn {
+    margin-left: 0.35rem;
+    padding: 0;
+    border: none;
+    background: none;
+    color: #cc0066;
+    font-size: 0.75rem;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
   .search-section-title {
     padding: 0.6rem 1rem 0.3rem;
     font-size: 0.7rem;

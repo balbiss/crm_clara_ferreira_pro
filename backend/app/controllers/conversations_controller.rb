@@ -74,7 +74,11 @@ class ConversationsController < ApplicationController
     termo = params[:q].to_s.strip
     return render json: { conversations: [], messages: [] } if termo.length < 2
 
-    visible_ids = visible_conversations_scope.select(:id)
+    # Com uma caixa aberta no menu, pesquisa só nela (Clara: estando na
+    # Gerência-Expansão, vinha resultado de todas as caixas e confundia).
+    visible_scope = visible_conversations_scope
+    visible_scope = visible_scope.where(inbox_id: params[:inbox_id]) if params[:inbox_id].present?
+    visible_ids = visible_scope.select(:id)
     users_hash = current_user.account.users.index_by(&:id)
 
     contact_ids = Contact.where(account_id: current_user.account_id).search_by_name_or_phone(termo).select(:id)
