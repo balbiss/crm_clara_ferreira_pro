@@ -97,13 +97,18 @@
               Campos usados na aba Principal e no funil Consignado.
             </p>
             <div class="form-row" v-for="pair in revendaFieldPairs" :key="pair[0].key">
-              <div class="form-group half">
-                <label>{{ pair[0].label }}</label>
-                <input type="text" v-model="formData.revenda[pair[0].key]" autocomplete="off" />
-              </div>
-              <div class="form-group half" v-if="pair[1]">
-                <label>{{ pair[1].label }}</label>
-                <input type="text" v-model="formData.revenda[pair[1].key]" autocomplete="off" />
+              <!-- Cada campo no editor do tipo dele (texto curto, texto longo,
+                   seleção múltipla — 2026-10-16). -->
+              <div class="form-group half" v-for="f in pair.filter(Boolean)" :key="f.key">
+                <label>{{ f.label }}</label>
+                <textarea v-if="f.type === 'texto_longo'" v-model="formData.revenda[f.key]" rows="3" class="field-textarea"></textarea>
+                <div v-else-if="f.type === 'selecao_multipla'" class="multi-options">
+                  <label v-for="op in opcoesDe(f)" :key="op" class="multi-option">
+                    <input type="checkbox" :value="op" v-model="formData.revenda[f.key]" /> {{ op }}
+                  </label>
+                  <span v-if="opcoesDe(f).length === 0" class="multi-empty">Sem opções cadastradas.</span>
+                </div>
+                <input v-else type="text" v-model="formData.revenda[f.key]" autocomplete="off" />
               </div>
             </div>
           </div>
@@ -190,6 +195,14 @@ onMounted(() => {
 // Agora vem do composable: 13 fixos + campos criados pela dona em
 // Configurações → Campos do Contato (2026-10-09).
 const { allFields: REVENDA_FIELDS } = useContactFields()
+// Opções da seleção múltipla + valores já marcados que saíram da lista
+// (não some com dado antigo).
+const opcoesDe = (f) => {
+  const base = f.options || []
+  const marcados = Array.isArray(formData.value.revenda?.[f.key]) ? formData.value.revenda[f.key] : []
+  return [...base, ...marcados.filter(v => !base.includes(v))]
+}
+
 const revendaFieldPairs = computed(() => {
   const pares = []
   for (let i = 0; i < REVENDA_FIELDS.value.length; i += 2) {
@@ -249,7 +262,11 @@ watch(() => props.contact, (newContact) => {
   if (newContact) {
     const custom = newContact.custom_attributes || {}
     const revenda = {}
-    REVENDA_FIELDS.value.forEach(f => { revenda[f.key] = custom[f.key] || '' })
+    REVENDA_FIELDS.value.forEach(f => {
+      const v = custom[f.key]
+      if (f.type === 'selecao_multipla') revenda[f.key] = Array.isArray(v) ? [...v] : (v ? [String(v)] : [])
+      else revenda[f.key] = Array.isArray(v) ? v.join(', ') : (v || '')
+    })
     const cadastro = {}
     CADASTRO_KEYS.forEach(k => { cadastro[k] = custom[k] || '' })
 
@@ -305,7 +322,8 @@ const save = async () => {
   REVENDA_FIELDS.value.forEach(f => {
     // Campo que não estava carregado quando o modal abriu: mantém o valor salvo.
     if (dataToSave.revenda[f.key] === undefined) return
-    if (dataToSave.revenda[f.key]) custom_attributes[f.key] = dataToSave.revenda[f.key]
+    const v = dataToSave.revenda[f.key]
+    if (Array.isArray(v) ? v.length : v) custom_attributes[f.key] = v
     else delete custom_attributes[f.key]
   })
   CADASTRO_KEYS.forEach(k => {
@@ -466,6 +484,34 @@ const save = async () => {
   background: white;
   box-shadow: 0 0 0 3px rgba(255, 0, 127, 0.1);
 }
+
+.field-textarea { resize: vertical; font-family: inherit; }
+.multi-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  padding: 8px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #f3f4f6;
+}
+.multi-option {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+  margin: 0 !important;
+  font-size: 0.88rem;
+  font-weight: 400 !important;
+  color: #1f2937;
+  cursor: pointer;
+}
+.form-group .multi-option input[type="checkbox"] {
+  width: auto;
+  padding: 0;
+  margin: 0;
+  box-shadow: none;
+}
+.multi-empty { font-size: 0.8rem; color: #9ca3af; }
 
 .qualification-checklists {
   display: flex;

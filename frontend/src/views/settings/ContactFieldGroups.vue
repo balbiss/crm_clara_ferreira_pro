@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import { Plus, Trash2, X } from 'lucide-vue-next'
 import api from '../../api'
 import Swal from 'sweetalert2'
-import { useContactFields } from '../../composables/useContactFields'
+import { useContactFields, FIELD_TYPES, fieldTypeLabel } from '../../composables/useContactFields'
 
 const { customFields, allFields, labelOf: fieldLabel, reloadCustomFields } = useContactFields()
 
@@ -103,24 +103,55 @@ const addFieldToGroup = async (group, key) => {
   }
 }
 
-// Campo novo criado pela dona (ex: "Mais vende", "Precisa ter na maleta") —
-// depois de criado aparece no "+ Adicionar campo..." de qualquer grupo.
-const newFieldLabel = ref('')
-const isCreatingField = ref(false)
-const createField = async () => {
-  const label = newFieldLabel.value.trim()
-  if (!label || isCreatingField.value) return
-  isCreatingField.value = true
+// Campo novo/edição (ex: "Mais vende", "Precisa ter na maleta") — com tipo
+// (texto curto, texto longo, seleção múltipla com as opções), igual Kommo
+// (Clara, 2026-10-16). Depois de criado aparece no "+ Adicionar campo..." de
+// qualquer grupo.
+const fieldModal = ref(null) // { key|null, label, type, options: [] }
+const novaOpcao = ref('')
+const isSavingField = ref(false)
+
+const openNewField = () => {
+  fieldModal.value = { key: null, label: '', type: 'texto_curto', options: [] }
+  novaOpcao.value = ''
+}
+const openEditField = (f) => {
+  fieldModal.value = { key: f.key, label: f.label, type: f.type || 'texto_curto', options: [...(f.options || [])] }
+  novaOpcao.value = ''
+}
+const addOpcao = () => {
+  // Aceita várias de uma vez separadas por vírgula ("Brinco, Colar, Anel").
+  const novas = novaOpcao.value.split(',').map(o => o.trim()).filter(Boolean)
+  novas.forEach(o => { if (!fieldModal.value.options.includes(o)) fieldModal.value.options.push(o) })
+  novaOpcao.value = ''
+}
+const removeOpcao = (o) => {
+  fieldModal.value.options = fieldModal.value.options.filter(x => x !== o)
+}
+
+const saveField = async () => {
+  const f = fieldModal.value
+  if (!f || isSavingField.value) return
+  if (novaOpcao.value.trim()) addOpcao()
+  const label = f.label.trim()
+  if (!label) return
+  if (f.type === 'selecao_multipla' && f.options.length === 0) {
+    Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'Adicione pelo menos uma opção.', showConfirmButton: false, timer: 3000 })
+    return
+  }
+  isSavingField.value = true
   try {
-    await api.post('/contact_custom_fields', { label })
-    newFieldLabel.value = ''
+    const payload = { label, type: f.type, options: f.type === 'selecao_multipla' ? f.options : [] }
+    if (f.key) await api.patch(`/contact_custom_fields/${f.key}`, payload)
+    else await api.post('/contact_custom_fields', payload)
     await reloadCustomFields()
-    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `Campo "${label}" criado. Agora coloque ele num grupo.`, showConfirmButton: false, timer: 3500 })
+    fieldModal.value = null
+    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: f.key ? 'Campo atualizado.' : `Campo "${label}" criado. Agora coloque ele num grupo.`, showConfirmButton: false, timer: 3500 })
   } catch (error) {
-    console.error('Erro ao criar campo:', error)
-    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: error.response?.data?.message || 'Erro ao criar campo.', showConfirmButton: false, timer: 3500 })
+    console.error('Erro ao salvar campo:', error)
+    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: error.response?.data?.message || 'Erro ao salvar campo.', showConfirmButton: false, timer: 3500 })
   } finally {
-    isCreatingField.value = false
+    isSavingField.value = false
   }
 }
 
@@ -161,17 +192,60 @@ const optionLabelFor = (key) => {
       <p class="custom-fields-hint">Precisa de uma informação que não está na lista (ex: "Mais vende", "Precisa ter na maleta")? Crie aqui e depois coloque no grupo que quiser.</p>
       <div class="field-chips">
         <span v-if="customFields.length === 0" class="empty-hint">Nenhum campo criado ainda.</span>
-        <span v-for="f in customFields" :key="f.key" class="field-chip">
+        <span v-for="f in customFields" :key="f.key" class="field-chip field-chip-editable" title="Clique pra editar" @click="openEditField(f)">
           {{ f.label }}
-          <button class="chip-remove" title="Apagar campo" @click="deleteField(f)"><X class="icon-xxs" /></button>
+          <span class="chip-type">{{ fieldTypeLabel(f.type) }}</span>
+          <button class="chip-remove" title="Apagar campo" @click.stop="deleteField(f)"><X class="icon-xxs" /></button>
         </span>
       </div>
-      <form class="new-field-row" @submit.prevent="createField">
-        <input v-model="newFieldLabel" type="text" class="group-name-input" maxlength="60" placeholder="Nome do novo campo" />
-        <button class="btn-primary" type="submit" :disabled="!newFieldLabel.trim() || isCreatingField">
-          <Plus class="icon-sm" /> Criar campo
-        </button>
-      </form>
+      <button class="btn-primary" type="button" @click="openNewField">
+        <Plus class="icon-sm" /> Criar campo
+      </button>
+    </div>
+
+    <!-- Criar/editar campo: nome + tipo (+ opções da seleção múltipla) -->
+    <div v-if="fieldModal" class="modal-overlay" @click.self="fieldModal = null">
+      <div class="modal-box">
+        <div class="modal-head">
+          <h3>{{ fieldModal.key ? 'Editar campo' : 'Novo campo' }}</h3>
+          <button class="btn-icon" @click="fieldModal = null"><X class="icon-sm" /></button>
+        </div>
+        <label class="modal-label">Nome do campo</label>
+        <input v-model="fieldModal.label" type="text" class="modal-input" maxlength="60" placeholder="Ex: Mais vende" />
+
+        <label class="modal-label">Tipo</label>
+        <div class="type-options">
+          <label v-for="t in FIELD_TYPES" :key="t.value" :class="['type-option', { active: fieldModal.type === t.value }]">
+            <input type="radio" :value="t.value" v-model="fieldModal.type" />
+            <span>{{ t.label }}</span>
+          </label>
+        </div>
+        <p class="type-hint">
+          <template v-if="fieldModal.type === 'texto_curto'">Uma linha (ex: tamanho do anel, cidade).</template>
+          <template v-else-if="fieldModal.type === 'texto_longo'">Várias linhas, pra observações e detalhes.</template>
+          <template v-else>Marca uma ou mais opções da lista (ex: Brinco, Colar, Anel).</template>
+        </p>
+
+        <template v-if="fieldModal.type === 'selecao_multipla'">
+          <label class="modal-label">Opções</label>
+          <div class="field-chips">
+            <span v-if="fieldModal.options.length === 0" class="empty-hint">Nenhuma opção ainda.</span>
+            <span v-for="o in fieldModal.options" :key="o" class="field-chip">
+              {{ o }}
+              <button class="chip-remove" @click="removeOpcao(o)"><X class="icon-xxs" /></button>
+            </span>
+          </div>
+          <form class="new-field-row" @submit.prevent="addOpcao">
+            <input v-model="novaOpcao" type="text" class="modal-input" placeholder="Nova opção (pode separar várias por vírgula)" />
+            <button class="btn-secondary" type="submit" :disabled="!novaOpcao.trim()">Adicionar</button>
+          </form>
+        </template>
+
+        <div class="modal-actions">
+          <button class="btn-secondary" @click="fieldModal = null">Cancelar</button>
+          <button class="btn-primary" :disabled="!fieldModal.label.trim() || isSavingField" @click="saveField">Salvar</button>
+        </div>
+      </div>
     </div>
 
     <div v-if="isLoading" class="empty-state">Carregando...</div>
@@ -278,6 +352,44 @@ const optionLabelFor = (key) => {
   border: 1px dashed var(--border-color); border-radius: 8px; padding: 0.75rem 1rem;
 }
 .custom-fields-card { margin-bottom: 1.5rem; }
+.field-chip-editable { cursor: pointer; &:hover { background: rgba(255, 0, 127, 0.14); } }
+.chip-type {
+  font-size: 0.65rem; font-weight: 600; text-transform: uppercase;
+  background: rgba(255,255,255,0.7); color: var(--text-muted); border-radius: 8px; padding: 0 0.35rem;
+}
+.btn-secondary {
+  background: transparent; color: var(--text-main); border: 1px solid var(--border-color);
+  padding: 0.55rem 1rem; border-radius: 6px; cursor: pointer; white-space: nowrap;
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000;
+  display: flex; align-items: center; justify-content: center; padding: 1rem;
+}
+.modal-box {
+  background: var(--bg-secondary); border-radius: 10px; padding: 1.25rem 1.5rem;
+  width: 100%; max-width: 460px; max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+.modal-head {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;
+  h3 { margin: 0; font-size: 1.05rem; color: var(--text-main); }
+}
+.modal-label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-main); margin: 0.75rem 0 0.4rem; }
+.modal-input {
+  width: 100%; padding: 0.55rem 0.75rem; border: 1px solid var(--border-color); border-radius: 6px;
+  background: var(--bg-primary); color: var(--text-main); font-size: 0.9rem;
+  &:focus { outline: none; border-color: var(--primary); }
+}
+.type-options { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.type-option {
+  display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.45rem 0.75rem;
+  border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer; font-size: 0.85rem; color: var(--text-main);
+  &.active { border-color: var(--primary); background: rgba(255, 0, 127, 0.05); }
+}
+.type-hint { font-size: 0.78rem; color: var(--text-muted); margin: 0.4rem 0 0; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.25rem; }
 .custom-fields-title { margin: 0 0 0.25rem; font-size: 1rem; color: var(--text-main); }
 .custom-fields-hint { margin: 0 0 0.75rem; font-size: 0.85rem; color: var(--text-muted); }
 .new-field-row { display: flex; gap: 0.5rem; margin-top: 0.75rem; align-items: center; }

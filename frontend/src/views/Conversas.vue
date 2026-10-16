@@ -59,6 +59,7 @@ import DeleteConversationModal from '../components/DeleteConversationModal.vue'
 import ScheduleMessageModal from '../components/ScheduleMessageModal.vue'
 import TransferModal from '../components/TransferModal.vue'
 import ForwardMessageModal from '../components/ForwardMessageModal.vue'
+import ContactFieldEditor from '../components/ContactFieldEditor.vue'
 
 const store = useConversationsStore()
 const inboxesStore = useInboxesStore()
@@ -411,7 +412,24 @@ const daysInStage = (contact) => {
 // Guardados em custom_attributes (jsonb) pra não depender de migration nova agora; editáveis
 // via "Editar Contato" (já suporta atributos customizados livres).
 // Fixos + campos criados pela dona (Configurações → Campos do Contato).
-const { allFields: principalFields, labelOf: fieldLabelOf } = useContactFields()
+const { allFields: principalFields, labelOf: fieldLabelOf, fieldOf } = useContactFields()
+
+// Salvar valor vindo do ContactFieldEditor (texto ou lista da seleção
+// múltipla). Mesmo esquema do saveFieldValue: manda o custom_attributes
+// inteiro só com esse campo alterado.
+const saveFieldDirect = async (key, valor) => {
+  const contact = store.activeConversation?.contact
+  if (!contact?.id) return
+  const custom = { ...(contact.custom_attributes || {}) }
+  if (valor == null || (Array.isArray(valor) && valor.length === 0) || valor === '') delete custom[key]
+  else custom[key] = valor
+  try {
+    await store.updateContact(contact.id, { custom_attributes: custom })
+  } catch (e) {
+    console.error('Erro ao salvar campo:', e)
+    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Não foi possível salvar.', showConfirmButton: false, timer: 3000 })
+  }
+}
 const getAttr = (key) => store.activeConversation?.contact?.custom_attributes?.[key]
 
 // Grupos configuráveis (Configurações → Campos do Contato, 2026-09-28) — a
@@ -1726,16 +1744,7 @@ onUnmounted(() => {
         <div class="card-body" v-if="openGroupIds.has(group.id)" style="padding-top: 0.5rem;">
         <div class="lead-field" v-for="key in group.field_keys" :key="key">
           <span class="lf-label">{{ fieldLabelOf(key) }}</span>
-          <input
-            v-if="editingFieldKey === key"
-            ref="fieldInput"
-            v-model="editingFieldValue"
-            class="lf-input"
-            @keydown.enter.prevent="saveFieldValue"
-            @keydown.esc.prevent="editingFieldKey = null"
-            @blur="saveFieldValue"
-          />
-          <span v-else class="lf-value lf-editable" :class="{ empty: !getAttr(key) }" title="Clique pra preencher" @click="startEditingField(key)">{{ getAttr(key) || 'Clique pra preencher' }}</span>
+          <ContactFieldEditor :field="fieldOf(key)" :value="getAttr(key)" @save="v => saveFieldDirect(key, v)" />
         </div>
         <p v-if="!group.field_keys || group.field_keys.length === 0" class="empty-text">Nenhum campo neste grupo ainda. Adicione em Configurações → Campos do Contato.</p>
         </div>
@@ -1752,16 +1761,7 @@ onUnmounted(() => {
         <div class="card-body" v-if="isUnassignedOpen" style="padding-top: 0.5rem;">
         <div class="lead-field" v-for="f in unassignedFields" :key="f.key">
           <span class="lf-label">{{ f.label }}</span>
-          <input
-            v-if="editingFieldKey === f.key"
-            ref="fieldInput"
-            v-model="editingFieldValue"
-            class="lf-input"
-            @keydown.enter.prevent="saveFieldValue"
-            @keydown.esc.prevent="editingFieldKey = null"
-            @blur="saveFieldValue"
-          />
-          <span v-else class="lf-value lf-editable" :class="{ empty: !getAttr(f.key) }" title="Clique pra preencher" @click="startEditingField(f.key)">{{ getAttr(f.key) || 'Clique pra preencher' }}</span>
+          <ContactFieldEditor :field="f" :value="getAttr(f.key)" @save="v => saveFieldDirect(f.key, v)" />
         </div>
         </div>
       </div>

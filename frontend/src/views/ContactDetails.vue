@@ -9,7 +9,7 @@ import { useConversationsStore } from '../store/conversations'
 import { pickWhatsappInbox } from '../composables/useInboxPicker'
 import { statusLabel } from '../constants/regua'
 import { relativeTimeBR } from '../utils/relativeTime'
-import { useContactFields } from '../composables/useContactFields'
+import { useContactFields, formatFieldValue } from '../composables/useContactFields'
 
 const route = useRoute()
 const router = useRouter()
@@ -520,7 +520,7 @@ const removeTag = async (tagId) => {
             <div class="attrs-list" v-if="informacoesPersonalizadas.length > 0">
               <div class="attr-row" v-for="attr in informacoesPersonalizadas" :key="attr.key">
                 <span class="attr-label">{{ attr.label }}</span>
-                <span class="attr-value">{{ attr.value }}</span>
+                <span class="attr-value" style="white-space: pre-wrap;">{{ formatFieldValue(attr.value) }}</span>
               </div>
             </div>
             <p class="empty-state-text" v-else>
