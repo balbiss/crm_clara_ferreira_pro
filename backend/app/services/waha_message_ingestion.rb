@@ -242,18 +242,18 @@ module WahaMessageIngestion
             end
           end
 
+          # DESLIGADO 2026-10-15: aqui havia uma mesclagem automática (mover
+          # conversas pro outro cadastro com o mesmo telefone + destruir este
+          # contato). Era perigosa: find_by_any_phone pega "o primeiro" sem
+          # critério (podia escolher a duplicata e apagar a revendedora real,
+          # com pedidos/tarefas/notas), e rodava em thread em paralelo com o
+          # salvamento da mensagem (a mensagem podia nascer numa conversa que
+          # era destruída logo depois). Suspeita do "histórico antigo sumiu"
+          # depois das reconexões. Agora só registra no log; mesclar fica
+          # manual pelo botão "Mesclar".
           existing_match = Contact.find_by_any_phone(account.id, contact.phone)
           if existing_match && existing_match.id != contact.id
-            # Já existe um cadastro de verdade com esse telefone (ex:
-            # revendedora sincronizada do Jueri) — o contato criado às
-            # cegas pelo @lid é só um duplicado temporário, então a
-            # conversa vai pro cadastro certo em vez de deixar o dono
-            # vendo um "novo contato" vazio ao lado dos dados reais da
-            # pessoa. Mesma mecânica do ContactsController#merge (mover
-            # conversas + destruir o duplicado), só que automática.
-            existing_match.update(jid: chat_id) if existing_match.jid != chat_id
-            contact.conversations.update_all(contact_id: existing_match.id)
-            contact.destroy
+            Rails.logger.warn("[lid-duplicado] contato #{contact.id} e #{existing_match.id} com o mesmo telefone #{contact.phone} (chat #{chat_id}) — mesclar manualmente")
           end
         rescue => e
           Rails.logger.error("Failed to re-resolve/merge lid contact (Waha) for #{chat_id}: #{e.message}")
