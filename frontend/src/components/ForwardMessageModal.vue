@@ -134,7 +134,7 @@ function encaminharParaNumero() {
 }
 
 async function encaminhar(abrirConversa, destino) {
-  const { inboxId, cancelled } = await pickWhatsappInbox()
+  const { inboxId, cancelled } = await pickWhatsappInbox({ preferredInboxId: store.sidebarInboxId })
   if (cancelled) return
 
   isSending.value = true

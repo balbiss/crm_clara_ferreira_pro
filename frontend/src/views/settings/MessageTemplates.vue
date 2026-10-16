@@ -3,17 +3,30 @@ import { ref, computed, onMounted } from 'vue'
 import { Plus, Edit2, Trash2, X, Save, Paperclip, FileText } from 'lucide-vue-next'
 import api from '../../api'
 import Swal from 'sweetalert2'
+import { isCriticalConfig } from '../../config/roles'
 
 const templates = ref([])
 const isLoading = ref(false)
 const showModal = ref(false)
 const isEditing = ref(false)
 
+// Dois tipos (pedido da Clara, 2026-10-16): GERAL = todo mundo usa, só a
+// diretoria administra; INDIVIDUAL ("Meus modelos") = só quem criou vê.
+const currentUser = (() => { try { return JSON.parse(localStorage.getItem('user')) || {} } catch { return {} } })()
+const canManageGeral = isCriticalConfig(currentUser)
+const activeTab = ref('geral')
+const templatesDaAba = computed(() =>
+  templates.value.filter(t => (activeTab.value === 'geral' ? t.escopo === 'geral' : t.escopo === 'individual'))
+)
+const totalGerais = computed(() => templates.value.filter(t => t.escopo === 'geral').length)
+const totalMeus = computed(() => templates.value.filter(t => t.escopo === 'individual').length)
+
 const form = ref({
   id: null,
   nome: '',
   categoria: '',
   mensagem: '',
+  escopo: 'individual',
   attachment_url: null,
   attachment_type: null
 })
@@ -47,7 +60,8 @@ const openModal = (template = null) => {
     form.value = { ...template }
   } else {
     isEditing.value = false
-    form.value = { id: null, nome: '', categoria: '', mensagem: '', attachment_url: null, attachment_type: null }
+    const escopo = canManageGeral && activeTab.value === 'geral' ? 'geral' : 'individual'
+    form.value = { id: null, nome: '', categoria: '', mensagem: '', escopo, attachment_url: null, attachment_type: null }
   }
   showModal.value = true
 }
@@ -98,6 +112,7 @@ const saveTemplate = async () => {
     formData.append('message_template[nome]', form.value.nome)
     formData.append('message_template[categoria]', form.value.categoria || '')
     formData.append('message_template[mensagem]', form.value.mensagem || '')
+    formData.append('message_template[escopo]', canManageGeral ? form.value.escopo : 'individual')
     if (newAttachmentFile.value) formData.append('message_template[attachment]', newAttachmentFile.value)
     if (removeAttachment.value) formData.append('message_template[remove_attachment]', 'true')
 
@@ -108,10 +123,12 @@ const saveTemplate = async () => {
       await api.post('/message_templates', formData, config)
     }
     closeModal()
+    activeTab.value = canManageGeral && form.value.escopo === 'geral' ? 'geral' : 'meus'
     fetchTemplates()
   } catch (error) {
     console.error('Erro ao salvar modelo de mensagem:', error)
-    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Erro ao salvar o modelo.', showConfirmButton: false, timer: 3500 })
+    const motivo = error.response?.data?.message || 'Erro ao salvar o modelo.'
+    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: motivo, showConfirmButton: false, timer: 4000 })
   }
 }
 
@@ -132,13 +149,26 @@ const deleteTemplate = async (id) => {
       <div class="header-content">
         <div>
           <h1>Modelos de Mensagem</h1>
-          <p class="subtitle">Digite "/" no campo de mensagem da conversa pra usar um modelo salvo aqui.</p>
+          <p class="subtitle">Na conversa, digite "/" (ou clique no botão de modelos) e pesquise pelo nome ou por qualquer palavra da mensagem.</p>
         </div>
         <button class="btn-primary" @click="openModal()">
           <Plus class="icon-sm" /> Novo Modelo
         </button>
       </div>
     </div>
+
+    <div class="tpl-tabs">
+      <button :class="['tpl-tab', { active: activeTab === 'geral' }]" @click="activeTab = 'geral'">
+        Modelos gerais <span class="tpl-count">{{ totalGerais }}</span>
+      </button>
+      <button :class="['tpl-tab', { active: activeTab === 'meus' }]" @click="activeTab = 'meus'">
+        Meus modelos <span class="tpl-count">{{ totalMeus }}</span>
+      </button>
+    </div>
+    <p class="tpl-tab-hint">
+      <template v-if="activeTab === 'geral'">Disponíveis pra toda a equipe.<template v-if="!canManageGeral"> Só a diretoria cria e edita modelos gerais.</template></template>
+      <template v-else>Só você vê e usa esses modelos.</template>
+    </p>
 
     <div class="table-container">
       <table class="data-table">
@@ -155,21 +185,26 @@ const deleteTemplate = async (id) => {
           <tr v-if="isLoading">
             <td colspan="5" class="text-center py-4">Carregando modelos...</td>
           </tr>
-          <tr v-else-if="templates.length === 0">
-            <td colspan="5" class="text-center py-4 text-muted">Nenhum modelo criado ainda.</td>
+          <tr v-else-if="templatesDaAba.length === 0">
+            <td colspan="5" class="text-center py-4 text-muted">
+              {{ activeTab === 'meus' ? 'Você ainda não tem modelos próprios. Clique em "Novo Modelo" pra criar.' : 'Nenhum modelo geral criado ainda.' }}
+            </td>
           </tr>
-          <tr v-for="template in templates" :key="template.id">
+          <tr v-for="template in templatesDaAba" :key="template.id">
             <td class="font-medium">{{ template.nome }}</td>
             <td class="text-muted">{{ template.categoria || '—' }}</td>
             <td class="text-muted preview-cell">{{ template.mensagem || '—' }}</td>
             <td class="text-center"><Paperclip v-if="template.attachment_url" class="icon-sm" style="color: var(--primary);" /></td>
             <td class="actions-cell">
+              <span v-if="!template.pode_editar" class="text-muted text-xs">—</span>
+              <template v-else>
               <button class="btn-icon" @click="openModal(template)" title="Editar">
                 <Edit2 class="icon-sm" />
               </button>
               <button class="btn-icon text-danger" @click="deleteTemplate(template.id)" title="Excluir">
                 <Trash2 class="icon-sm" />
               </button>
+              </template>
             </td>
           </tr>
         </tbody>
@@ -184,6 +219,19 @@ const deleteTemplate = async (id) => {
           <button class="btn-icon" @click="closeModal"><X class="icon-sm" /></button>
         </div>
         <div class="modal-body">
+          <div class="input-group">
+            <label>Tipo</label>
+            <div class="escopo-options">
+              <label :class="['escopo-option', { active: form.escopo === 'individual' }]">
+                <input type="radio" value="individual" v-model="form.escopo" />
+                <span><strong>Meu modelo</strong><small>Só você vê e usa</small></span>
+              </label>
+              <label :class="['escopo-option', { active: form.escopo === 'geral', disabled: !canManageGeral }]" :title="canManageGeral ? '' : 'Só a diretoria cria modelos gerais'">
+                <input type="radio" value="geral" v-model="form.escopo" :disabled="!canManageGeral" />
+                <span><strong>Geral</strong><small>Toda a equipe usa</small></span>
+              </label>
+            </div>
+          </div>
           <div class="input-group">
             <label>Nome (usado na busca pelo "/")</label>
             <input type="text" v-model="form.nome" placeholder="Ex: Boas-vindas, Cobrança..." autofocus />
@@ -244,6 +292,29 @@ const deleteTemplate = async (id) => {
     h1 { font-size: 1.2rem; color: var(--text-main); font-weight: 500; margin: 0 0 0.25rem; }
     .subtitle { font-size: 0.85rem; color: var(--text-muted); margin: 0; }
   }
+}
+.tpl-tabs {
+  display: flex; gap: 0.25rem; border-bottom: 1px solid var(--border-color); margin-bottom: 0.5rem;
+}
+.tpl-tab {
+  background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  padding: 0.6rem 1rem; color: var(--text-muted); font-size: 0.9rem; cursor: pointer;
+  &.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+}
+.tpl-count {
+  margin-left: 0.3rem; padding: 0.05rem 0.45rem; border-radius: 999px;
+  background: rgba(0,0,0,0.06); font-size: 0.75rem;
+}
+.tpl-tab-hint { font-size: 0.8rem; color: var(--text-muted); margin: 0 0 1rem; }
+.escopo-options { display: flex; gap: 0.75rem; }
+.escopo-option {
+  flex: 1; display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer; margin: 0 !important;
+  span { display: flex; flex-direction: column; }
+  strong { font-size: 0.85rem; color: var(--text-main); }
+  small { font-size: 0.75rem; color: var(--text-muted); font-weight: 400; }
+  &.active { border-color: var(--primary); background: rgba(255, 0, 127, 0.04); }
+  &.disabled { opacity: 0.5; cursor: not-allowed; }
 }
 .table-container {
   background: var(--bg-secondary); border: 1px solid var(--border-color);

@@ -1,5 +1,9 @@
 class MessageTemplate < ApplicationRecord
   belongs_to :account
+  # user_id nil = modelo GERAL (todo mundo da empresa usa, só diretoria
+  # administra); preenchido = modelo INDIVIDUAL ("Meus modelos"), só o dono
+  # vê, usa e edita (pedido da Clara, 2026-10-16).
+  belongs_to :user, optional: true
   has_one_attached :attachment
 
   validates :nome, presence: true
@@ -9,6 +13,11 @@ class MessageTemplate < ApplicationRecord
   validates :mensagem, presence: true, unless: -> { attachment.attached? }
 
   scope :ordered, -> { order(:nome) }
+  scope :visible_to, ->(user) { where(user_id: nil).or(where(user_id: user.id)) }
+
+  def geral?
+    user_id.nil?
+  end
 
   def attachment_url
     return nil unless attachment.attached?

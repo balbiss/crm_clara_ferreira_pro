@@ -808,6 +808,13 @@ const saveReorder = async () => {
           <span>Manual do Sistema</span>
         </router-link>
 
+        <!-- Diretoria acha em Configurações; o resto da equipe precisa daqui
+             pra cadastrar os "Meus modelos". -->
+        <router-link v-if="!isCriticalConfig" to="/settings/modelos-mensagem" class="nav-item">
+          <MessageSquareText class="icon" />
+          <span>Modelos de Mensagem</span>
+        </router-link>
+
         <router-link v-if="isCriticalConfig" to="/fluxos" class="nav-item">
           <GitBranch class="icon" />
           <span>Fluxos</span>

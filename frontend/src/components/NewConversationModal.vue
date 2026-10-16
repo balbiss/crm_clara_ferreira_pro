@@ -115,7 +115,8 @@ function iniciarComNumero() {
 }
 
 async function iniciar(criarConversa) {
-  const { inboxId, cancelled } = await pickWhatsappInbox()
+  // Dentro de uma caixa no menu, a conversa nova sai por ela sem perguntar.
+  const { inboxId, cancelled } = await pickWhatsappInbox({ preferredInboxId: store.sidebarInboxId })
   if (cancelled) return
 
   isStarting.value = true

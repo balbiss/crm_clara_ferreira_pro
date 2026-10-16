@@ -215,7 +215,9 @@ const router = createRouter({
           path: 'settings/modelos-mensagem',
           name: 'SettingsMessageTemplates',
           component: () => import('../views/settings/MessageTemplates.vue'),
-          meta: { requiresCriticalConfig: true }
+          // Aberta a todos desde os "Meus modelos" (2026-10-16) — modelo
+          // geral continua só da diretoria, regra no backend.
+          meta: {}
         },
         // Rotas abertas a todos
         {

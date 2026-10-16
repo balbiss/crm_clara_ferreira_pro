@@ -37,7 +37,8 @@ import {
   Mic,
   Square,
   Pencil,
-  Forward
+  Forward,
+  MessageSquareText
 } from '@lucide/vue'
 
 import api from '../api'
@@ -929,14 +930,49 @@ const fetchMessageTemplates = async () => {
     console.error('Erro ao buscar modelos de mensagem:', e)
   }
 }
+// "/" ou "\" (a Clara usa a barra invertida) abre a lista. Antes só
+// filtrava pelo nome e mostrava 8 — quem não decorou os nomes não achava
+// nada (pedido 2026-10-16). Agora pesquisa nome, categoria e o TEXTO do
+// modelo, sem acento, todas as palavras; mostra todos com rolagem; seta pra
+// navegar, Enter usa, Esc fecha. "Meus modelos" aparecem primeiro.
+const isSlashMode = computed(() => /^[/\\]/.test(newMessageText.value))
+const slashIndex = ref(0)
 const slashSuggestions = computed(() => {
-  const text = newMessageText.value
-  if (!text.startsWith('/')) return []
-  const term = text.slice(1).trim().toLowerCase()
+  if (!isSlashMode.value) return []
+  const palavras = normalizar(newMessageText.value.slice(1)).split(/\s+/).filter(Boolean)
   return messageTemplates.value
-    .filter(t => !term || t.nome.toLowerCase().includes(term) || (t.categoria || '').toLowerCase().includes(term))
-    .slice(0, 8)
+    .filter(t => {
+      const alvo = normalizar(`${t.nome} ${t.categoria || ''} ${t.mensagem || ''}`)
+      return palavras.every(p => alvo.includes(p))
+    })
+    .sort((a, b) => (a.escopo === b.escopo ? 0 : a.escopo === 'individual' ? -1 : 1))
 })
+watch(() => newMessageText.value, () => { slashIndex.value = 0 })
+
+const slashListRef = ref(null)
+const moveSlash = (delta) => {
+  const total = slashSuggestions.value.length
+  if (!total) return
+  slashIndex.value = (slashIndex.value + delta + total) % total
+  nextTick(() => slashListRef.value?.querySelector('.slash-suggestion-item.highlighted')?.scrollIntoView({ block: 'nearest' }))
+}
+const onComposerEnter = () => {
+  if (isSlashMode.value) {
+    const tpl = slashSuggestions.value[slashIndex.value]
+    if (tpl) applyTemplate(tpl)
+    return
+  }
+  handleSendMessage()
+}
+const closeSlash = () => {
+  if (isSlashMode.value) newMessageText.value = ''
+}
+const composerRef = ref(null)
+const openTemplatePicker = () => {
+  newMessageText.value = '/'
+  nextTick(() => composerRef.value?.focus())
+}
+
 const applyTemplate = async (template) => {
   newMessageText.value = template.mensagem || ''
   if (!template.attachment_url) {
@@ -1484,22 +1520,37 @@ onUnmounted(() => {
                  digitar "/" mostra os modelos que combinam com o que vier
                  depois, igual "mensagem rápida" do WhatsApp/"Modelos" do
                  Kommo (dona pediu, 2026-09-28). -->
-            <div v-if="slashSuggestions.length > 0" class="slash-suggestions">
+            <div v-if="isSlashMode" class="slash-suggestions" ref="slashListRef">
+              <div class="slash-header">
+                <span>{{ slashSuggestions.length }} modelo(s) · digite pra pesquisar · ↑↓ navega · Enter usa · Esc fecha</span>
+                <router-link to="/settings/modelos-mensagem" class="slash-manage">Gerenciar</router-link>
+              </div>
+              <div v-if="slashSuggestions.length === 0" class="slash-empty">Nenhum modelo encontrado.</div>
               <button
-                v-for="tpl in slashSuggestions"
+                v-for="(tpl, i) in slashSuggestions"
                 :key="tpl.id"
                 type="button"
-                class="slash-suggestion-item"
+                :class="['slash-suggestion-item', { highlighted: i === slashIndex }]"
+                @mouseenter="slashIndex = i"
                 @click="applyTemplate(tpl)"
               >
-                <span class="slash-suggestion-nome">{{ tpl.nome }} <Paperclip v-if="tpl.attachment_url" class="icon-xxs" /></span>
+                <span class="slash-suggestion-nome">
+                  {{ tpl.nome }}
+                  <span :class="['slash-escopo', tpl.escopo]">{{ tpl.escopo === 'individual' ? 'Meu' : 'Geral' }}</span>
+                  <Mic v-if="tpl.attachment_type && tpl.attachment_type.startsWith('audio/')" class="icon-xxs" />
+                  <Paperclip v-else-if="tpl.attachment_url" class="icon-xxs" />
+                </span>
                 <span v-if="tpl.categoria" class="slash-suggestion-categoria">{{ tpl.categoria }}</span>
-                <span class="slash-suggestion-preview">{{ tpl.mensagem || (tpl.attachment_url ? 'Anexo' : '') }}</span>
+                <span class="slash-suggestion-preview">{{ tpl.mensagem || (tpl.attachment_type && tpl.attachment_type.startsWith('audio/') ? 'Áudio' : (tpl.attachment_url ? 'Anexo' : '')) }}</span>
               </button>
             </div>
             <textarea
+              ref="composerRef"
               v-model="newMessageText"
-              @keydown.enter.exact.prevent="handleSendMessage"
+              @keydown.enter.exact.prevent="onComposerEnter"
+              @keydown.down="isSlashMode && ($event.preventDefault(), moveSlash(1))"
+              @keydown.up="isSlashMode && ($event.preventDefault(), moveSlash(-1))"
+              @keydown.esc="closeSlash"
               @paste="handlePaste"
               :placeholder="isPrivateMessage ? 'Digite uma nota privada... (dica: use / pra abrir um modelo salvo)' : 'Digite sua mensagem aqui... (dica: use / pra abrir um modelo salvo)'"
             ></textarea>
@@ -1507,6 +1558,7 @@ onUnmounted(() => {
               <div class="left-actions">
                 <input type="file" ref="fileInput" @change="handleFileChange" hidden />
                 <button class="icon-btn" @click="triggerFileInput" title="Anexar arquivo"><Paperclip class="icon-sm" /></button>
+                <button class="icon-btn" @click="openTemplatePicker" title="Modelos de mensagem (ou digite /)"><MessageSquareText class="icon-sm" /></button>
                 <div class="emoji-wrapper">
                   <button class="icon-btn" @click.stop="toggleEmojiPicker"><Smile class="icon-sm" /></button>
                   <div v-if="isEmojiPickerOpen" class="emoji-picker-container" @click.stop>
@@ -3991,10 +4043,48 @@ onUnmounted(() => {
 }
 
 .slash-suggestions {
-  max-height: 220px;
+  max-height: 320px;
   overflow-y: auto;
   border-bottom: 1px solid var(--border-color);
   background: var(--bg-secondary);
+}
+
+.slash-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  background: var(--bg-primary, #f8f8f8);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.slash-manage {
+  color: #cc0066;
+  white-space: nowrap;
+}
+
+.slash-empty {
+  padding: 0.75rem 0.9rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.slash-escopo {
+  margin-left: 0.3rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  vertical-align: middle;
+
+  &.individual { background: #ede9fe; color: #6d28d9; }
+  &.geral { background: #e0f2fe; color: #0369a1; }
 }
 
 .slash-suggestion-item {
@@ -4010,7 +4100,7 @@ onUnmounted(() => {
   text-align: left;
 
   &:last-child { border-bottom: none; }
-  &:hover { background: rgba(255, 0, 127, 0.06); }
+  &.highlighted { background: rgba(255, 0, 127, 0.08); }
 
   .slash-suggestion-nome {
     font-weight: 600;

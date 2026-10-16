@@ -14,6 +14,8 @@ class User < ApplicationRecord
   has_many :assigned_inboxes, through: :inbox_members, source: :inbox
   has_many :sales_team_memberships, dependent: :destroy
   has_many :sales_teams, through: :sales_team_memberships
+  # "Meus modelos" — modelos individuais morrem com o usuário (nunca viram geral).
+  has_many :message_templates, dependent: :destroy
   has_one_attached :avatar
 
   # Include default devise modules. Others available are:
