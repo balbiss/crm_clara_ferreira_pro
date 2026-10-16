@@ -1,9 +1,4 @@
 Rails.application.routes.draw do
-  # TEMPORÁRIO — relatórios fixos de diagnóstico, remover (ver DiagController)
-  get 'diag/contato', to: 'diag#contato'
-  get 'diag/recentes', to: 'diag#recentes'
-  get 'diag/caixas', to: 'diag#caixas'
-  get 'diag/usuarios', to: 'diag#usuarios'
   namespace :reports do
     get :overview
     get :by_agent

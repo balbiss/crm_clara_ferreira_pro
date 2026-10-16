@@ -42,7 +42,7 @@ const loginErrorMessage = (error) => {
   if (/bloquead/i.test(serverMsg)) {
     return { title: 'Usuário bloqueado', text: serverMsg }
   }
-  return { title: 'Acesso Negado', text: 'E-mail ou senha incorretos. Confira se não há espaço sobrando e se o Caps Lock está desligado. Se esqueceu a senha, use "Esqueceu a senha?".' }
+  return { title: 'Acesso Negado', text: 'E-mail ou senha incorretos. Confira se não há espaço sobrando e se o Caps Lock está desligado. Se esqueceu a senha, peça pra diretoria redefinir em Configurações → Agentes.' }
 }
 
 const handleLogin = async () => {
