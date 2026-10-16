@@ -1,9 +1,9 @@
 # Executa os gatilhos (PipelineTrigger) configurados na etapa de destino de um
-# PipelineCard, disparado quando o card entra/é criado nela — espelha o comportamento
+# PipelineCard, disparado quando o card entra/Ã© criado nela â€” espelha o comportamento
 # do "Automatize" (Digital Pipeline) do Kommo.
 #
 # Guarda de loop: "move_stage" pode encadear gatilhos (etapa A move pra B, que tem
-# gatilho movendo pra C...). MAX_CHAIN evita loop infinito se alguém configurar um
+# gatilho movendo pra C...). MAX_CHAIN evita loop infinito se alguÃ©m configurar um
 # ciclo por engano.
 class PipelineTriggerRunnerService
   MAX_CHAIN = 5
@@ -12,31 +12,58 @@ class PipelineTriggerRunnerService
     @card = pipeline_card
   end
 
+  # Gatilhos "quando o lead ENTRAR na etapa".
   def call(chain_depth: 0)
     return if chain_depth >= MAX_CHAIN
 
-    @card.pipeline_stage.pipeline_triggers.where(active: true).order(:position).each do |trigger|
-      if trigger.delay_minutes.to_i.positive?
-        # Condição de tempo (PDF Etapa 2, página 11 — "X horas após o lead
-        # entrar nessa etapa"): agenda em vez de rodar na hora. O job
-        # confere de novo se o card ainda tá na mesma etapa antes de
-        # executar — se já saiu, a ação não roda (mesmo comportamento do
-        # Kommo mostrado no exemplo).
-        PipelineTriggerFireJob.set(wait: trigger.delay_minutes.minutes).perform_later(trigger.id, @card.id, chain_depth)
-      else
-        run_trigger(trigger, chain_depth)
-      end
+    @card.pipeline_stage.pipeline_triggers.where(active: true, event: 'enter').order(:position).each do |trigger|
+      dispatch(trigger, chain_depth)
     end
   end
 
+  # Gatilhos "quando o CLIENTE RESPONDER" (chamado por PipelineClientReplyJob a
+  # cada mensagem do cliente). Roda UMA vez por permanÃªncia do card na etapa:
+  # a primeira resposta marca reply_triggered_at (atÃ´mico no banco, entÃ£o 2
+  # mensagens quase simultÃ¢neas nÃ£o disparam em duplicado) e a marca sÃ³ zera
+  # quando o card muda de etapa (PipelineCard). Sem isso, aÃ§Ãµes como "Adicionar
+  # nota" ou "Criar tarefa" repetiriam a cada mensagem.
+  def call_for_client_reply(chain_depth: 0)
+    return if chain_depth >= MAX_CHAIN
+
+    triggers = @card.pipeline_stage.pipeline_triggers.where(active: true, event: 'client_reply').order(:position).to_a
+    return if triggers.empty?
+
+    claimed = PipelineCard.where(id: @card.id, reply_triggered_at: nil).update_all(reply_triggered_at: Time.current)
+    return unless claimed == 1
+
+    # update_all nÃ£o atualiza o objeto em memÃ³ria â€” sem recarregar, quando o
+    # gatilho move o card o "zerar a marca" do PipelineCard nÃ£o enxergaria
+    # mudanÃ§a nenhuma e a marca ficaria presa na etapa nova.
+    @card.reload
+    triggers.each { |trigger| dispatch(trigger, chain_depth) }
+  end
+
   # Ponto de entrada usado pelo PipelineTriggerFireJob pra rodar 1 gatilho
-  # isolado depois do atraso — precisa ser público, o resto do fluxo (call)
+  # isolado depois do atraso â€” precisa ser pÃºblico, o resto do fluxo (call)
   # continua privado.
   def run_single_trigger(trigger, chain_depth:)
     run_trigger(trigger, chain_depth)
   end
 
   private
+
+  def dispatch(trigger, chain_depth)
+    if trigger.delay_minutes.to_i.positive?
+      # CondiÃ§Ã£o de tempo (PDF Etapa 2, pÃ¡gina 11 â€” "X horas apÃ³s o lead
+      # entrar nessa etapa"): agenda em vez de rodar na hora. O job
+      # confere de novo se o card ainda tÃ¡ na mesma etapa antes de
+      # executar â€” se jÃ¡ saiu, a aÃ§Ã£o nÃ£o roda (mesmo comportamento do
+      # Kommo mostrado no exemplo).
+      PipelineTriggerFireJob.set(wait: trigger.delay_minutes.minutes).perform_later(trigger.id, @card.id, chain_depth)
+    else
+      run_trigger(trigger, chain_depth)
+    end
+  end
 
   def run_trigger(trigger, chain_depth)
     case trigger.action_type
@@ -46,6 +73,8 @@ class PipelineTriggerRunnerService
       change_owner(trigger)
     when 'create_note'
       create_note(trigger)
+    when 'create_task'
+      TriggerTaskCreator.call(contact: @card.contact, config: trigger.config)
     when 'ai_start'
       set_ai_paused(false)
     when 'ai_stop'

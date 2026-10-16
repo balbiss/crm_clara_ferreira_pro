@@ -9,7 +9,15 @@ class PipelineCard < ApplicationRecord
   validates :contact_id, uniqueness: { scope: :pipeline_id }
   validate :stage_belongs_to_pipeline
 
+  # Mudou de etapa: o gatilho "quando o cliente responder" da etapa NOVA volta
+  # a valer (ver PipelineTriggerRunnerService#call_for_client_reply).
+  before_update :reset_reply_trigger_flag, if: :pipeline_stage_id_changed?
+
   private
+
+  def reset_reply_trigger_flag
+    self.reply_triggered_at = nil
+  end
 
   def stage_belongs_to_pipeline
     return if pipeline_stage.nil? || pipeline.nil?

@@ -45,12 +45,35 @@ const ACTION_TYPES = [
   { value: 'move_stage', label: 'Mudar etapa do lead' },
   { value: 'change_owner', label: 'Alterar responsável' },
   { value: 'create_note', label: 'Adicionar nota' },
+  { value: 'create_task', label: 'Criar tarefa' },
   { value: 'ai_start', label: 'Ligar agente de IA' },
   { value: 'ai_stop', label: 'Pausar agente de IA' },
   { value: 'send_webhook', label: 'Enviar webhook' },
   { value: 'start_flow', label: 'Iniciar fluxo' }
 ]
 const actionLabel = (type) => ACTION_TYPES.find(a => a.value === type)?.label || type
+
+// Quando o gatilho dispara: o lead entra na etapa (padrão, o único modo até
+// 2026-10-16) ou o cliente responde estando na etapa.
+const EVENT_OPTIONS = [
+  { value: 'enter', label: 'Quando o lead entrar na etapa', short: 'Ao entrar' },
+  { value: 'client_reply', label: 'Quando o cliente responder (estando nesta etapa)', short: 'Quando o cliente responder' }
+]
+const eventShort = (trigger) => EVENT_OPTIONS.find(e => e.value === (trigger.event || 'enter'))?.short || ''
+
+const TASK_TIPOS = [
+  { value: 'manual_acompanhamento', label: 'Acompanhamento' },
+  { value: 'manual_ligar', label: 'Ligar' },
+  { value: 'manual_mensagem', label: 'Enviar mensagem' },
+  { value: 'manual_agendamento', label: 'Agendar acerto' },
+  { value: 'manual_cobranca', label: 'Cobrança' },
+  { value: 'manual_outro', label: 'Outro' }
+]
+const TASK_PRIORIDADES = [
+  { value: 'normal', label: 'Normal' },
+  { value: 'alta', label: 'Alta' },
+  { value: 'urgente', label: 'Urgente' }
+]
 
 const delaySummary = (trigger) => {
   const m = trigger.delay_minutes || 0
@@ -61,6 +84,10 @@ const delaySummary = (trigger) => {
 }
 
 const triggerSummary = (trigger) => {
+  if (trigger.action_type === 'create_task') {
+    const prazo = trigger.config.prazo_horas ? ` (vence em ${trigger.config.prazo_horas}h)` : ''
+    return `${actionLabel(trigger.action_type)}: "${trigger.config.titulo || '?'}"${prazo}`
+  }
   if (trigger.action_type === 'move_stage') {
     const target = pipeline.value.pipeline_stages.find(s => s.id === trigger.config.target_stage_id)
     return `${actionLabel(trigger.action_type)} → ${target?.name || '?'}`
@@ -78,7 +105,11 @@ const triggerSummary = (trigger) => {
 
 const showTriggerModal = ref(false)
 const triggerStageId = ref(null)
-const emptyTrigger = () => ({ action_type: '', target_stage_id: null, user_id: null, content: '', url: '', flow_id: null, delay_hours: 0, delay_minutes: 0 })
+const emptyTrigger = () => ({
+  action_type: '', event: 'enter', target_stage_id: null, user_id: null, content: '', url: '', flow_id: null,
+  task_titulo: '', task_descricao: '', task_tipo: 'manual_acompanhamento', task_prazo_horas: 0, task_prioridade: 'normal', task_user_id: null,
+  delay_hours: 0, delay_minutes: 0
+})
 const newTrigger = ref(emptyTrigger())
 
 const openTriggerModal = (stageId) => {
@@ -103,6 +134,16 @@ const saveTrigger = async () => {
   } else if (t.action_type === 'create_note') {
     if (!t.content.trim()) return Swal.fire({ icon: 'warning', title: 'Atenção', text: 'Escreva o texto da nota.' })
     config = { content: t.content.trim() }
+  } else if (t.action_type === 'create_task') {
+    if (!t.task_titulo.trim()) return Swal.fire({ icon: 'warning', title: 'Atenção', text: 'Escreva o título da tarefa.' })
+    config = {
+      titulo: t.task_titulo.trim(),
+      descricao: t.task_descricao.trim(),
+      tipo: t.task_tipo,
+      prazo_horas: parseInt(t.task_prazo_horas) || 0,
+      prioridade: t.task_prioridade
+    }
+    if (t.task_user_id) config.user_id = t.task_user_id
   } else if (t.action_type === 'send_webhook') {
     if (!t.url.trim()) return Swal.fire({ icon: 'warning', title: 'Atenção', text: 'Informe a URL do webhook.' })
     config = { url: t.url.trim() }
@@ -114,7 +155,7 @@ const saveTrigger = async () => {
   const delay_minutes = (parseInt(t.delay_hours) || 0) * 60 + (parseInt(t.delay_minutes) || 0)
 
   try {
-    await pipelinesStore.createTrigger(triggerStageId.value, { action_type: t.action_type, config, delay_minutes })
+    await pipelinesStore.createTrigger(triggerStageId.value, { action_type: t.action_type, event: t.event, config, delay_minutes })
     showTriggerModal.value = false
   } catch (e) {
     Swal.fire({ icon: 'error', title: 'Erro', text: e.response?.data?.errors?.join(', ') || 'Não foi possível criar o gatilho.' })
@@ -169,7 +210,10 @@ const removeTrigger = async (stageId, triggerId) => {
           <div class="trigger-list">
             <div v-for="trigger in stage.pipeline_triggers" :key="trigger.id" class="trigger-chip">
               <Zap class="icon-xs" />
-              <span>{{ triggerSummary(trigger) }} <em class="trigger-delay">— {{ delaySummary(trigger) }}</em></span>
+              <span>
+                <b class="trigger-event">{{ eventShort(trigger) }}:</b>
+                {{ triggerSummary(trigger) }} <em class="trigger-delay">— {{ delaySummary(trigger) }}</em>
+              </span>
               <button class="trigger-chip-remove" @click="removeTrigger(stage.id, trigger.id)"><X class="icon-xs" /></button>
             </div>
           </div>
@@ -217,6 +261,45 @@ const removeTrigger = async (stageId, triggerId) => {
             <textarea v-model="newTrigger.content" rows="3" placeholder="Ex: Lead entrou na etapa de negociação"></textarea>
           </div>
 
+          <template v-if="newTrigger.action_type === 'create_task'">
+            <div class="form-group">
+              <label>Título da tarefa</label>
+              <input type="text" v-model="newTrigger.task_titulo" maxlength="120" placeholder="Ex: Acompanhar — ligar ou chamar no WhatsApp" />
+            </div>
+            <div class="form-group">
+              <label>Tipo</label>
+              <select v-model="newTrigger.task_tipo">
+                <option v-for="t in TASK_TIPOS" :key="t.value" :value="t.value">{{ t.label }}</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Detalhes <span class="empty-hint">(opcional)</span></label>
+              <textarea v-model="newTrigger.task_descricao" rows="2" placeholder="O que precisa ser feito"></textarea>
+            </div>
+            <div class="form-group">
+              <label>Prazo pra fazer a tarefa</label>
+              <div class="delay-row">
+                <span>Vence em</span>
+                <input type="number" min="0" v-model.number="newTrigger.task_prazo_horas" class="delay-input" />
+                <span>horas</span>
+              </div>
+              <p class="empty-hint">0 = vence na hora que a tarefa for criada.</p>
+            </div>
+            <div class="form-group">
+              <label>Prioridade</label>
+              <select v-model="newTrigger.task_prioridade">
+                <option v-for="p in TASK_PRIORIDADES" :key="p.value" :value="p.value">{{ p.label }}</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Responsável pela tarefa</label>
+              <select v-model="newTrigger.task_user_id">
+                <option :value="null">O responsável pela revendedora/lead</option>
+                <option v-for="ag in agentsStore.agents" :key="ag.id" :value="ag.id">{{ ag.first_name }} {{ ag.last_name }}</option>
+              </select>
+            </div>
+          </template>
+
           <div class="form-group" v-if="newTrigger.action_type === 'send_webhook'">
             <label>URL do webhook</label>
             <input type="text" v-model="newTrigger.url" placeholder="https://..." />
@@ -232,11 +315,21 @@ const removeTrigger = async (stageId, triggerId) => {
           </div>
 
           <p v-if="['ai_start', 'ai_stop'].includes(newTrigger.action_type)" class="empty-hint">
-            Sem configuração extra — dispara direto quando o lead entra nessa etapa.
+            Sem configuração extra — dispara direto na hora escolhida abaixo.
           </p>
 
           <div class="form-group" v-if="newTrigger.action_type">
-            <label>Quando executar</label>
+            <label>Quando disparar</label>
+            <select v-model="newTrigger.event">
+              <option v-for="e in EVENT_OPTIONS" :key="e.value" :value="e.value">{{ e.label }}</option>
+            </select>
+            <p v-if="newTrigger.event === 'client_reply'" class="empty-hint">
+              Dispara na 1ª mensagem que o cliente mandar enquanto o lead estiver nesta etapa. Roda uma vez só por etapa (se o lead sair e voltar, vale de novo).
+            </p>
+          </div>
+
+          <div class="form-group" v-if="newTrigger.action_type">
+            <label>Executar</label>
             <div class="delay-row">
               <span>Depois de</span>
               <input type="number" min="0" v-model.number="newTrigger.delay_hours" class="delay-input" />
@@ -244,7 +337,12 @@ const removeTrigger = async (stageId, triggerId) => {
               <input type="number" min="0" max="59" v-model.number="newTrigger.delay_minutes" class="delay-input" />
               <span>min</span>
             </div>
-            <p class="empty-hint">Deixe 0 e 0 pra disparar imediatamente ao entrar nessa etapa.</p>
+            <p class="empty-hint">
+              Deixe 0 e 0 pra executar na hora
+              <template v-if="newTrigger.event === 'client_reply'">em que o cliente responder.</template>
+              <template v-else>em que o lead entrar nessa etapa.</template>
+              Se o lead sair da etapa antes do tempo acabar, a ação não roda.
+            </p>
           </div>
 
           <div class="modal-actions">
@@ -339,10 +437,13 @@ const removeTrigger = async (stageId, triggerId) => {
   display: flex; align-items: center; gap: 0.35rem; background: rgba(255, 0, 127, 0.08);
   border: 1px solid rgba(255, 0, 127, 0.25); border-radius: 6px; padding: 0.4rem 0.5rem;
   color: var(--primary); font-size: 0.72rem; font-weight: 600;
-  span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  // Quebra em várias linhas (antes cortava com "…" e escondia o evento/ação,
+  // que agora são mais compridos: "Quando o cliente responder: Mudar etapa...").
+  span { flex: 1; min-width: 0; white-space: normal; overflow-wrap: anywhere; line-height: 1.3; }
 }
 .trigger-chip-remove { background: none; border: none; color: inherit; cursor: pointer; display: flex; opacity: 0.7; &:hover { opacity: 1; } }
 .trigger-delay { font-style: normal; opacity: 0.75; font-weight: 500; }
+.trigger-event { font-weight: 700; }
 
 .trigger-add-btn {
   display: flex; align-items: center; justify-content: center; gap: 0.35rem; background: none;

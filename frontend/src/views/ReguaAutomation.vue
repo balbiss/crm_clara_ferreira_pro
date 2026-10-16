@@ -50,6 +50,7 @@ const ACTION_TYPES = [
   { value: 'change_status', label: 'Mudar status da revendedora' },
   { value: 'change_owner', label: 'Alterar responsável' },
   { value: 'create_note', label: 'Adicionar nota' },
+  { value: 'create_task', label: 'Criar tarefa' },
   { value: 'ai_start', label: 'Ligar agente de IA' },
   { value: 'ai_stop', label: 'Pausar agente de IA' },
   { value: 'send_webhook', label: 'Enviar webhook' },
@@ -67,7 +68,25 @@ const delaySummary = (trigger) => {
   return `Depois de ${h ? `${h}h` : ''}${h && min ? ' ' : ''}${min ? `${min}min` : ''}`
 }
 
+const TASK_TIPOS = [
+  { value: 'manual_acompanhamento', label: 'Acompanhamento' },
+  { value: 'manual_ligar', label: 'Ligar' },
+  { value: 'manual_mensagem', label: 'Enviar mensagem' },
+  { value: 'manual_agendamento', label: 'Agendar acerto' },
+  { value: 'manual_cobranca', label: 'Cobrança' },
+  { value: 'manual_outro', label: 'Outro' }
+]
+const TASK_PRIORIDADES = [
+  { value: 'normal', label: 'Normal' },
+  { value: 'alta', label: 'Alta' },
+  { value: 'urgente', label: 'Urgente' }
+]
+
 const triggerSummary = (trigger) => {
+  if (trigger.action_type === 'create_task') {
+    const prazo = trigger.config.prazo_horas ? ` (vence em ${trigger.config.prazo_horas}h)` : ''
+    return `${actionLabel(trigger.action_type)}: "${trigger.config.titulo || '?'}"${prazo}`
+  }
   if (trigger.action_type === 'change_status') {
     return `${actionLabel(trigger.action_type)} → ${statusLabel(trigger.config.target_status)}`
   }
@@ -84,7 +103,11 @@ const triggerSummary = (trigger) => {
 
 const showTriggerModal = ref(false)
 const triggerStatus = ref(null)
-const emptyTrigger = () => ({ action_type: '', target_status: null, user_id: null, content: '', url: '', flow_id: null, delay_hours: 0, delay_minutes: 0 })
+const emptyTrigger = () => ({
+  action_type: '', target_status: null, user_id: null, content: '', url: '', flow_id: null,
+  task_titulo: '', task_descricao: '', task_tipo: 'manual_acompanhamento', task_prazo_horas: 0, task_prioridade: 'normal', task_user_id: null,
+  delay_hours: 0, delay_minutes: 0
+})
 const newTrigger = ref(emptyTrigger())
 
 const openTriggerModal = (status) => {
@@ -109,6 +132,16 @@ const saveTrigger = async () => {
   } else if (t.action_type === 'create_note') {
     if (!t.content.trim()) return Swal.fire({ icon: 'warning', title: 'Atenção', text: 'Escreva o texto da nota.' })
     config = { content: t.content.trim() }
+  } else if (t.action_type === 'create_task') {
+    if (!t.task_titulo.trim()) return Swal.fire({ icon: 'warning', title: 'Atenção', text: 'Escreva o título da tarefa.' })
+    config = {
+      titulo: t.task_titulo.trim(),
+      descricao: t.task_descricao.trim(),
+      tipo: t.task_tipo,
+      prazo_horas: parseInt(t.task_prazo_horas) || 0,
+      prioridade: t.task_prioridade
+    }
+    if (t.task_user_id) config.user_id = t.task_user_id
   } else if (t.action_type === 'send_webhook') {
     if (!t.url.trim()) return Swal.fire({ icon: 'warning', title: 'Atenção', text: 'Informe a URL do webhook.' })
     config = { url: t.url.trim() }
@@ -221,6 +254,45 @@ const removeTrigger = async (triggerId) => {
             <label>Texto da nota</label>
             <textarea v-model="newTrigger.content" rows="3" placeholder="Ex: Revendedora entrou no 3º dia"></textarea>
           </div>
+
+          <template v-if="newTrigger.action_type === 'create_task'">
+            <div class="form-group">
+              <label>Título da tarefa</label>
+              <input type="text" v-model="newTrigger.task_titulo" maxlength="120" placeholder="Ex: Ligar pra combinar o acerto" />
+            </div>
+            <div class="form-group">
+              <label>Tipo</label>
+              <select v-model="newTrigger.task_tipo">
+                <option v-for="t in TASK_TIPOS" :key="t.value" :value="t.value">{{ t.label }}</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Detalhes <span class="empty-hint">(opcional)</span></label>
+              <textarea v-model="newTrigger.task_descricao" rows="2" placeholder="O que precisa ser feito"></textarea>
+            </div>
+            <div class="form-group">
+              <label>Prazo pra fazer a tarefa</label>
+              <div class="delay-row">
+                <span>Vence em</span>
+                <input type="number" min="0" v-model.number="newTrigger.task_prazo_horas" class="delay-input" />
+                <span>horas</span>
+              </div>
+              <p class="empty-hint">0 = vence na hora que a tarefa for criada.</p>
+            </div>
+            <div class="form-group">
+              <label>Prioridade</label>
+              <select v-model="newTrigger.task_prioridade">
+                <option v-for="p in TASK_PRIORIDADES" :key="p.value" :value="p.value">{{ p.label }}</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Responsável pela tarefa</label>
+              <select v-model="newTrigger.task_user_id">
+                <option :value="null">O responsável pela revendedora</option>
+                <option v-for="ag in agentsStore.agents" :key="ag.id" :value="ag.id">{{ ag.first_name }} {{ ag.last_name }}</option>
+              </select>
+            </div>
+          </template>
 
           <div class="form-group" v-if="newTrigger.action_type === 'send_webhook'">
             <label>URL do webhook</label>
@@ -342,7 +414,7 @@ const removeTrigger = async (triggerId) => {
   display: flex; align-items: center; gap: 0.35rem; background: rgba(255, 0, 127, 0.08);
   border: 1px solid rgba(255, 0, 127, 0.25); border-radius: 6px; padding: 0.4rem 0.5rem;
   color: var(--primary); font-size: 0.72rem; font-weight: 600;
-  span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  span { flex: 1; min-width: 0; white-space: normal; overflow-wrap: anywhere; line-height: 1.3; }
 }
 .trigger-chip-remove { background: none; border: none; color: inherit; cursor: pointer; display: flex; opacity: 0.7; &:hover { opacity: 1; } }
 .trigger-delay { font-style: normal; opacity: 0.75; font-weight: 500; }

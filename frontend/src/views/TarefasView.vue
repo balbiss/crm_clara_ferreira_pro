@@ -6,6 +6,7 @@ import api from '../api'
 import Swal from 'sweetalert2'
 import { useConversationsStore } from '../store/conversations'
 import { pickWhatsappInbox } from '../composables/useInboxPicker'
+import { isFullPortfolio } from '../config/roles'
 
 // Tela de Tarefas (briefing seção 28.4). Antes as tarefas eram DERIVADAS em
 // tempo real (status + dias no ciclo, sem persistir nada) — não dava pra
@@ -288,6 +289,87 @@ const confirmComplete = async () => {
   }
 }
 
+// "Nova tarefa" manual — só gerente/diretoria (mesma regra do backend,
+// TarefasController#create). Antes a função existia no servidor, mas a tela
+// não tinha botão nenhum pra usar (Clara perguntou "como gero tarefas?").
+const currentUser = (() => { try { return JSON.parse(localStorage.getItem('user')) || {} } catch { return {} } })()
+const canCreateTask = isFullPortfolio(currentUser)
+
+const showNewTaskModal = ref(false)
+const isSavingNewTask = ref(false)
+const emptyNewTask = () => ({
+  contact: null, tipo: 'manual_ligar', titulo: '', descricao: '', prioridade: 'normal', vencimento: '', user_id: ''
+})
+const newTask = ref(emptyNewTask())
+const contactQuery = ref('')
+const contactResults = ref([])
+const isSearchingContact = ref(false)
+let contactSearchTimeout = null
+
+const openNewTaskModal = () => {
+  const amanha = new Date(Date.now() + 86_400_000)
+  amanha.setHours(9, 0, 0, 0)
+  // datetime-local quer "AAAA-MM-DDTHH:MM" no horário LOCAL (toISOString é UTC).
+  const pad = (n) => String(n).padStart(2, '0')
+  const local = `${amanha.getFullYear()}-${pad(amanha.getMonth() + 1)}-${pad(amanha.getDate())}T${pad(amanha.getHours())}:${pad(amanha.getMinutes())}`
+  newTask.value = { ...emptyNewTask(), vencimento: local }
+  contactQuery.value = ''
+  contactResults.value = []
+  showNewTaskModal.value = true
+}
+const closeNewTaskModal = () => { showNewTaskModal.value = false }
+
+watch(contactQuery, (q) => {
+  clearTimeout(contactSearchTimeout)
+  if (newTask.value.contact || q.trim().length < 2) { contactResults.value = []; return }
+  contactSearchTimeout = setTimeout(async () => {
+    isSearchingContact.value = true
+    try {
+      const { data } = await api.get('/contacts', { params: { q: q.trim(), per_page: 8 } })
+      contactResults.value = data
+    } catch (e) {
+      console.error('Erro ao buscar revendedora:', e)
+    } finally {
+      isSearchingContact.value = false
+    }
+  }, 300)
+})
+
+const pickContact = (c) => {
+  newTask.value.contact = c
+  contactQuery.value = ''
+  contactResults.value = []
+}
+
+const saveNewTask = async () => {
+  const t = newTask.value
+  if (!t.contact) return Swal.fire({ icon: 'warning', title: 'Atenção', text: 'Escolha a revendedora.' })
+  isSavingNewTask.value = true
+  try {
+    await api.post('/tarefas', {
+      tarefa: {
+        contact_id: t.contact.id,
+        tipo: t.tipo,
+        titulo: t.titulo.trim() || MANUAL_TIPO_LABELS[t.tipo],
+        descricao: t.descricao.trim() || undefined,
+        prioridade: t.prioridade,
+        user_id: t.user_id || undefined,
+        vencimento_em: t.vencimento ? new Date(t.vencimento).toISOString() : undefined
+      }
+    })
+    closeNewTaskModal()
+    viewMode.value = 'pendentes'
+    await fetchTarefas()
+    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Tarefa criada!', showConfirmButton: false, timer: 2500 })
+  } catch (e) {
+    console.error('Erro ao criar tarefa:', e)
+    const msg = e.response?.data?.message || e.response?.data?.error || 'Erro ao criar tarefa.'
+    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: msg, showConfirmButton: false, timer: 4000 })
+  } finally {
+    isSavingNewTask.value = false
+  }
+}
+
 onMounted(async () => {
   await fetchTarefas()
   if (!convStore.agents.length) await convStore.fetchAgents()
@@ -299,14 +381,17 @@ onMounted(async () => {
     <div class="page-header">
       <div class="title-block">
         <h1>Tarefas</h1>
-        <p v-if="viewMode === 'pendentes'">{{ visibleTasksCount }} tarefa{{ visibleTasksCount === 1 ? '' : 's' }} pendente{{ visibleTasksCount === 1 ? '' : 's' }}, geradas automaticamente pela régua do ciclo</p>
+        <p v-if="viewMode === 'pendentes'">{{ visibleTasksCount }} tarefa{{ visibleTasksCount === 1 ? '' : 's' }} pendente{{ visibleTasksCount === 1 ? '' : 's' }}, geradas pela régua do ciclo, pelos gatilhos ou criadas por você</p>
         <p v-else>{{ visibleTasksCount }} tarefa{{ visibleTasksCount === 1 ? '' : 's' }} concluída{{ visibleTasksCount === 1 ? '' : 's' }}</p>
       </div>
-      <div class="view-tabs">
-        <button class="view-tab" :class="{ active: viewMode === 'pendentes' }" @click="viewMode = 'pendentes'">Pendentes</button>
-        <button class="view-tab" :class="{ active: viewMode === 'concluidas' }" @click="viewMode = 'concluidas'">
-          <CheckCheck class="icon-xs" /> Concluídas
-        </button>
+      <div class="header-actions">
+        <button v-if="canCreateTask" class="new-task-btn" @click="openNewTaskModal"><Plus class="icon-xs" /> Nova tarefa</button>
+        <div class="view-tabs">
+          <button class="view-tab" :class="{ active: viewMode === 'pendentes' }" @click="viewMode = 'pendentes'">Pendentes</button>
+          <button class="view-tab" :class="{ active: viewMode === 'concluidas' }" @click="viewMode = 'concluidas'">
+            <CheckCheck class="icon-xs" /> Concluídas
+          </button>
+        </div>
       </div>
     </div>
 
@@ -405,6 +490,76 @@ onMounted(async () => {
       <p v-else>Ajuste os filtros ou aguarde a equipe concluir alguma tarefa.</p>
     </div>
 
+    <!-- Modal Nova tarefa (manual — gerente/diretoria) -->
+    <div v-if="showNewTaskModal" class="modal-backdrop" @click.self="closeNewTaskModal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>Nova tarefa</h3>
+          <button class="close-btn" @click="closeNewTaskModal"><X class="icon-sm" /></button>
+        </div>
+
+        <form @submit.prevent="saveNewTask" class="modal-form">
+          <div class="form-group">
+            <label>Revendedora</label>
+            <div v-if="newTask.contact" class="picked-contact">
+              <strong>{{ newTask.contact.name || 'Sem nome' }}</strong>
+              <span>{{ newTask.contact.phone }}</span>
+              <button type="button" class="picked-clear" @click="newTask.contact = null">Trocar</button>
+            </div>
+            <template v-else>
+              <input type="text" v-model="contactQuery" placeholder="Buscar por nome ou telefone..." autocomplete="off" />
+              <div v-if="isSearchingContact" class="contact-hint">Buscando...</div>
+              <div v-else-if="contactQuery.trim().length >= 2 && contactResults.length === 0" class="contact-hint">Nenhuma revendedora encontrada.</div>
+              <div v-if="contactResults.length" class="contact-results">
+                <button v-for="c in contactResults" :key="c.id" type="button" class="contact-result" @click="pickContact(c)">
+                  <strong>{{ c.name || 'Sem nome' }}</strong> <span>{{ c.phone }}</span>
+                </button>
+              </div>
+            </template>
+          </div>
+
+          <div class="form-group">
+            <label>Tipo</label>
+            <select v-model="newTask.tipo">
+              <option v-for="(label, tipo) in MANUAL_TIPO_LABELS" :key="tipo" :value="tipo">{{ label }}</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Título (opcional)</label>
+            <input type="text" v-model="newTask.titulo" maxlength="120" :placeholder="MANUAL_TIPO_LABELS[newTask.tipo]" />
+          </div>
+          <div class="form-group">
+            <label>Detalhes (opcional)</label>
+            <textarea v-model="newTask.descricao" rows="3" placeholder="O que precisa ser feito"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Prioridade</label>
+            <select v-model="newTask.prioridade">
+              <option v-for="(label, p) in PRIORITY_LABELS" :key="p" :value="p">{{ label }}</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Vence em</label>
+            <input type="datetime-local" v-model="newTask.vencimento" />
+          </div>
+          <div class="form-group">
+            <label>Responsável</label>
+            <select v-model="newTask.user_id">
+              <option value="">Quem é responsável pela revendedora</option>
+              <option v-for="ag in convStore.agents" :key="ag.id" :value="ag.id">{{ `${ag.first_name || ''} ${ag.last_name || ''}`.trim() }}</option>
+            </select>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn-cancel" @click="closeNewTaskModal">Cancelar</button>
+            <button type="submit" class="btn-submit" :disabled="isSavingNewTask || !newTask.contact">
+              {{ isSavingNewTask ? 'Salvando...' : 'Criar tarefa' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <!-- Modal de conclusão (PDF Etapa 2, página 9) -->
     <div v-if="showCompleteModal" class="modal-backdrop" @click.self="closeCompleteModal">
       <div class="modal-card">
@@ -472,6 +627,28 @@ onMounted(async () => {
 
   h1 { font-size: 1.35rem; font-weight: 700; color: var(--text-main); }
   p { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem; }
+}
+
+.header-actions { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.new-task-btn {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  padding: 0.55rem 1rem; border: none; border-radius: 8px;
+  background: var(--primary); color: #fff; font-weight: 600; font-size: 0.85rem; cursor: pointer;
+}
+.picked-contact {
+  display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+  padding: 0.5rem 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.88rem;
+  span { color: var(--text-muted); }
+}
+.picked-clear { margin-left: auto; background: none; border: none; color: var(--primary); cursor: pointer; font-size: 0.8rem; text-decoration: underline; }
+.contact-hint { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.3rem; }
+.contact-results { margin-top: 0.35rem; border: 1px solid var(--border-color); border-radius: 8px; max-height: 200px; overflow-y: auto; }
+.contact-result {
+  display: flex; flex-direction: column; align-items: flex-start; width: 100%; gap: 0.1rem;
+  padding: 0.5rem 0.75rem; background: none; border: none; border-bottom: 1px solid var(--border-color); cursor: pointer; text-align: left;
+  &:last-child { border-bottom: none; }
+  &:hover { background: rgba(255, 0, 127, 0.05); }
+  span { font-size: 0.78rem; color: var(--text-muted); }
 }
 
 .view-tabs {

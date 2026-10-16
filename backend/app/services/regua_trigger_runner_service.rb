@@ -39,6 +39,8 @@ class ReguaTriggerRunnerService
       change_owner(trigger)
     when 'create_note'
       create_note(trigger)
+    when 'create_task'
+      TriggerTaskCreator.call(contact: @contact, config: trigger.config)
     when 'ai_start'
       set_ai_paused(false)
     when 'ai_stop'

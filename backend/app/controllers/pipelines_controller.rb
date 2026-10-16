@@ -13,7 +13,7 @@ class PipelinesController < ApplicationController
       include: {
         pipeline_stages: {
           only: %i[id name color position],
-          include: { pipeline_triggers: { only: %i[id action_type config position active] } }
+          include: { pipeline_triggers: { only: %i[id action_type event config position active delay_minutes] } }
         }
       }
     )

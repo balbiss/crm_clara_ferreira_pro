@@ -9,6 +9,7 @@ class ReguaTrigger < ApplicationRecord
     change_status
     change_owner
     create_note
+    create_task
     ai_start
     ai_stop
     send_webhook
@@ -19,6 +20,7 @@ class ReguaTrigger < ApplicationRecord
     'change_status' => 'Mudar status da revendedora',
     'change_owner'  => 'Alterar responsável',
     'create_note'   => 'Adicionar nota',
+    'create_task'   => 'Criar tarefa',
     'ai_start'      => 'Ligar agente de IA',
     'ai_stop'       => 'Pausar agente de IA',
     'send_webhook'  => 'Enviar webhook',
@@ -44,6 +46,8 @@ class ReguaTrigger < ApplicationRecord
       errors.add(:config, 'precisa de um responsável') if config['user_id'].blank?
     when 'create_note'
       errors.add(:config, 'precisa de um texto de nota') if config['content'].blank?
+    when 'create_task'
+      errors.add(:config, 'precisa de um título pra tarefa') if config['titulo'].blank?
     when 'send_webhook'
       errors.add(:config, 'precisa de uma URL') if config['url'].blank?
     when 'start_flow'

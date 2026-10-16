@@ -410,7 +410,13 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
           <p class="lead">Lista de ações que a equipe precisa tomar, geradas automaticamente pela régua (3º, 10º, 20º dia e Atrasada) e também criadas manualmente. Diferente de antes, toda tarefa é um registro de verdade — fica salva mesmo depois de concluída, pra auditoria.</p>
 
           <h2>Como uma tarefa nasce</h2>
-          <p>Quando a régua avança o status de uma revendedora (3º/10º/20º dia ou Atrasada), o sistema cria a tarefa correspondente sozinho, com um checklist fixo de passos esperados naquela etapa. Ninguém precisa criar essas manualmente. Tarefas manuais (Ligar, Enviar mensagem, Agendar acerto, Cobrança, Acompanhamento, Outro) são criadas por Gerente/Diretoria pra qualquer revendedora, a qualquer momento.</p>
+          <p>Existem <strong>três jeitos</strong>:</p>
+          <ul>
+            <li><strong>Automática pela régua:</strong> quando a régua avança o status de uma revendedora (3º/10º/20º dia ou Atrasada), o sistema cria a tarefa correspondente sozinho, com um checklist fixo de passos esperados naquela etapa.</li>
+            <li><strong>Automática por gatilho:</strong> em <em>Automatize</em> (funis) ou na régua do Consignado, a ação <strong>Criar tarefa</strong> cria uma tarefa quando o lead entra numa etapa (com atraso, se quiser) ou quando o cliente responde. Veja a seção Gatilhos.</li>
+            <li><strong>Manual:</strong> Gerente/Diretoria clicam em <strong>+ Nova tarefa</strong> (canto superior direito da tela), buscam a revendedora e escolhem tipo (Ligar, Enviar mensagem, Agendar acerto, Cobrança, Acompanhamento, Outro), título, detalhes, prioridade, prazo e responsável.</li>
+          </ul>
+          <p class="note">Cada revendedora pode ter <strong>uma tarefa pendente de cada tipo</strong> por vez. Se já existe uma "Ligar" pendente, o CRM não cria outra "Ligar" até a primeira ser concluída.</p>
 
           <h2>Abas Pendentes / Concluídas</h2>
           <p>Tarefa concluída não desaparece — vai pra aba <strong>Concluídas</strong>, com data de conclusão e o resultado registrado (ver abaixo). A aba <strong>Pendentes</strong> agrupa automaticamente em Atrasadas / Hoje / Amanhã / Mais adiante, conforme o vencimento.</p>
@@ -468,7 +474,18 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
         <!-- ══════════════════════════════════════ GATILHOS -->
         <section id="gatilhos">
           <h1>Gatilhos de Pipeline</h1>
-          <p class="lead">Automação por etapa: quando um card entra numa coluna, o CRM pode executar uma ação sozinho — com ou sem atraso. Acessível pelo botão <strong>Automatize</strong> dentro de cada pipeline. Diferente dos <button type="button" class="inline-link" @click="scrollTo('fluxos')">Fluxos</button>: gatilho reage a <em>mudança de etapa no funil</em>, fluxo reage a <em>mensagem recebida no WhatsApp</em>.</p>
+          <p class="lead">Automação por etapa: quando um card entra numa coluna — ou quando o cliente responde estando nela — o CRM pode executar uma ação sozinho, com ou sem atraso. Acessível pelo botão <strong>Automatize</strong> dentro de cada pipeline. Diferente dos <button type="button" class="inline-link" @click="scrollTo('fluxos')">Fluxos</button>: gatilho reage a <em>mudança de etapa no funil</em> ou à <em>resposta do cliente</em>, fluxo conversa por <em>mensagem no WhatsApp</em>.</p>
+
+          <h2>Quando o gatilho dispara</h2>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Disparo</th><th>Quando acontece</th></tr></thead>
+              <tbody>
+                <tr><td>Quando o lead entrar na etapa</td><td>Na hora em que o card chega na coluna (arrastado, movido por outro gatilho ou criado nela)</td></tr>
+                <tr><td>Quando o cliente responder</td><td>Na 1ª mensagem que o cliente mandar enquanto o card estiver nessa coluna. Roda <strong>uma vez só</strong> por etapa — se o card sair e voltar, vale de novo. Só conta mensagem do cliente (nunca da equipe, nota privada ou histórico importado).</td></tr>
+              </tbody>
+            </table>
+          </div>
 
           <h2>Ações disponíveis</h2>
           <div class="table-wrap">
@@ -478,6 +495,7 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
                 <tr><td>Mudar etapa do lead</td><td>Move o card pra outra coluna do mesmo pipeline</td></tr>
                 <tr><td>Alterar responsável</td><td>Reatribui a revendedora pra outro agente</td></tr>
                 <tr><td>Adicionar nota</td><td>Registra uma nota automática no histórico</td></tr>
+                <tr><td>Criar tarefa</td><td>Cria uma tarefa na tela <strong>Tarefas</strong> (título, tipo, prioridade, prazo em horas e responsável). Se já existe uma tarefa pendente do mesmo tipo pra essa pessoa, não cria outra.</td></tr>
                 <tr><td>Ligar / Pausar agente de IA</td><td>Liga ou pausa a resposta automática pra essa revendedora</td></tr>
                 <tr><td>Enviar webhook</td><td>Manda os dados por POST pra uma URL externa</td></tr>
                 <tr><td>Iniciar fluxo</td><td>Dispara um dos Fluxos de conversa já criados (ver seção Fluxos)</td></tr>
@@ -486,14 +504,17 @@ onUnmounted(() => document.querySelector('.manual-content')?.removeEventListener
           </div>
 
           <h2>Condição de tempo</h2>
-          <p>Todo gatilho pode ser <strong>imediato</strong> (assim que o card entra na coluna) ou com <strong>atraso configurável</strong> (ex: "depois de 1h", "depois de 1 dia") — igual ao exemplo do Kommo que motivou o pedido.</p>
+          <p>Todo gatilho pode ser <strong>imediato</strong> ou com <strong>atraso configurável</strong> (ex: "depois de 1h", "depois de 1 dia") — igual ao exemplo do Kommo que motivou o pedido. Se o card sair da etapa antes de o tempo acabar, a ação <strong>não roda</strong>.</p>
 
           <h2>Como criar</h2>
           <ol>
             <li>Abra o pipeline → <strong>Automatize</strong></li>
             <li>Na coluna desejada, clique em <strong>+ Adicionar gatilho</strong></li>
-            <li>Escolha a ação, configure o atraso e salve</li>
+            <li>Escolha a ação e preencha o que ela pede</li>
+            <li>Em <strong>Quando disparar</strong>, escolha "quando o lead entrar" ou "quando o cliente responder"</li>
+            <li>Configure o atraso (ou deixe 0 e 0 pra ser na hora) e salve</li>
           </ol>
+          <p class="note"><strong>Exemplo:</strong> na coluna "Primeiro Contato", gatilho "Mudar etapa do lead → Em atendimento" com disparo "quando o cliente responder": assim que o cliente responder a primeira mensagem, o card pula sozinho pra "Em atendimento".</p>
         </section>
 
         <div class="divider" />

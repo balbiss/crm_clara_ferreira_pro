@@ -18,6 +18,7 @@ class Message < ApplicationRecord
   after_create_commit :update_conversation_activity
   after_create_commit :increment_conversation_unread_count
   after_create_commit :notify_agent_of_new_message, unless: :historical_import
+  after_create_commit :run_client_reply_triggers, unless: :historical_import
 
   # Reenvia o broadcast depois que texto/anexo terminam de ser processados.
   # Necessário pro webhook do Baileys: a mensagem é criada (e já dispara o
@@ -49,6 +50,20 @@ class Message < ApplicationRecord
     return if historical_import && created_at < 24.hours.ago
 
     conversation.increment!(:unread_count)
+  end
+
+  # Gatilhos "quando o cliente responder" das etapas de pipeline em que o
+  # contato está (PipelineClientReplyJob). Só mensagem do CLIENTE, nunca nota
+  # privada nem importação de histórico. Falha aqui nunca pode atrapalhar o
+  # recebimento da mensagem.
+  def run_client_reply_triggers
+    return unless sender_type == 'Contact'
+    return if is_private
+
+    contact_id = conversation&.contact_id
+    PipelineClientReplyJob.perform_later(contact_id) if contact_id
+  rescue StandardError => e
+    Rails.logger.error("Message#run_client_reply_triggers: #{e.class} #{e.message}")
   end
 
   def notify_agent_of_new_message

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_16_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_16_130000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -440,6 +440,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_16_120000) do
     t.bigint "pipeline_id", null: false
     t.bigint "pipeline_stage_id", null: false
     t.integer "position", default: 0, null: false
+    t.datetime "reply_triggered_at"
     t.datetime "updated_at", null: false
     t.index ["contact_id"], name: "index_pipeline_cards_on_contact_id"
     t.index ["pipeline_id", "contact_id"], name: "index_pipeline_cards_on_pipeline_id_and_contact_id", unique: true
@@ -463,6 +464,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_16_120000) do
     t.jsonb "config", default: {}, null: false
     t.datetime "created_at", null: false
     t.integer "delay_minutes", default: 0, null: false
+    t.string "event", default: "enter", null: false
     t.bigint "pipeline_stage_id", null: false
     t.integer "position", default: 0, null: false
     t.datetime "updated_at", null: false
