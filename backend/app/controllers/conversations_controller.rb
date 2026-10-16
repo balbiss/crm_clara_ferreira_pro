@@ -119,6 +119,49 @@ class ConversationsController < ApplicationController
     }
   end
 
+  # GET /conversations/:id/other_history[?with_messages=true]
+  # A mesma pessoa pode ter uma conversa em cada caixa/número (Prospecção,
+  # Comercial, Gerência...) e cada conversa mostra só as próprias mensagens —
+  # parecia "sumiu o histórico" (Clara, 2026-10-16: Emili tinha 47 msgs em
+  # outra caixa). Sem with_messages devolve só o resumo (leve, chamado ao abrir
+  # a conversa); com ele, as mensagens das outras conversas já no formato do
+  # chat, cada uma marcada com a caixa de origem. Só entra o que quem pede
+  # já poderia ver (mesma visibilidade da lista).
+  def other_history
+    conversation = visible_conversations_scope.find(params[:id])
+    others = visible_conversations_scope
+      .where(contact_id: conversation.contact_id)
+      .where.not(id: conversation.id)
+      .includes(:inbox).to_a
+
+    summary = others.map do |c|
+      scope = c.messages.where(is_private: false)
+      {
+        id: c.id, inbox_id: c.inbox_id, inbox_name: c.inbox&.name,
+        messages_count: scope.count, first_at: scope.minimum(:created_at), last_at: scope.maximum(:created_at)
+      }
+    end.select { |s| s[:messages_count].positive? }
+
+    messages = []
+    if params[:with_messages].to_s == 'true' && summary.any?
+      users_hash = current_user.account.users.index_by(&:id)
+      inbox_by_conv = others.index_by(&:id)
+      messages = Message.where(conversation_id: summary.map { |s| s[:id] }, is_private: false)
+        .includes(attachment_attachment: :blob)
+        .order(created_at: :desc).limit(1500).to_a.reverse
+        .map do |m|
+          format_message(m, users_hash).merge(
+            conversationId: m.conversation_id,
+            inboxName: inbox_by_conv[m.conversation_id]&.inbox&.name
+          )
+        end
+    end
+
+    render json: { conversations: summary, messages: messages }
+  rescue ActiveRecord::RecordNotFound
+    render json: { error: 'not_found', message: 'Conversa não encontrada ou fora da sua carteira.' }, status: :not_found
+  end
+
   def show
     conversation = visible_conversations_scope
       .includes(:user, :tags, :inbox, messages: { attachment_attachment: :blob }, contact: { notes: :user, pedidos: {}, reseller_phones: {}, lifecycle_events: {} })
@@ -526,27 +569,29 @@ class ConversationsController < ApplicationController
       # da Clara: saber quantas conversas começaram num período, 2026-09-25).
       created_at_iso: conv.created_at.iso8601,
       unread: conv.unread_count,
-      messages: sorted_messages.map do |msg|
-        sender_type = msg.sender_type.downcase
-        {
-          id: msg.id,
-          senderType: sender_type == 'user' ? 'agent' : sender_type,
-          text: msg.text,
-          timestamp: msg.created_at.iso8601,
-          status: msg.status,
-          agentName: msg.sender_type == 'User' ? (users_hash[msg.sender_id]&.first_name || 'Agente') : nil,
-          agentAvatarUrl: msg.sender_type == 'User' ? users_hash[msg.sender_id]&.avatar_url : nil,
-          isPrivate: msg.is_private,
-          attachmentUrl: msg.attachment.attached? ? Rails.application.routes.url_helpers.rails_storage_proxy_url(msg.attachment, host: ENV['API_HOST'] || 'http://localhost:3000') : nil,
-          attachmentType: msg.attachment.attached? ? msg.attachment.content_type : nil,
-          transcription: msg.transcription
-        }
-      end,
+      messages: sorted_messages.map { |msg| format_message(msg, users_hash) },
       assignee: conv.user&.first_name,
       assignee_id: conv.user_id,
       status: conv.status,
       snoozed_until: conv.snoozed_until,
       tags: conv.tags.map { |t| { id: t.id, name: t.name, color: t.color } }
+    }
+  end
+
+  def format_message(msg, users_hash = {})
+    sender_type = msg.sender_type.downcase
+    {
+      id: msg.id,
+      senderType: sender_type == 'user' ? 'agent' : sender_type,
+      text: msg.text,
+      timestamp: msg.created_at.iso8601,
+      status: msg.status,
+      agentName: msg.sender_type == 'User' ? (users_hash[msg.sender_id]&.first_name || 'Agente') : nil,
+      agentAvatarUrl: msg.sender_type == 'User' ? users_hash[msg.sender_id]&.avatar_url : nil,
+      isPrivate: msg.is_private,
+      attachmentUrl: msg.attachment.attached? ? Rails.application.routes.url_helpers.rails_storage_proxy_url(msg.attachment, host: ENV['API_HOST'] || 'http://localhost:3000') : nil,
+      attachmentType: msg.attachment.attached? ? msg.attachment.content_type : nil,
+      transcription: msg.transcription
     }
   end
 

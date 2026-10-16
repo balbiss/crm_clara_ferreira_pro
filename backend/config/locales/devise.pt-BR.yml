@@ -45,3 +45,6 @@ pt-BR:
       invalid_token: "Token de autenticação inválido."
       timeout: "Sua sessão expirou. Por favor, faça login novamente para continuar."
       inactive: "Sua conta ainda não foi ativada."
+      # User#inactive_message devolve :account_inactive pra usuário com status
+      # diferente de "active" (bloqueado em Configurações → Agentes).
+      account_inactive: "Seu usuário está bloqueado. Fale com a diretoria."

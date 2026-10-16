@@ -1012,15 +1012,98 @@ const applyTemplate = async (template) => {
   }
 }
 
+// Histórico completo (mesma pessoa, outros números) — resumo busca ao abrir a
+// conversa (leve); as mensagens só quando clica em "Ver histórico completo".
+const emptyOtherHistory = () => ({ conversations: [], messages: [] })
+const otherHistory = ref(emptyOtherHistory())
+const showFullHistory = ref(false)
+const isLoadingOtherHistory = ref(false)
+let otherHistorySeq = 0
+
+const otherHistoryNames = computed(() => [...new Set(otherHistory.value.conversations.map(c => c.inbox_name).filter(Boolean))].join(', ') || 'outro número')
+const otherHistoryTotal = computed(() => otherHistory.value.conversations.reduce((s, c) => s + (c.messages_count || 0), 0))
+
+const fetchOtherHistory = async (convId, withMessages = false) => {
+  const seq = ++otherHistorySeq
+  try {
+    const { data } = await api.get(`/conversations/${convId}/other_history`, { params: withMessages ? { with_messages: true } : {} })
+    // Resposta de uma conversa que já não é a aberta (troca rápida) é descartada.
+    if (seq !== otherHistorySeq || convId !== store.activeConversationId) return null
+    return data
+  } catch (e) {
+    console.error('Erro ao buscar histórico de outros números:', e)
+    return null
+  }
+}
+
+watch(() => store.activeConversationId, async (id) => {
+  showFullHistory.value = false
+  otherHistory.value = emptyOtherHistory()
+  if (!id) return
+  const data = await fetchOtherHistory(id)
+  if (data) otherHistory.value = { conversations: data.conversations || [], messages: [] }
+}, { immediate: true })
+
+const loadFullHistory = async () => {
+  const id = store.activeConversationId
+  if (!id || isLoadingOtherHistory.value) return
+  isLoadingOtherHistory.value = true
+  try {
+    const data = await fetchOtherHistory(id, true)
+    if (data) {
+      otherHistory.value = { conversations: data.conversations || [], messages: data.messages || [] }
+      showFullHistory.value = true
+      scrollToBottom()
+    }
+  } finally {
+    isLoadingOtherHistory.value = false
+  }
+}
+
+// Lista exibida no chat: só a conversa aberta, ou (histórico completo) as
+// mensagens de todos os números em ordem de data. Mensagem que acabou de ser
+// enviada pelo CRM vem com horário "HH:MM" (sem data) — essas são sempre as
+// mais novas, então ficam no fim. "dividerBefore" marca a troca de número.
+const displayMessages = computed(() => {
+  const conv = store.activeConversation
+  if (!conv) return []
+  const proprias = conv.messages || []
+  if (!showFullHistory.value || otherHistory.value.messages.length === 0) return proprias
+
+  const tempo = (m) => {
+    const t = Date.parse(m.timestamp)
+    return Number.isNaN(t) ? Number.MAX_SAFE_INTEGER : t
+  }
+  const todas = [
+    ...proprias.map(m => ({ m, inbox: conv.inbox_name })),
+    ...otherHistory.value.messages.map(m => ({ m, inbox: m.inboxName }))
+  ].sort((a, b) => tempo(a.m) - tempo(b.m))
+
+  let anterior = null
+  return todas.map(({ m, inbox }) => {
+    const marca = inbox !== anterior ? inbox : null
+    anterior = inbox
+    return marca ? { ...m, inboxName: inbox, dividerBefore: marca } : (m.inboxName === inbox ? m : { ...m, inboxName: inbox })
+  })
+})
+
 // Botão "T" ao lado do áudio (igual Kommo): transcreve sob demanda. O texto
 // fica salvo no backend, então quem abrir a conversa depois já vê pronto.
 const transcribingIds = ref({})
 const transcribeAudio = async (msg) => {
+  // Mensagem vinda de OUTRA conversa (histórico completo) transcreve pela
+  // conversa de origem.
+  const convId = msg.conversationId || store.activeConversation.id
   if (transcribingIds.value[msg.id]) return
   transcribingIds.value[msg.id] = true
   try {
-    const { data } = await api.post(`/conversations/${store.activeConversation.id}/messages/${msg.id}/transcribe`)
+    const { data } = await api.post(`/conversations/${convId}/messages/${msg.id}/transcribe`)
     msg.transcription = data.transcription
+    // No histórico completo a lista exibida tem cópias — atualiza também a
+    // mensagem de verdade (da conversa aberta ou de outro número).
+    const original = (store.activeConversation?.messages || []).find(x => x.id === msg.id)
+      || otherHistory.value.messages.find(x => x.id === msg.id)
+    if (original && original !== msg) original.transcription = data.transcription
   } catch (error) {
     const motivo = error.response?.data?.error || 'Falha ao transcrever o áudio.'
     Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: motivo, showConfirmButton: false, timer: 4000 })
@@ -1419,8 +1502,24 @@ onUnmounted(() => {
       </div>
 
       <div class="chat-messages" ref="messagesContainerRef" v-if="store.activeConversation">
-        
-        <div class="message-wrapper" v-for="msg in store.activeConversation.messages" :key="msg.id" :id="'msg-' + msg.id" :class="[msg.senderType, { 'search-hit': highlightedMessageId === msg.id }]">
+
+        <!-- Mesma pessoa com conversa em outro número: cada caixa mostra só as
+             próprias mensagens e parecia que o histórico tinha sumido (Clara,
+             2026-10-16). Aqui dá pra juntar tudo numa linha do tempo só. -->
+        <div v-if="otherHistory.conversations.length" class="other-history-banner">
+          <template v-if="!showFullHistory">
+            <span>📚 Essa pessoa também conversou por <strong>{{ otherHistoryNames }}</strong> ({{ otherHistoryTotal }} {{ otherHistoryTotal === 1 ? 'mensagem' : 'mensagens' }}).</span>
+            <button type="button" :disabled="isLoadingOtherHistory" @click="loadFullHistory">{{ isLoadingOtherHistory ? 'Carregando...' : 'Ver histórico completo' }}</button>
+          </template>
+          <template v-else>
+            <span>Mostrando o histórico de <strong>todos os números</strong>. Você responde por <strong>{{ store.activeConversation.inbox_name }}</strong>.</span>
+            <button type="button" @click="showFullHistory = false">Só esta conversa</button>
+          </template>
+        </div>
+
+        <template v-for="msg in displayMessages" :key="msg.id">
+        <div v-if="msg.dividerBefore" class="inbox-divider"><span>📱 {{ msg.dividerBefore }}</span></div>
+        <div class="message-wrapper" :id="'msg-' + msg.id" :class="[msg.senderType, { 'search-hit': highlightedMessageId === msg.id, 'from-other-inbox': msg.inboxName && msg.inboxName !== store.activeConversation.inbox_name }]">
           
           <div class="msg-avatar" v-if="msg.senderType === 'contact'">
             <img v-if="store.activeConversation.contact.avatar_url" :src="store.activeConversation.contact.avatar_url" />
@@ -1473,8 +1572,9 @@ onUnmounted(() => {
           </div>
 
         </div>
+        </template>
 
-        <div class="empty-state" v-if="store.activeConversation.messages.length === 0">
+        <div class="empty-state" v-if="displayMessages.length === 0">
           <div class="icon-circle">
             <MessageCircle class="icon-lg" />
           </div>
@@ -2801,6 +2901,49 @@ onUnmounted(() => {
   gap: 1rem;
   background-color: #f4f6f8; /* Slightly darker background like Chatwoot */
 }
+
+.other-history-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid rgba(204, 0, 102, 0.25);
+  border-radius: 8px;
+  background: #fdf2f8;
+  color: var(--text-main);
+  font-size: 0.8rem;
+
+  button {
+    padding: 0.3rem 0.8rem;
+    border: none;
+    border-radius: 6px;
+    background: #cc0066;
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    &:disabled { opacity: 0.6; cursor: wait; }
+  }
+}
+
+.inbox-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.4rem 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+
+  &::before, &::after { content: ''; flex: 1; height: 1px; background: var(--border-color, #e2e8f0); }
+}
+
+/* Mensagem de outro número no histórico completo: levemente esmaecida pra não
+   parecer da conversa atual. */
+.message-wrapper.from-other-inbox { opacity: 0.85; }
 
 .message-wrapper {
   display: flex;

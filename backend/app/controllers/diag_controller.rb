@@ -24,6 +24,27 @@ class DiagController < ApplicationController
     render json: suspeitas.first(60).map { |c| conversa_json(c).merge(contato: c.contact&.slice(:id, :name, :phone, :jid, :user_id, :created_at)) }
   end
 
+  # GET /diag/usuarios?q=parte do email ou nome  (ou ?bloqueados=1) — só dados
+  # de cadastro pra investigar "não consegue entrar": NUNCA devolve senha, hash
+  # nem token.
+  def usuarios
+    users = User.order(:id)
+    if params[:bloqueados].present?
+      users = users.where.not(status: 'active').or(users.where(status: nil))
+    else
+      q = "%#{User.sanitize_sql_like(params[:q].to_s.strip.downcase)}%"
+      users = users.where("lower(email) LIKE :q OR lower(coalesce(first_name,'') || ' ' || coalesce(last_name,'')) LIKE :q", q: q)
+    end
+    render json: users.limit(30).map { |u|
+      u.slice(:id, :first_name, :last_name, :email, :role, :status, :department, :account_id, :created_at, :updated_at).merge(
+        email_tem_maiuscula: u.email != u.email.downcase,
+        email_tem_espaco: u.email != u.email.strip,
+        pode_entrar: u.active_for_authentication?,
+        tem_senha: u.encrypted_password.present?
+      )
+    }
+  end
+
   # GET /diag/caixas — configuração de cada caixa.
   def caixas
     render json: Inbox.order(:id).map { |i|

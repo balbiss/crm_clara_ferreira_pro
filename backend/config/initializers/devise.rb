@@ -267,7 +267,20 @@ Devise.setup do |config|
   # should add them to the navigational formats lists.
   #
   # The "*/*" below is required to match Internet Explorer requests.
-  # config.navigational_formats = ['*/*', :html, :turbo_stream]
+  # API pura: nenhum formato é "navegável". Com o padrão (['*/*', :html, ...]) o
+  # navegador/axios manda `Accept: ... */*`, o Devise tratava como página web
+  # e, em login errado ou usuário bloqueado, tentava renderizar uma tela que
+  # não existe: respondia 422 com {"message":"Login bem-sucedido"} (!) e o
+  # motivo real se perdia (Clara, 2026-10-16: "tem usuário que não consegue
+  # entrar"). Também fazia rota sem login responder 500 em vez de 401.
+  # Com [] toda falha de autenticação vira 401 + {"error": "<motivo>"}.
+  config.navigational_formats = []
+
+  # Toda falha de autenticação responde 401 + JSON (lib/json_failure_app.rb).
+  require Rails.root.join('lib/json_failure_app').to_s
+  config.warden do |manager|
+    manager.failure_app = JsonFailureApp
+  end
 
   # The default HTTP method used to sign out a resource. Default is :delete.
   config.sign_out_via = :delete

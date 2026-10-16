@@ -3,6 +3,7 @@ Rails.application.routes.draw do
   get 'diag/contato', to: 'diag#contato'
   get 'diag/recentes', to: 'diag#recentes'
   get 'diag/caixas', to: 'diag#caixas'
+  get 'diag/usuarios', to: 'diag#usuarios'
   namespace :reports do
     get :overview
     get :by_agent
@@ -68,6 +69,7 @@ Rails.application.routes.draw do
     member do
       post :generate_summary
       get :ai_status
+      get :other_history
       post :resume_ai
       get :transcript
       post :mark_as_read

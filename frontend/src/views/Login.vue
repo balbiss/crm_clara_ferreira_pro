@@ -25,6 +25,26 @@ onMounted(() => {
   }
 })
 
+// Antes qualquer falha mostrava "e-mail ou senha incorretos" — inclusive usuário
+// bloqueado, servidor fora do ar e internet caída — e ninguém sabia o que
+// fazer (Clara, 2026-10-16: "tem usuário que não consegue entrar").
+const loginErrorMessage = (error) => {
+  const status = error.response?.status
+  const data = error.response?.data
+  const serverMsg = String(typeof data === 'string' ? data : (data?.error || ''))
+
+  if (!error.response) {
+    return { title: 'Sem conexão', text: 'Não consegui falar com o servidor. Verifique a internet e tente de novo.' }
+  }
+  if (status >= 500 || status === 429) {
+    return { title: 'Sistema instável', text: 'O sistema está com problema agora. Aguarde um minuto e tente de novo. Se continuar, avise a diretoria.' }
+  }
+  if (/bloquead/i.test(serverMsg)) {
+    return { title: 'Usuário bloqueado', text: serverMsg }
+  }
+  return { title: 'Acesso Negado', text: 'E-mail ou senha incorretos. Confira se não há espaço sobrando e se o Caps Lock está desligado. Se esqueceu a senha, use "Esqueceu a senha?".' }
+}
+
 const handleLogin = async () => {
   isLoading.value = true
 
@@ -63,10 +83,11 @@ const handleLogin = async () => {
     window.location.href = '/dashboard'
   } catch (error) {
     console.error("Login error", error)
+    const { title, text } = loginErrorMessage(error)
     Swal.fire({
       icon: 'error',
-      title: 'Acesso Negado',
-      text: 'E-mail ou senha incorretos. Verifique e tente novamente.',
+      title,
+      text,
       confirmButtonColor: '#cc0066',
       customClass: { icon: 'swal-icon-pulse-slow' }
     })
