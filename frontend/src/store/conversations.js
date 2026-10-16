@@ -60,6 +60,14 @@ export const useConversationsStore = defineStore('conversations', {
     advancedFilters: [],
     ws: null,
     lastFetchedAt: null,
+    // Paginação da lista (2026-10-16): antes só vinha a 1ª página (100 mais
+    // recentes da CONTA toda) e a caixa era filtrada no navegador — numa caixa
+    // quieta (Gerência-Expansão, 161 conversas) só apareciam 2.
+    conversationsPage: 1,
+    conversationsHasMore: false,
+    isLoadingMore: false,
+    inboxLoaded: {},   // { [inboxId]: true } — todas as conversas da caixa já vieram
+    inboxLoading: {},  // { [inboxId]: true } — carregando agora
     currentUser: (() => {
       try {
         return JSON.parse(localStorage.getItem('user')) || { first_name: 'Usuário', email: '' }
@@ -184,22 +192,63 @@ export const useConversationsStore = defineStore('conversations', {
   },
 
   actions: {
-    async fetchConversations() {
-      try {
-        const response = await api.get('/conversations')
-        // A lista só traz as 100 mais recentes. Conversa aberta pela
-        // pesquisa/Painel que for mais antiga sumia a cada recarga (WebSocket
-        // reconectando, mensagem de conversa fora da lista...) e o chat ficava
-        // em branco (Ana, 2026-10-15). Mantém a aberta e atualiza ela à parte.
-        const aberta = this.conversations.find(c => c.id === this.activeConversationId)
-        this.conversations = response.data
-        if (aberta && !this.conversations.some(c => c.id === aberta.id)) {
-          this.conversations.push(aberta)
-          api.get(`/conversations/${aberta.id}`).then(({ data }) => {
-            const idx = this.conversations.findIndex(c => c.id === data.id)
-            if (idx !== -1) this.conversations[idx] = data
-          }).catch(() => {})
+    // ---- Lista de conversas (modo "lista": só a última mensagem; o chat
+    // completo vem de GET /conversations/:id quando a conversa é aberta) ----
+
+    // messagesLoaded === false só pro item de lista; conversa vinda de
+    // POST/GET /conversations/:id (completa) conta como carregada.
+    _normalizar(conv) {
+      return { ...conv, messagesLoaded: conv.messages_loaded !== false }
+    },
+
+    // Item novo da lista sem derrubar o que já está carregado: se a conversa já
+    // tem o chat completo na memória (aberta/visitada), mantém as mensagens e os
+    // detalhes do contato — o item de lista só traz a última mensagem.
+    _preservarCarregado(antigo, novo) {
+      if (!antigo || antigo.messagesLoaded === false || novo.messagesLoaded !== false) return novo
+      const ids = new Set((antigo.messages || []).map(m => m.id))
+      return {
+        ...novo,
+        messages: [...(antigo.messages || []), ...(novo.messages || []).filter(m => !ids.has(m.id))],
+        messagesLoaded: true,
+        _paged: antigo._paged,
+        contact: {
+          ...novo.contact,
+          pedidos: antigo.contact?.pedidos || [],
+          reseller_phones: antigo.contact?.reseller_phones || [],
+          lifecycle_events: antigo.contact?.lifecycle_events || [],
+          notes: antigo.contact?.notes || []
         }
+      }
+    },
+
+    // Adiciona conversas de páginas extras / de uma caixa SEM rebaixar o que já
+    // existe na memória (WebSocket mantém as existentes atualizadas).
+    _adicionarPaginadas(lista) {
+      const existentes = new Set(this.conversations.map(c => c.id))
+      lista.forEach(c => {
+        if (!existentes.has(c.id)) this.conversations.push({ ...c, _paged: true })
+      })
+    },
+
+    async fetchConversations() {
+      const POR_PAGINA = 100
+      try {
+        const response = await api.get('/conversations', { params: { light: true, per_page: POR_PAGINA } })
+        const recebidas = response.data.map(c => this._normalizar(c))
+
+        // Recarga da 1ª página (WebSocket reconectando, aba voltando do sono...):
+        // não pode apagar o que o usuário já abriu nem as páginas/caixas que ele
+        // carregou — senão o chat aberto ficava em branco (Ana, 2026-10-15).
+        const anteriores = new Map(this.conversations.map(c => [c.id, c]))
+        const ids = new Set(recebidas.map(c => c.id))
+        const mescladas = recebidas.map(c => this._preservarCarregado(anteriores.get(c.id), c))
+        this.conversations.forEach(c => {
+          if (!ids.has(c.id) && (c.id === this.activeConversationId || c._paged)) mescladas.push(c)
+        })
+        this.conversations = mescladas
+
+        if (this.conversationsPage === 1) this.conversationsHasMore = recebidas.length === POR_PAGINA
         this.lastFetchedAt = Date.now()
         if (!this.activeConversationId) {
           this.activeConversationId = this.sidebarFilteredConversations[0]?.id || null
@@ -207,6 +256,102 @@ export const useConversationsStore = defineStore('conversations', {
         this.setupWebSocket()
       } catch (error) {
         console.error('Error fetching conversations:', error)
+      }
+    },
+
+    // "Carregar mais conversas" (visão geral, sem caixa escolhida).
+    async loadMoreConversations() {
+      const POR_PAGINA = 100
+      if (this.isLoadingMore || !this.conversationsHasMore) return
+      this.isLoadingMore = true
+      try {
+        const pagina = this.conversationsPage + 1
+        const { data } = await api.get('/conversations', { params: { light: true, per_page: POR_PAGINA, page: pagina } })
+        this._adicionarPaginadas(data.map(c => this._normalizar(c)))
+        this.conversationsPage = pagina
+        this.conversationsHasMore = data.length === POR_PAGINA
+      } catch (error) {
+        console.error('Error loading more conversations:', error)
+      } finally {
+        this.isLoadingMore = false
+      }
+    },
+
+    // Ao escolher uma caixa no menu: busca TODAS as conversas dela no servidor
+    // (antes só aparecia o que estava entre as 100 mais recentes da conta).
+    async fetchInboxConversations(inboxId) {
+      if (!inboxId) return
+      const chave = String(inboxId)
+      if (this.inboxLoading[chave]) return
+      this.inboxLoading[chave] = true
+      const POR_PAGINA = 200
+      try {
+        for (let pagina = 1; pagina <= 25; pagina++) {
+          const { data } = await api.get('/conversations', { params: { light: true, inbox_id: inboxId, per_page: POR_PAGINA, page: pagina } })
+          this._adicionarPaginadas(data.map(c => this._normalizar(c)))
+          if (data.length < POR_PAGINA) break
+        }
+        this.inboxLoaded[chave] = true
+        this.reconcileActiveConversation()
+      } catch (error) {
+        console.error('Error fetching inbox conversations:', error)
+      } finally {
+        this.inboxLoading[chave] = false
+      }
+    },
+
+    // Chat completo da conversa aberta (a lista só traz a última mensagem).
+    async ensureMessagesLoaded(id) {
+      const conv = this.conversations.find(c => c.id === id)
+      if (!conv || conv.messagesLoaded !== false) return
+      this._carregandoCompleta = this._carregandoCompleta || {}
+      if (this._carregandoCompleta[id]) return
+      this._carregandoCompleta[id] = true
+      try {
+        const { data } = await api.get(`/conversations/${id}`)
+        const idx = this.conversations.findIndex(c => c.id === id)
+        if (idx === -1) return
+        const antigo = this.conversations[idx]
+        // Mensagem que chegou pelo WebSocket durante o carregamento e ainda não
+        // estava na resposta não pode se perder.
+        const ids = new Set(data.messages.map(m => m.id))
+        const extras = (antigo.messages || []).filter(m => !ids.has(m.id) && m.id)
+        this.conversations[idx] = {
+          ...data,
+          messages: [...data.messages, ...extras],
+          unread: antigo.unread, // "lida" local vale (mark_as_read pode ainda estar a caminho)
+          messagesLoaded: true,
+          _paged: antigo._paged
+        }
+      } catch (error) {
+        console.error('Error loading full conversation:', error)
+      } finally {
+        this._carregandoCompleta[id] = false
+      }
+    },
+
+    // Mensagem/atualização de conversa que não está na memória (fora das páginas
+    // carregadas): busca só ela — antes recarregava a lista inteira a cada
+    // mensagem. Conversa que o usuário não pode ver (404) é lembrada por 10 min.
+    async _buscarConversaDesconhecida(id, avisarNovaMensagem = false) {
+      const numero = Number(id)
+      this._naoVisiveis = this._naoVisiveis || {}
+      this._buscandoDesconhecida = this._buscandoDesconhecida || {}
+      if (this._naoVisiveis[numero] && Date.now() - this._naoVisiveis[numero] < 10 * 60 * 1000) return
+      if (this._buscandoDesconhecida[numero]) return
+      this._buscandoDesconhecida[numero] = true
+      try {
+        const { data } = await api.get(`/conversations/${numero}`)
+        if (!this.conversations.some(c => c.id === data.id)) {
+          this.conversations.push({ ...this._normalizar(data), _paged: true })
+        }
+        if (avisarNovaMensagem) {
+          window.dispatchEvent(new CustomEvent('new-message', { detail: { conversationId: numero } }))
+        }
+      } catch (error) {
+        if (error.response?.status === 404) this._naoVisiveis[numero] = Date.now()
+      } finally {
+        this._buscandoDesconhecida[numero] = false
       }
     },
 
@@ -566,7 +711,7 @@ export const useConversationsStore = defineStore('conversations', {
                 conv.preview = newMsg.text
               }
             } else {
-              this.fetchConversations()
+              this._buscarConversaDesconhecida(conversation_id, true)
             }
           } else if (payload.event === 'inbox_updated') {
             window.dispatchEvent(new CustomEvent('inbox-updated', { detail: payload }))
@@ -579,8 +724,8 @@ export const useConversationsStore = defineStore('conversations', {
             const idx = this.conversations.findIndex(c => Number(c.id) === Number(payload.conversation?.id))
             if (idx !== -1) {
               Object.assign(this.conversations[idx], payload.conversation)
-            } else {
-              this.fetchConversations()
+            } else if (payload.conversation?.id) {
+              this._buscarConversaDesconhecida(payload.conversation.id)
             }
           } else if (payload.event === 'snooze_expired') {
             const conv = this.conversations.find(c => Number(c.id) === Number(payload.conversation_id))

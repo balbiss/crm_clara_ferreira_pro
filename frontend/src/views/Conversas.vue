@@ -785,6 +785,7 @@ onMounted(async () => {
   fetchMessageTemplates()
   if (route.params.inboxId) {
     store.setSidebarInboxId(route.params.inboxId)
+    store.fetchInboxConversations(route.params.inboxId)
   } else {
     store.setSidebarFilter(route.params.filter || 'all')
   }
@@ -824,8 +825,19 @@ watch(() => route.params.filter, (newFilter) => {
 watch(() => route.params.inboxId, (newInboxId) => {
   if (newInboxId) {
     store.setSidebarInboxId(newInboxId)
+    // Busca TODAS as conversas da caixa no servidor (a lista geral só tem as 100
+    // mais recentes da conta — numa caixa quieta quase nada aparecia).
+    store.fetchInboxConversations(newInboxId)
   }
 })
+
+// A lista só traz a última mensagem de cada conversa; o chat completo é
+// buscado quando a conversa é aberta.
+watch(() => store.activeConversationId, (id) => {
+  if (id) store.ensureMessagesLoaded(id)
+}, { immediate: true })
+
+const inboxCarregando = computed(() => !!store.sidebarInboxId && !!store.inboxLoading[String(store.sidebarInboxId)])
 
 const fileInput = ref(null)
 const selectedFile = ref(null)
@@ -1457,13 +1469,23 @@ onUnmounted(() => {
           </div>
         </div>
         
-        <div class="all-loaded" v-if="store.filteredConversations.length > 0">
-          Todas as conversas carregadas 🎉
-        </div>
-        
-        <div class="all-loaded" v-else style="margin-top: 2rem;">
-          Não há conversas ativas neste grupo.
-        </div>
+        <!-- Antes dizia "Todas as conversas carregadas" mesmo só tendo vindo as
+             100 mais recentes da conta (2026-10-16). -->
+        <template v-if="store.sidebarInboxId">
+          <div class="all-loaded" v-if="inboxCarregando">Carregando as conversas desta caixa...</div>
+          <div class="all-loaded" v-else-if="store.filteredConversations.length > 0">✅ Todas as conversas desta caixa foram carregadas</div>
+          <div class="all-loaded" v-else style="margin-top: 2rem;">Não há conversas ativas nesta caixa.</div>
+        </template>
+        <template v-else>
+          <div class="load-more-box" v-if="store.conversationsHasMore">
+            <button type="button" :disabled="store.isLoadingMore" @click="store.loadMoreConversations()">
+              {{ store.isLoadingMore ? 'Carregando...' : 'Carregar mais conversas' }}
+            </button>
+            <span>Mostrando as mais recentes. Pra ver uma caixa inteira, escolha ela no menu ou use a pesquisa.</span>
+          </div>
+          <div class="all-loaded" v-else-if="store.filteredConversations.length > 0">✅ Todas as conversas carregadas</div>
+          <div class="all-loaded" v-else style="margin-top: 2rem;">Não há conversas ativas neste grupo.</div>
+        </template>
       </div>
     </div>
 
@@ -1574,7 +1596,9 @@ onUnmounted(() => {
         </div>
         </template>
 
-        <div class="empty-state" v-if="displayMessages.length === 0">
+        <div class="loading-chat" v-if="store.activeConversation.messagesLoaded === false">Carregando as mensagens...</div>
+
+        <div class="empty-state" v-if="displayMessages.length === 0 && store.activeConversation.messagesLoaded !== false">
           <div class="icon-circle">
             <MessageCircle class="icon-lg" />
           </div>
@@ -2900,6 +2924,39 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 1rem;
   background-color: #f4f6f8; /* Slightly darker background like Chatwoot */
+}
+
+.load-more-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 1rem;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-align: center;
+
+  button {
+    padding: 0.45rem 1.1rem;
+    border: 1px solid #cc0066;
+    border-radius: 6px;
+    background: #fff;
+    color: #cc0066;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    &:hover:not(:disabled) { background: #fdf2f8; }
+    &:disabled { opacity: 0.6; cursor: wait; }
+  }
+}
+
+.loading-chat {
+  align-self: center;
+  padding: 0.3rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-muted);
+  font-size: 0.75rem;
 }
 
 .other-history-banner {

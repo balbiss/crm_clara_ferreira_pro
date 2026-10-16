@@ -13,13 +13,39 @@ class ConversationsController < ApplicationController
     # consultora (Gerenciar Acesso), mas a lista principal de conversas
     # continuava vazia pra ela — a liberação não valia nada na prática
     # (dono reportou 2026-09-28, caso da Thaynara na caixa Marketing).
-    conversations = visible_conversations_scope
-      .includes(:user, :tags, :inbox, messages: { attachment_attachment: :blob }, contact: { notes: :user, pedidos: {}, reseller_phones: {}, lifecycle_events: {} })
-      .order(last_activity_at: :desc)
-      .offset((page - 1) * limit).limit(limit)
+    #
+    # 2026-10-16: a tela só pedia a 1ª página (as 100 mais recentes da CONTA
+    # inteira) e filtrava a caixa no navegador — numa caixa mais quieta
+    # (Gerência-Expansão: 161 conversas) só apareciam as 2 que estavam entre as
+    # 100 mais recentes, e a lista dizia "Todas as conversas carregadas".
+    # Agora:
+    #   ?inbox_id=  filtra por caixa no servidor
+    #   ?page=&per_page=  paginação (ordem estável: atividade desc, id desc)
+    #   ?light=true  modo LISTA: só a última mensagem de cada conversa e o
+    #                contato sem pedidos/notas/eventos (messages_loaded: false);
+    #                o chat completo vem de GET /conversations/:id ao abrir.
+    #                Sem light, a resposta é a mesma de antes (completa).
+    light = params[:light].to_s == 'true'
+    scope = visible_conversations_scope
+    scope = scope.where(inbox_id: params[:inbox_id]) if params[:inbox_id].present?
+
+    includes = if light
+      [:user, :tags, :inbox, :contact]
+    else
+      [:user, :tags, :inbox, { messages: { attachment_attachment: :blob } }, { contact: { notes: :user, pedidos: {}, reseller_phones: {}, lifecycle_events: {} } }]
+    end
+
+    conversations = scope
+      .includes(*includes)
+      .order(Arel.sql('conversations.last_activity_at DESC NULLS LAST, conversations.id DESC'))
+      .offset((page - 1) * limit).limit(limit).to_a
 
     users_hash = current_user.account.users.index_by(&:id)
-    render json: conversations.map { |conv| format_conversation(conv, users_hash) }
+    last_by_conversation = light ? last_messages_for(conversations.map(&:id)) : {}
+
+    render json: conversations.map { |conv|
+      light ? format_conversation(conv, users_hash, light: true, last_message: last_by_conversation[conv.id]) : format_conversation(conv, users_hash)
+    }
   end
 
   # POST /conversations — inicia conversa com uma revendedora que ainda não
@@ -496,11 +522,32 @@ class ConversationsController < ApplicationController
     params.require(:conversation).permit(:status, :user_id, :snoozed_until)
   end
 
-  def format_conversation(conv, users_hash = {})
-    # Sort in memory — avoids N+1 from .order() on eager-loaded association
-    sorted_messages = conv.messages.sort_by(&:created_at)
-    last_message = sorted_messages.last
-    sorted_notes = conv.contact.notes.sort_by { |n| -n.created_at.to_i }
+  # Última mensagem de cada conversa (1 query só, DISTINCT ON) pro modo lista
+  # (index?light=true) — mesma regra de antes: a mais recente, nota privada
+  # inclusive. Anexo já vem junto (evita 1 consulta por mensagem).
+  def last_messages_for(conversation_ids)
+    return {} if conversation_ids.empty?
+
+    Message.where(conversation_id: conversation_ids)
+      .select('DISTINCT ON (messages.conversation_id) messages.*')
+      .order(Arel.sql('messages.conversation_id, messages.created_at DESC, messages.id DESC'))
+      .includes(attachment_attachment: :blob)
+      .index_by(&:conversation_id)
+  end
+
+  # light: true = item de LISTA (só a última mensagem; contato sem
+  # pedidos/notas/eventos/telefones extras). A conversa completa vem de
+  # GET /conversations/:id quando alguém abre o chat (messages_loaded: true).
+  def format_conversation(conv, users_hash = {}, light: false, last_message: nil)
+    if light
+      sorted_messages = last_message ? [last_message] : []
+      sorted_notes = []
+    else
+      # Sort in memory — avoids N+1 from .order() on eager-loaded association
+      sorted_messages = conv.messages.sort_by(&:created_at)
+      last_message = sorted_messages.last
+      sorted_notes = conv.contact.notes.sort_by { |n| -n.created_at.to_i }
+    end
 
     {
       id: conv.id,
@@ -529,15 +576,15 @@ class ConversationsController < ApplicationController
         address_complement: conv.contact.address_complement,
         custom_attributes: conv.contact.custom_attributes,
         pecas_abertas_atual: conv.contact.pecas_abertas_atual,
-        pedidos: conv.contact.pedidos.map do |p|
+        pedidos: light ? [] : conv.contact.pedidos.map do |p|
           {
             id: p.id, jueri_pedido_id: p.jueri_pedido_id,
             data_criacao: p.data_criacao, data_baixa: p.data_baixa, data_cancelamento: p.data_cancelamento,
             quantidade: p.quantidade, valor_total: p.valor_total, status_id: p.status_id
           }
         end,
-        reseller_phones: conv.contact.reseller_phones.map { |rp| { id: rp.id, phone: rp.phone, label: rp.label } },
-        lifecycle_events: conv.contact.lifecycle_events.sort_by(&:occurred_at).reverse.map { |e|
+        reseller_phones: light ? [] : conv.contact.reseller_phones.map { |rp| { id: rp.id, phone: rp.phone, label: rp.label } },
+        lifecycle_events: light ? [] : conv.contact.lifecycle_events.sort_by(&:occurred_at).reverse.map { |e|
           { id: e.id, event_type: e.event_type, occurred_at: e.occurred_at, metadata: e.metadata }
         },
         notes: sorted_notes.map do |n|
@@ -570,6 +617,7 @@ class ConversationsController < ApplicationController
       created_at_iso: conv.created_at.iso8601,
       unread: conv.unread_count,
       messages: sorted_messages.map { |msg| format_message(msg, users_hash) },
+      messages_loaded: !light,
       assignee: conv.user&.first_name,
       assignee_id: conv.user_id,
       status: conv.status,

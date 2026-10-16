@@ -1,7 +1,7 @@
 require 'test_helper'
 
 # A API que as telas "Automatize" e "Tarefas" usam (2026-10-16): criar gatilho
-# com evento/aÃƒÂ§ÃƒÂ£o nova, listar funis com o atraso, criar tarefa manual.
+# com evento/ação nova, listar funis com o atraso, criar tarefa manual.
 class PipelineTriggersApiTest < ActionDispatch::IntegrationTest
   self.fixture_table_names = []
   self.use_transactional_tests = true
