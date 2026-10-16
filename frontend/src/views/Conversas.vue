@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useConversationsStore, isSemResposta } from '../store/conversations'
+import { useInboxesStore } from '../store/inboxes'
 import ConversationFilterPopover from '../components/ConversationFilterPopover.vue'
 import ConversationSortPopover from '../components/ConversationSortPopover.vue'
 import ConversationStatusDropdown from '../components/ConversationStatusDropdown.vue'
@@ -59,6 +60,7 @@ import TransferModal from '../components/TransferModal.vue'
 import ForwardMessageModal from '../components/ForwardMessageModal.vue'
 
 const store = useConversationsStore()
+const inboxesStore = useInboxesStore()
 const route = useRoute()
 const router = useRouter()
 
@@ -866,9 +868,34 @@ const notifySendError = (error) => {
   Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Não foi possível enviar a mensagem.', text: detalhe || 'Tente novamente.', showConfirmButton: false, timer: 6000 })
 }
 
+// Mesma mensagem tentada de novo (mesma conversa, texto e arquivo) reusa o
+// mesmo id — o backend reconhece e não manda em duplicado pra revendedora
+// quando o 1º envio só "demorou" (navegador desistiu, servidor terminou).
+let pendingSend = null
+const sendIdFor = (texto, arquivo) => {
+  const assinatura = `${store.activeConversationId}|${texto}|${arquivo ? `${arquivo.name}:${arquivo.size}` : ''}`
+  if (pendingSend?.assinatura !== assinatura) {
+    const novoId = window.crypto?.randomUUID ? window.crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+    pendingSend = { assinatura, id: novoId }
+  }
+  return pendingSend.id
+}
+
+// Caixa da conversa aberta com WhatsApp caído (status checado pela store de
+// caixas a cada 60s) — avisa no campo de digitar e não deixa enviar.
+const activeInboxDisconnected = computed(() => {
+  const inboxId = store.activeConversation?.inbox_id
+  if (!inboxId) return false
+  return inboxesStore.disconnectedInboxes.some(i => String(i.id) === String(inboxId))
+})
+
 let isSendingMessage = false
 const handleSendMessage = async () => {
   if (isSendingMessage || !(newMessageText.value.trim() || selectedFile.value)) return
+  if (activeInboxDisconnected.value && !isPrivateMessage.value) {
+    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'WhatsApp desconectado', text: `A caixa "${store.activeConversation?.inbox_name}" está desconectada. Reconecte em Configurações → Caixas de Entrada antes de enviar.`, showConfirmButton: false, timer: 6000 })
+    return
+  }
   isSendingMessage = true
 
   // Limpa o campo só depois que o backend confirmar o envio -- antes limpava
@@ -876,7 +903,9 @@ const handleSendMessage = async () => {
   // pessoa não percebia que precisava tentar de novo.
   try {
     const arquivo = selectedFile.value ? await prepareImage(selectedFile.value) : null
-    await store.sendMessage(newMessageText.value, isPrivateMessage.value, arquivo)
+    const clientMsgId = sendIdFor(newMessageText.value, selectedFile.value)
+    await store.sendMessage(newMessageText.value, isPrivateMessage.value, arquivo, clientMsgId)
+    pendingSend = null
     newMessageText.value = ''
     clearSelectedFile()
     scrollToBottom()
@@ -1423,6 +1452,9 @@ onUnmounted(() => {
             <Sparkles v-else class="icon-sm" />
             <span class="btn-magic-label">{{ isGeneratingSummary ? 'Resumindo...' : 'Gerar Resumo' }}</span>
           </button>
+        </div>
+        <div v-if="!isPrivateMessage && activeInboxDisconnected" class="sending-via-offline">
+          ⚠️ O WhatsApp "{{ store.activeConversation.inbox_name }}" está desconectado: a mensagem não vai chegar. Reconecte em Configurações → Caixas de Entrada.
         </div>
         <div class="input-box">
           <template v-if="isRecording">
@@ -2148,6 +2180,16 @@ onUnmounted(() => {
 
     .icon-xxs { width: 14px; height: 14px; }
   }
+}
+
+.sending-via-offline {
+  margin-bottom: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 
 .search-results {

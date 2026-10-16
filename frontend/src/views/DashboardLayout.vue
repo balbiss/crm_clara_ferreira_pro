@@ -239,13 +239,16 @@ const dismissIosBanner = () => {
 // só oculta pra aquela caixa até ela cair de novo (não persiste no reload,
 // é um alerta operacional, não é pra ficar escondido pra sempre).
 const dismissedInboxIds = ref(new Set())
-const disconnectedInboxBanner = computed(() =>
-  inboxesStore.disconnectedInboxes.find(i => !dismissedInboxIds.value.has(i.id))
+// Antes mostrava só a PRIMEIRA caixa caída — com 2+ fora do ar a equipe não
+// via as outras (Clara, 2026-10-15: Comercial-Consultores caída e a faixa só
+// falava da Prospec Comercial). Agora lista todas.
+const disconnectedInboxesVisible = computed(() =>
+  inboxesStore.disconnectedInboxes.filter(i => !dismissedInboxIds.value.has(i.id))
 )
+const disconnectedInboxBanner = computed(() => disconnectedInboxesVisible.value.length > 0)
+const disconnectedInboxNames = computed(() => disconnectedInboxesVisible.value.map(i => `"${i.name}"`).join(', '))
 const dismissDisconnectedBanner = () => {
-  if (disconnectedInboxBanner.value) {
-    dismissedInboxIds.value.add(disconnectedInboxBanner.value.id)
-  }
+  disconnectedInboxesVisible.value.forEach(i => dismissedInboxIds.value.add(i.id))
 }
 // Se a caixa reconectar, tira do "dismissed" pra alertar de novo caso caia outra vez
 watch(() => inboxesStore.disconnectedInboxes.map(i => i.id), (currentIds) => {
@@ -905,7 +908,8 @@ const saveReorder = async () => {
       </div>
 
       <div v-if="disconnectedInboxBanner" class="disconnected-banner">
-        <span>⚠️ O WhatsApp "{{ disconnectedInboxBanner.name }}" está desconectado. As mensagens não estão sendo enviadas nem recebidas.</span>
+        <span v-if="disconnectedInboxesVisible.length === 1">⚠️ O WhatsApp {{ disconnectedInboxNames }} está desconectado. As mensagens não estão sendo enviadas nem recebidas.</span>
+        <span v-else>⚠️ {{ disconnectedInboxesVisible.length }} WhatsApps desconectados: {{ disconnectedInboxNames }}. As mensagens dessas caixas não estão sendo enviadas nem recebidas.</span>
         <router-link to="/settings/inboxes" class="install-cta-btn">Reconectar</router-link>
         <button class="ios-install-banner-close" @click="dismissDisconnectedBanner">
           <X class="icon-sm" />

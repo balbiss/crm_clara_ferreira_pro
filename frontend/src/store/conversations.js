@@ -334,7 +334,7 @@ export const useConversationsStore = defineStore('conversations', {
       this.advancedFilters = filters
     },
 
-    async sendMessage(text, isPrivate = false, file = null) {
+    async sendMessage(text, isPrivate = false, file = null, clientMsgId = null) {
       // Lança erro em vez de retornar/engolir calado -- antes, se a conversa
       // ativa não estivesse pronta (troca rápida de conversa) ou a API
       // falhasse, a mensagem sumia sem aviso nenhum (Bel, 2026-10-01: o log
@@ -349,6 +349,7 @@ export const useConversationsStore = defineStore('conversations', {
         formData.append('text', text)
         formData.append('is_private', isPrivate)
         formData.append('attachment', file, file.name || 'audio.webm')
+        if (clientMsgId) formData.append('client_msg_id', clientMsgId)
         response = await api.post(`/conversations/${this.activeConversationId}/messages`, formData, {
           headers: {
             // undefined (não 'multipart/form-data') deixa o navegador gerar o
@@ -361,7 +362,8 @@ export const useConversationsStore = defineStore('conversations', {
       } else {
         response = await api.post(`/conversations/${this.activeConversationId}/messages`, {
           text,
-          is_private: isPrivate
+          is_private: isPrivate,
+          client_msg_id: clientMsgId
         })
       }
       const newMsg = response.data.message

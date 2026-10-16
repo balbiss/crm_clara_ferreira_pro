@@ -247,6 +247,19 @@ class WhatsappWahaService
     nil
   end
 
+  # Status cru da sessão na WAHA ("WORKING", "SCAN_QR_CODE", "FAILED"...),
+  # ou nil se a WAHA não respondeu — quem chama decide o que fazer com nil
+  # (o envio NÃO bloqueia por nil, só por status ruim confirmado).
+  def session_status
+    res = request(:get, "/api/sessions/#{@session}", nil, timeout: 5)
+    return nil unless res.is_a?(Net::HTTPSuccess)
+
+    (JSON.parse(res.body) rescue {})['status']
+  rescue => e
+    Rails.logger.error("Waha session_status error: #{e.message}")
+    nil
+  end
+
   def connected?
     res = request(:get, "/api/sessions/#{@session}")
     return false unless res.is_a?(Net::HTTPSuccess)
